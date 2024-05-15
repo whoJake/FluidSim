@@ -1,0 +1,22 @@
+#Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.filters
+*.user
+
+#Dependencies
+#/VulkanToy/vendor/
+#/VulkanToy/src/vendor/
+
+#Build Files
+/src/tools/bin/
+/src/tools/bin-int/
+/src/game/bin/
+/src/game/bin-int/
+
+#logs
+logs/
+
+#build
+build/
