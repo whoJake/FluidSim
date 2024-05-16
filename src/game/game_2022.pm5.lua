@@ -12,6 +12,8 @@ workspace "game_2022"
   prj_Core = "jeCore"
   prj_Framework = "jeFramework"
   prj_Graphics = "jeGraphics"
+  
+  prj_Game = "Game"
 
   g_Vendordir = "../3rdparty/"
   g_Outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}/"
@@ -225,6 +227,65 @@ workspace "game_2022"
     {
       "%{prj_Core}",
       "%{prj_Graphics}",
+    }
+
+    filter "configurations:Debug"
+      defines
+      {
+      }
+
+    filter "configurations:ReleasePdb"
+      defines
+      {
+      }
+
+    filter "configurations:Release"
+      defines
+      {
+      }
+
+  ----------------------------------------------------------------------
+  ----------------------------------GAME--------------------------------
+  ----------------------------------------------------------------------
+
+  project (prj_Game)
+    location "%{prj.name}"
+    kind "ConsoleApp"
+
+    includedirs
+    {
+      "%{prj_Core}",
+      "%{prj_Graphics}",
+      "%{prj_Framework}",
+
+      -- from prj_Graphics
+      -- glfw
+      "%{g_Vendordir}/glfw",
+
+      -- vulkan
+      "%VULKAN_SDK%/Include",
+      "%{g_Vendordir}/vma3.0.1/include",
+      "%{g_Vendordir}/glslang/StandAlone",
+      "%{g_Vendordir}/glslang/Include",
+      "%{g_Vendordir}/glslang/SPIRV",
+    }
+
+    dependson
+    {
+      "%{prj_Core}",
+      "%{prj_Graphics}",
+      "%{prj_Framework}",
+    }
+
+    libdirs
+    {
+    }
+
+    links
+    {
+      "%{prj_Core}",
+      "%{prj_Graphics}",
+      "%{prj_Framework}",
     }
 
     filter "configurations:Debug"
