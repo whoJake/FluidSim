@@ -1,18 +1,14 @@
-#Visual Studio
+# Visual Studio
 .vs/
 *.sln
 *.vcxproj
 *.filters
 *.user
 
-#Dependencies
+# Dependencies
 
-#Build Files
-/src/game/bin/
-/src/game/bin-int/
-
-#logs
+# Artifact Folders
+bin/
+bin-int/
 logs/
-
-#build
 build/
