@@ -4,12 +4,6 @@
 
 #define PARAM(name) inline ::Param Param_##name(#name)
 
-#ifdef CFG_DEBUG
-    #define DEBUG_PARAM(name) PARAM(name)
-#else
-    #define DEBUG_PARAM(name)
-#endif
-
 extern const char* g_executable;
 
 class Param

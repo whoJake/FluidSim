@@ -24,4 +24,5 @@ public:
 protected:
 private:
     ExitFlags m_exitFlags;
+    bool m_running;
 };

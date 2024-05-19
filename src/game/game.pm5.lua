@@ -1,4 +1,4 @@
-workspace "game_2022"
+workspace "game"
     architecture "x64"
 
   configurations
@@ -40,7 +40,7 @@ workspace "game_2022"
     "%{prj.name}/**.cpp",
     "%{prj.name}/**.hpp",
 
-    "game_2022.pm5.lua",
+    "game.pm5.lua",
   }
 
   exceptionhandling ("Off")
