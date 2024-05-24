@@ -13,6 +13,7 @@ workspace "game"
   prj_Framework = "jeFramework"
   prj_Graphics = "jeGraphics"
   
+  prj_DataDrivenGen = "DataDrivenGen"
   prj_Game = "Game"
 
   g_Vendordir = "../3rdparty/"
@@ -286,6 +287,50 @@ workspace "game"
       "%{prj_Core}",
       "%{prj_Graphics}",
       "%{prj_Framework}",
+    }
+
+    filter "configurations:Debug"
+      defines
+      {
+      }
+
+    filter "configurations:ReleasePdb"
+      defines
+      {
+      }
+
+    filter "configurations:Release"
+      defines
+      {
+      }
+
+  ----------------------------------------------------------------------
+  -----------------------------DataDrivenGen----------------------------
+  ----------------------------------------------------------------------
+
+  project (prj_DataDrivenGen)
+    location "%{prj.name}"
+    kind "ConsoleApp"
+    
+     exceptionhandling ("On")
+
+    includedirs
+    {
+      "%{prj_Core}",
+    }
+
+    dependson
+    {
+      "%{prj_Core}",
+    }
+
+    libdirs
+    {
+    }
+
+    links
+    {
+      "%{prj_Core}",
     }
 
     filter "configurations:Debug"
