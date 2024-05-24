@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<structdef type="ExampleStruct">
+  <float name="var1" description="First variable" init="0.0" />
+  <float name="var2" description="Second variable" init="1.0" />
+</structdef>
+
+<classdef type="ExampleClass">
+  <float name="m_float" description="Float member variable" init="0.2" />
+  <struct type="ExampleStruct" name="m_struct" description="Struct member variable" />
+</classdef>

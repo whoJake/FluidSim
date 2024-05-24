@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<classdef type="ExampleClass">
+  <float name="m_float" description="Float member variable" init="0.2" />
+</classdef>
