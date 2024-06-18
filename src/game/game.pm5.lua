@@ -4,6 +4,7 @@ workspace "game"
   configurations
   {
     "Debug",
+    "Debug_ASAN",
     "ReleasePdb",
     "Release"
   }
@@ -14,7 +15,7 @@ workspace "game"
   prj_Graphics = "jeGraphics"
   
   prj_DataDrivenGen = "DataDrivenGen"
-  prj_Game = "Game"
+  prj_Sandbox = "Sandbox"
 
   g_Vendordir = "../3rdparty/"
   g_Outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}/"
@@ -249,7 +250,7 @@ workspace "game"
   ----------------------------------GAME--------------------------------
   ----------------------------------------------------------------------
 
-  project (prj_Game)
+  project (prj_Sandbox)
     location "%{prj.name}"
     kind "ConsoleApp"
 

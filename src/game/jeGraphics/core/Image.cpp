@@ -165,10 +165,7 @@ uint8_t* Image::map()
     if( m_mapped )
         return m_mappedData;
 
-    if( m_usage & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT )
-        QUITFMT("Attempted to map an image that can't be mapped.");
-
-    if( m_tiling == VK_IMAGE_TILING_LINEAR )
+    if( m_tiling != VK_IMAGE_TILING_LINEAR )
         JCLOG_WARN(get_device().get_log(), "Mapping image memory that is not linear.");
 
     VkResult result = vmaMapMemory(get_device().get_allocator(), m_allocation, (void**)&m_mappedData);

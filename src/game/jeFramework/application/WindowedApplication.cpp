@@ -34,6 +34,7 @@ ExitFlags WindowedApplication::app_main()
         return ExitFlagBits::InitFailure;
     }
 
+    initialize_handles();
     on_app_startup();
 
     while( !m_window->get_should_close() )

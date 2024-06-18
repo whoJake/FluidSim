@@ -1,0 +1,204 @@
+#include "SandboxApp.h"
+
+#include "core/Device.h"
+#include "input/Input.h"
+
+void SandboxApp::on_app_startup()
+{
+    std::vector<VkPresentModeKHR> presentModes =
+        { VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
+
+    std::vector<VkSurfaceFormatKHR> surfaceFormats =
+        { { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR } };
+
+    m_context = std::make_unique<vk::RenderContext>(
+        get_device(),
+        get_window().create_surface(get_instance()),
+        get_window(),
+        presentModes,
+        surfaceFormats,
+        vk::RenderTarget::no_depth_create_function);
+
+    m_renderer = std::make_unique<ImageRenderer>(*m_context);
+
+    VkExtent3D extent{ 800, 400, 1 };
+
+    m_image = std::make_unique<vk::Image>(
+        m_context->get_device(),
+        extent,
+        VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+        VK_SAMPLE_COUNT_1_BIT,
+        1,
+        1,
+        VK_IMAGE_TILING_LINEAR
+    );
+
+    m_cpuImage = std::make_unique<Image>(
+        static_cast<void*>(m_image->map()),
+        extent.width,
+        extent.height
+    );
+
+    m_camera = std::make_unique<Camera>(
+        extent.width,
+        extent.height,
+        102
+    );
+}
+
+void SandboxApp::on_app_shutdown()
+{
+    // Don't .dispose m_cpuImage as its data is owned by m_image
+    m_image->unmap();
+}
+
+void SandboxApp::update()
+{
+    calculate_delta_time();
+    get_window().process_events();
+
+    parse_inputs();
+
+    glm::vec3 sun = glm::normalize(glm::vec3{ 1.f, 0.f, 1.f });
+
+    for( size_t y = 0; y < m_camera->get_viewport_height(); y++ )
+    {
+        for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
+        {
+            Ray pixel = m_camera->get_pixel_ray(x, y);
+            HitInfo hit_info{ };
+            size_t max_bounces = 6;
+            glm::vec3 outColor{ 0.f, 0.f, 0.f };
+            bool outputting = false;
+
+            for( size_t bounce = 0; bounce < max_bounces; bounce++)
+            {
+                if( m_blas.traverse(pixel, &hit_info) )
+                {
+                    glm::vec3 color = hit_info.color * glm::clamp(glm::dot(hit_info.normal, sun), 0.2f, 1.f);
+
+                    if( outputting )
+                        outColor = (outColor + color) / 2.f;
+                    else
+                        outColor = color;
+
+                    pixel.position += pixel.direction * hit_info.distance;
+                    pixel.direction = glm::reflect(pixel.direction, hit_info.normal);
+
+                    outputting = true;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
+        }
+    }
+
+    m_renderer->render_image(m_image.get());
+    Input::tick();
+}
+
+void SandboxApp::parse_inputs()
+{
+    glm::vec3 move{ };
+    if( Input::get_key_down(KeyCode::A) )
+        move.x -= 1;
+    if( Input::get_key_down(KeyCode::D) )
+        move.x += 1;
+    if( Input::get_key_down(KeyCode::S) )
+        move.z += 1;
+    if( Input::get_key_down(KeyCode::W) )
+        move.z -= 1;
+    if( Input::get_key_down(KeyCode::Space) )
+        move.y += 1;
+    if( Input::get_key_down(KeyCode::LeftShift) )
+        move.y -= 1;
+
+    float speed = 10.f;
+    move *= speed * m_deltaTime;
+
+    glm::vec3 cameraForward = glm::normalize(m_camera->rotation() * glm::vec3(0.f, 0.f, 1.f));
+    glm::vec3 cameraRight = glm::normalize(m_camera->rotation() * glm::vec3(1.f, 0.f, 0.f));
+
+#if 1
+    // Control camera with arrow keys
+    float sensitivity = 90.f * static_cast<float>(m_deltaTime);
+    if( Input::get_key_down(KeyCode::Right) )
+        m_camera->rotation() *= glm::angleAxis(glm::radians(-sensitivity), glm::vec3(0.f, 1.f, 0.f));
+    if( Input::get_key_down(KeyCode::Left) )
+        m_camera->rotation() *= glm::angleAxis(glm::radians(sensitivity), glm::vec3(0.f, 1.f, 0.f));
+    if( Input::get_key_down(KeyCode::Up) )
+        m_camera->rotation() *= glm::angleAxis(glm::radians(sensitivity), cameraRight);
+    if( Input::get_key_down(KeyCode::Down) )
+        m_camera->rotation() *= glm::angleAxis(glm::radians(-sensitivity), cameraRight);
+#else
+    // Control camera with mouse
+    if( Input::get_mouse_button_pressed(1) )
+    {
+        Input::set_cursor_lock_state(get_window(), CursorLockState::LOCKED);
+    }
+    else if( Input::get_mouse_button_released(1) )
+    {
+        Input::set_cursor_lock_state(get_window(), CursorLockState::NONE);
+    }
+
+    if( Input::get_mouse_button_down(1) )
+    {
+        float sensitivity = .2f;
+
+        float mouseX = static_cast<float>(sensitivity * Input::get_mouse_move_horizontal());
+        float mouseY = static_cast<float>(sensitivity * Input::get_mouse_move_vertical());
+
+        m_camera->rotation() *= glm::angleAxis(-glm::radians(mouseY), cameraRight);
+        m_camera->rotation() *= glm::angleAxis(-glm::radians(mouseX), glm::vec3(0.f, -1.f, 0.f));
+    }
+#endif
+
+    if( Input::get_key_down(KeyCode::Enter) )
+    {
+        m_camera->position() = glm::vec3(0.f, 0.f, 0.f);
+        m_camera->rotation() = glm::quat(glm::vec3(0.f));
+    }
+
+    glm::vec3 translation = cameraRight * move.x + cameraForward * move.z + glm::vec3(0.f, 1.f, 0.f) * move.y;
+
+    m_camera->position() += translation;
+}
+
+void SandboxApp::on_event(Event& e)
+{
+    Input::register_event(e);
+
+    EventDispatcher dispatch(e);
+    dispatch.dispatch<WindowResizeEvent>(BIND_EVENT_FN(SandboxApp::on_window_resize));
+}
+
+bool SandboxApp::on_window_resize(WindowResizeEvent& e)
+{
+    if( m_camera )
+    {
+        if( e.get_width() <= 0.f
+            || e.get_height() <= 0.f )
+        {
+            return false;
+        }
+
+        m_camera->set_width(e.get_width());
+        m_camera->set_height(e.get_height());
+    }
+
+    return false;
+}
+
+void SandboxApp::calculate_delta_time()
+{
+    auto now = std::chrono::high_resolution_clock::now();
+    auto diff = static_cast<std::chrono::nanoseconds>(now - m_lastFrameBeginTime);
+    m_deltaTime = diff.count() / 1e9;
+    m_lastFrameBeginTime = now;
+}

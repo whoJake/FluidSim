@@ -76,6 +76,13 @@ public:
     void image_pipeline_barrier(const ImageView&   imageView,
                                 ImageMemoryBarrier memoryBarrier);
 
+    void blit_image(const vk::Image& srcImage,
+                    VkImageLayout srcLayout,
+                    const vk::Image& dstImage,
+                    VkImageLayout dstLayout,
+                    std::vector<VkImageBlit> regions,
+                    VkFilter filter);
+
     inline PipelineState& get_pipeline_state() { return m_state; }
 private:
     CommandPool& m_commandPool;

@@ -103,7 +103,6 @@ VkSemaphore RenderContext::submit(const Queue&                             queue
     submitInfo.pWaitDstStageMask = waitStageFlags.data();
 
     VkSemaphore signalSemaphore = get_active_frame().request_semaphore();
-
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &signalSemaphore;
 

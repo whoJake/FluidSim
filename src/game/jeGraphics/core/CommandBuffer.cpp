@@ -152,6 +152,24 @@ void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t 
     vkCmdDraw(get_handle(), vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
+void CommandBuffer::blit_image(const vk::Image& srcImage,
+                               VkImageLayout srcLayout,
+                               const vk::Image& dstImage,
+                               VkImageLayout dstLayout,
+                               std::vector<VkImageBlit> regions,
+                               VkFilter filter)
+{
+    vkCmdBlitImage(
+        get_handle(),
+        srcImage.get_handle(),
+        srcLayout,
+        dstImage.get_handle(),
+        dstLayout,
+        to_u32(regions.size()),
+        regions.data(),
+        filter);
+}
+
 void CommandBuffer::image_pipeline_barrier(const ImageView&   imageView,
                                            ImageMemoryBarrier memoryBarrier)
 {

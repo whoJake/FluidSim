@@ -122,6 +122,13 @@ public:
         }
     }
 
+    constexpr fixed_vector(const std::vector<T>& base) :
+        m_data(new T[base.size()]),
+        m_size(base.size())
+    {
+        memcpy(m_data, base.data(), base.size() * sizeof(T));
+    }
+
     constexpr fixed_vector(fixed_vector<T>&& other) :
         m_data(other.m_data),
         m_size(other.m_size)

@@ -54,6 +54,7 @@ public:
 
     static std::unique_ptr<RenderTarget> default_create_function(Image&& image);
 
+    static std::unique_ptr<RenderTarget> no_depth_create_function(Image&& image);
 private:
     Device& m_device;
 

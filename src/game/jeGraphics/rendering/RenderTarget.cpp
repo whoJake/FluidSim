@@ -139,4 +139,12 @@ std::unique_ptr<RenderTarget> RenderTarget::default_create_function(Image&& imag
     return std::make_unique<RenderTarget>(std::move(targetImages));
 }
 
+std::unique_ptr<RenderTarget> RenderTarget::no_depth_create_function(Image&& image)
+{
+    std::vector<Image> targetImages;
+    targetImages.push_back(std::move(image));
+
+    return std::make_unique<RenderTarget>(std::move(targetImages));
+}
+
 } // vk
