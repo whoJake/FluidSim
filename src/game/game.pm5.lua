@@ -4,7 +4,6 @@ workspace "game"
   configurations
   {
     "Debug",
-    "Debug_ASAN",
     "ReleasePdb",
     "Release"
   }
@@ -83,7 +82,7 @@ workspace "game"
       "CFG_RELEASE",
     }
     symbols "On"
-    optimize "Debug"
+    optimize "On"
     runtime "Release"
     buildoptions "/MD"
 

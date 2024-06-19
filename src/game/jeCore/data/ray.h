@@ -1,6 +1,16 @@
 #pragma once
 
-struct Ray
+namespace mtl
+{
+
+struct ray_hit_info
+{
+    float distance;
+    glm::vec3 diffuse;
+    glm::vec3 normal;
+};
+
+struct ray
 {
     glm::vec3 position;
     glm::vec3 direction;
@@ -21,3 +31,5 @@ struct Ray
         return (-b - sqrt(disc)) / (2.f * a);
     }
 };
+
+} // mtl

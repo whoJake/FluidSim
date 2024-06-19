@@ -112,13 +112,14 @@ public:
         fixed_vector(size, T{})
     { }
 
-    constexpr fixed_vector(size_t size, const T& value) :
+    template<typename ...Args>
+    constexpr fixed_vector(size_t size, Args&&... args) :
         m_data(new T[size]),
         m_size(size)
     {
         for( size_t i = 0; i < size; i++ )
         {
-            m_data[i] = value;
+            m_data[i] = T(std::forward<Args>(args)...);
         }
     }
 

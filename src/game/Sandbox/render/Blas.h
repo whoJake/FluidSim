@@ -1,31 +1,14 @@
 #pragma once
-#include "Ray.h"
-
-struct Sphere
-{
-    glm::vec3 position;
-    float radius;
-    glm::vec4 color;
-};
-
-struct HitInfo
-{
-    glm::vec3 normal;
-    float distance;
-    glm::vec4 color;
-};
+#include "SpherePayload.h"
+#include "data/bvh.h"
+#include "data/ray.h"
 
 class Blas
 {
 public:
-    Blas();
+    Blas(uint32_t test_spheres);
 
-    bool traverse(const Ray& ray, HitInfo* hit) const;
+    glm::vec3 traverse(const mtl::ray& ray) const;
 private:
-    void add_random_sphere();
-private:
-    std::vector<Sphere> m_data;
-
-    glm::vec3 m_min;
-    glm::vec3 m_max;
+    mtl::fixed_bvh<SpherePayload> m_data;
 };

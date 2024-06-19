@@ -34,7 +34,7 @@ private:
     std::unique_ptr<Image> m_cpuImage;
 
     std::unique_ptr<Camera> m_camera;
-    Blas m_blas{ };
+    Blas m_blas{ 20 };
 
     std::chrono::steady_clock::time_point m_lastFrameBeginTime{ std::chrono::high_resolution_clock::now() };
     double m_deltaTime;

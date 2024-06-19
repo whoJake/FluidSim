@@ -3,6 +3,8 @@
 #include "core/Device.h"
 #include "input/Input.h"
 
+#include "threading/JobDispatcher.h"
+
 void SandboxApp::on_app_startup()
 {
     std::vector<VkPresentModeKHR> presentModes =
@@ -21,7 +23,7 @@ void SandboxApp::on_app_startup()
 
     m_renderer = std::make_unique<ImageRenderer>(*m_context);
 
-    VkExtent3D extent{ 800, 400, 1 };
+    VkExtent3D extent{ 600, 300, 1 };
 
     m_image = std::make_unique<vk::Image>(
         m_context->get_device(),
@@ -46,6 +48,8 @@ void SandboxApp::on_app_startup()
         extent.height,
         102
     );
+
+    m_camera->position() += glm::vec3(0.f, 0.f, 30.f);
 }
 
 void SandboxApp::on_app_shutdown()
@@ -61,39 +65,12 @@ void SandboxApp::update()
 
     parse_inputs();
 
-    glm::vec3 sun = glm::normalize(glm::vec3{ 1.f, 0.f, 1.f });
-
     for( size_t y = 0; y < m_camera->get_viewport_height(); y++ )
     {
         for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
         {
-            Ray pixel = m_camera->get_pixel_ray(x, y);
-            HitInfo hit_info{ };
-            size_t max_bounces = 6;
-            glm::vec3 outColor{ 0.f, 0.f, 0.f };
-            bool outputting = false;
-
-            for( size_t bounce = 0; bounce < max_bounces; bounce++)
-            {
-                if( m_blas.traverse(pixel, &hit_info) )
-                {
-                    glm::vec3 color = hit_info.color * glm::clamp(glm::dot(hit_info.normal, sun), 0.2f, 1.f);
-
-                    if( outputting )
-                        outColor = (outColor + color) / 2.f;
-                    else
-                        outColor = color;
-
-                    pixel.position += pixel.direction * hit_info.distance;
-                    pixel.direction = glm::reflect(pixel.direction, hit_info.normal);
-
-                    outputting = true;
-                }
-                else
-                {
-                    break;
-                }
-            }
+            mtl::ray ray = m_camera->get_pixel_ray(x, y);
+            glm::vec3 outColor = m_blas.traverse(ray);
 
             m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
         }
@@ -187,9 +164,6 @@ bool SandboxApp::on_window_resize(WindowResizeEvent& e)
         {
             return false;
         }
-
-        m_camera->set_width(e.get_width());
-        m_camera->set_height(e.get_height());
     }
 
     return false;

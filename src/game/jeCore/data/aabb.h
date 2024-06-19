@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+
 namespace mtl
 {
 
@@ -73,6 +75,25 @@ public:
         max.x = std::max(max.x, other.max.x);
         max.y = std::max(max.y, other.max.z);
         max.z = std::max(max.z, other.max.z);
+    }
+
+    inline glm::vec3 random_point_inside() const
+    {
+        return
+        {
+            min.x + (max.x - min.x) * (rand() / static_cast<float>(RAND_MAX)),
+            min.y + (max.y - min.y) * (rand() / static_cast<float>(RAND_MAX)),
+            min.z + (max.z - min.z) * (rand() / static_cast<float>(RAND_MAX))
+        };
+    }
+
+    inline float get_surface_area() const
+    {
+        glm::vec3 size = max - min;
+        float x = 2 * (size.y * size.z);
+        float y = 2 * (size.x * size.z);
+        float z = 2 * (size.x * size.y);
+        return x + y + z;
     }
 public:
     glm::vec3 min;

@@ -32,7 +32,7 @@ void Camera::set_height(uint32_t height)
     m_aspect = static_cast<float>(get_viewport_width()) / height;
 }
 
-Ray Camera::get_pixel_ray(size_t x, size_t y) const
+mtl::ray Camera::get_pixel_ray(size_t x, size_t y) const
 {
     float xx = (2.f * ((x * 0.5f) * m_inverseWidth) - 0.5f) * m_fovDistance * m_aspect;
     float yy = (1.f - (2.f * ((y + 0.5f) * m_inverseHeight))) * m_fovDistance;
