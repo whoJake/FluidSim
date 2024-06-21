@@ -2,12 +2,10 @@
 
 Camera::Camera(uint32_t width, uint32_t height, uint32_t fov) :
     m_position(),
-    m_rotation(glm::quat(glm::vec3(0.f))),
-    m_inverseWidth(1.f / width),
-    m_inverseHeight(1.f / height),
-    m_aspect(static_cast<float>(width) / height),
-    m_fov(static_cast<float>(fov)),
-    m_fovDistance(tan(3.14159f * 0.5f * fov / 180.f))
+    m_rotation(glm::vec3(0.f)),
+    m_fov(fov),
+    m_width(width),
+    m_height(height)
 { }
 
 glm::vec3& Camera::position()
@@ -15,44 +13,81 @@ glm::vec3& Camera::position()
     return m_position;
 }
 
-glm::quat& Camera::rotation()
+glm::quat Camera::get_rotation() const
 {
-    return m_rotation;
+     return glm::angleAxis(glm::radians(m_rotation.z), glm::vec3(0.f, 0.f, 1.f))
+          * glm::angleAxis(glm::radians(m_rotation.y), glm::vec3(0.f, 1.f, 0.f))
+          * glm::angleAxis(glm::radians(m_rotation.x), glm::vec3(1.f, 0.f, 0.f));
+}
+
+void Camera::set_rotation(const glm::vec3& degrees)
+{
+    m_rotation = degrees;
+}
+
+void Camera::rotate(const glm::vec3& degrees)
+{
+    m_rotation += degrees;
+    if( m_rotation.x > 360.f )
+        m_rotation.x -= 360.f;
+    if( m_rotation.x < 0.f )
+        m_rotation.x += 360.f;
+
+    if( m_rotation.y > 360.f )
+        m_rotation.y -= 360.f;
+    if( m_rotation.y < 0.f )
+        m_rotation.y += 360.f;
+
+    if( m_rotation.z > 360.f )
+        m_rotation.z -= 360.f;
+    if( m_rotation.z < 0.f )
+        m_rotation.z += 360.f;
 }
 
 void Camera::set_width(uint32_t width)
 {
-    m_inverseWidth = 1.f / width;
-    m_aspect = static_cast<float>(width) / get_viewport_height();
+    m_width = width;
 }
 
 void Camera::set_height(uint32_t height)
 {
-    m_inverseHeight = 1.f / height;
-    m_aspect = static_cast<float>(get_viewport_width()) / height;
+    m_height = height;
 }
 
 mtl::ray Camera::get_pixel_ray(size_t x, size_t y) const
 {
-    float xx = (2.f * ((x * 0.5f) * m_inverseWidth) - 0.5f) * m_fovDistance * m_aspect;
-    float yy = (1.f - (2.f * ((y + 0.5f) * m_inverseHeight))) * m_fovDistance;
+    // get uv's
+    glm::vec2 uv
+    {
+        x / static_cast<float>(m_width),
+        y / static_cast<float>(m_height)
+    };
 
-    glm::vec3 dir = glm::normalize(glm::vec3{ xx, yy, -1.f });
-    dir = glm::normalize(m_rotation * dir);
+    // transform into -1, +1 range
+    uv = (uv * 2.f) - glm::vec2(1.f, 1.f);
+    uv.y *= -1; // flip y axis
 
+    float aspect = m_width / static_cast<float>(m_height);
+    // shrink y to correct for aspect ratio
+    uv.y /= aspect;
+
+    float cameraDistance = 1.f / (std::tanf(glm::radians(m_fov * 0.5f)));
+
+    glm::vec3 direction = glm::vec3(uv, cameraDistance);
     return
     {
         m_position,
-        dir
+        // direction
+        glm::normalize(get_rotation() * direction)
     };
 }
 
 size_t Camera::get_viewport_width() const
 {
-    return static_cast<size_t>(1.f / m_inverseWidth);
+    return m_width;
 }
 
 size_t Camera::get_viewport_height() const
 {
-    return static_cast<size_t>(1.f / m_inverseHeight);
+    return m_height;
 }

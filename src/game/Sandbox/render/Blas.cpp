@@ -17,7 +17,8 @@ Blas::Blas(uint32_t test_spheres) :
     };
 
     fiDevice device;
-    device.open("assets/obj/12140_Skull_v3_L2.obj");
+    // device.open("assets/obj/12140_Skull_v3_L2.obj");
+    device.open("assets/obj/apple.obj");
 
     obj::file obj_file;
     obj_file.parse(device);
@@ -26,11 +27,8 @@ Blas::Blas(uint32_t test_spheres) :
     const mtl::fixed_vector<glm::vec3>& normals = obj_file.get_normals();
     const mtl::fixed_vector<obj::object>& objects = obj_file.get_objects();
 
-    mtl::fixed_vector<SpherePayload> spheres(vertices.size());
-    for( size_t i = 0; i < vertices.size(); i++ )
-    {
-        spheres[i] = SpherePayload(vertices[i]);
-    }
+    mtl::fixed_vector<SpherePayload> spheres(1);
+    spheres[0] = SpherePayload(glm::vec3(0.f, 0.f, 0.f));
     m_data = mtl::fixed_bvh<SpherePayload>(std::move(spheres));
 
     std::vector<obj::triangle> triangleObjs;

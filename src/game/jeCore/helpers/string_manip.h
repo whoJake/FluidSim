@@ -10,18 +10,19 @@ inline std::vector<std::string> split_string(const std::string& string, std::str
         const char* cstr = string.data() + i;
         size_t len = strlen(cstr);
 
+        bool reset = false;
         if( len >= delimitter.length() )
         {
             if( !strncmp(cstr, delimitter.c_str(), delimitter.length()) )
             {
                 retval.push_back(ss.str());
                 ss.str(std::string());
-                i += delimitter.length();
+                i += delimitter.length() - 1;
+                reset = true;
             }
         }
-        if( i < string.length() )
+        if( !reset )
         {
-            cstr = string.data() + i;
             ss << *cstr;
         }
     }

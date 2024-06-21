@@ -13,7 +13,7 @@ TrianglePayload::TrianglePayload(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3, glm::
         glm::clamp((rand() / static_cast<float>(RAND_MAX)), 0.f, 1.f)
     };
 
-    glm::vec3 cross = glm::cross(m_vertices[1] - m_vertices[0], m_vertices[2] - m_vertices[0]);
+    glm::vec3 cross = glm::cross(m_vertices[1] - m_vertices[2], m_vertices[0] - m_vertices[2]);
     glm::vec3 normal = glm::normalize(cross);
     m_normals[0] = normal;
     m_normals[1] = normal;

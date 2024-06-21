@@ -13,7 +13,7 @@ SpherePayload::SpherePayload(glm::vec3 position) :
         glm::clamp((rand() / static_cast<float>(RAND_MAX)), 0.f, 1.f)
     };
 
-    m_radius = 0.3f;
+    m_radius = 1.5f;
     m_bounds = calculate_bounds();
 }
 

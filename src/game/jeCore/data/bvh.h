@@ -129,7 +129,7 @@ public:
                 out_stats->primitives_checked += static_cast<uint32_t>(m_payloads.size());
             }
 
-            glm::vec3 sun = glm::normalize(glm::vec3{ 0.5f, .6f, 1.f });
+            glm::vec3 sun = glm::normalize(glm::vec3{ 0.4f, -1.f, -.2f });
             float strength = glm::clamp(glm::dot(sun, bestHit.normal), 0.1f, 1.f);
 
             // Change output color

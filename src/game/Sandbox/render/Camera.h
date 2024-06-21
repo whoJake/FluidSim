@@ -8,7 +8,10 @@ public:
     Camera(uint32_t width, uint32_t height, uint32_t fov);
 
     glm::vec3& position();
-    glm::quat& rotation();
+    glm::quat get_rotation() const;
+
+    void set_rotation(const glm::vec3& degrees);
+    void rotate(const glm::vec3& degrees);
 
     void set_width(uint32_t width);
     void set_height(uint32_t height);
@@ -19,11 +22,9 @@ public:
     size_t get_viewport_height() const;
 private:
     glm::vec3 m_position;
-    glm::quat m_rotation;
+    glm::vec3 m_rotation;
 
-    float m_inverseWidth;
-    float m_inverseHeight;
-    float m_aspect;
-    float m_fov;
-    float m_fovDistance;
+    uint32_t m_fov;
+    uint32_t m_width;
+    uint32_t m_height;
 };

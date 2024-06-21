@@ -44,7 +44,8 @@ bool file::parse(fiDevice& device)
             continue;
         }
 
-        if( line.starts_with('g') )
+        if( line.starts_with('g')
+         || line.starts_with('o'))
         {
             objectContext++;
             continue;
@@ -102,7 +103,8 @@ void file::calculate_buffer_sizes(fiDevice& device)
         {
             texCoordCount++;
         }
-        else if( line.starts_with("g") )
+        else if( line.starts_with("g")
+            ||   line.starts_with("o"))
         {
             objectNames.push_back(line.substr(2) );
         }
@@ -140,6 +142,11 @@ void file::parse_vertex(size_t context, const std::string& line)
 
     for( std::string& part : split )
     {
+        if( part.length() == 0 )
+        {
+            continue;
+        }
+
         if( vecPart >= 3 )
         {
             return; // more than 3 positions?
@@ -162,6 +169,11 @@ void file::parse_normal(size_t context, const std::string& line)
 
     for( std::string& part : split )
     {
+        if( part.length() == 0 )
+        {
+            continue;
+        }
+
         if( vecPart >= 3 )
         {
             return; // more than 3 normals?
@@ -184,6 +196,11 @@ void file::parse_face(size_t context, const std::string& line)
 
     for( std::string& part : split )
     {
+        if( part.length() == 0 )
+        {
+            continue;
+        }
+
         if( !part.starts_with('f') )
         {
             std::vector<std::string> components = split_string(part, "/");

@@ -23,7 +23,7 @@ void SandboxApp::on_app_startup()
 
     m_renderer = std::make_unique<ImageRenderer>(*m_context);
 
-    VkExtent3D extent{ 600, 300, 1 };
+    VkExtent3D extent{ 800, 600, 1 };
 
     m_image = std::make_unique<vk::Image>(
         m_context->get_device(),
@@ -49,8 +49,8 @@ void SandboxApp::on_app_startup()
         102
     );
 
-    m_camera->position() += glm::vec3(0.f, -40.f, 35.f);
-    m_camera->rotation() *= glm::angleAxis(glm::radians(70.f), glm::vec3(1.f, 0.f, 0.f));
+    m_camera->position() = glm::vec3(0.f, 5.f, -5.f);
+    m_camera->set_rotation(glm::vec3(45.f, 0.f, 0.f));
 }
 
 void SandboxApp::on_app_shutdown()
@@ -89,9 +89,9 @@ void SandboxApp::parse_inputs()
     if( Input::get_key_down(KeyCode::D) )
         move.x += 1;
     if( Input::get_key_down(KeyCode::S) )
-        move.z += 1;
-    if( Input::get_key_down(KeyCode::W) )
         move.z -= 1;
+    if( Input::get_key_down(KeyCode::W) )
+        move.z += 1;
     if( Input::get_key_down(KeyCode::Space) )
         move.y += 1;
     if( Input::get_key_down(KeyCode::LeftShift) )
@@ -100,20 +100,24 @@ void SandboxApp::parse_inputs()
     float speed = 10.f;
     move *= speed * m_deltaTime;
 
-    glm::vec3 cameraForward = glm::normalize(m_camera->rotation() * glm::vec3(0.f, 0.f, 1.f));
-    glm::vec3 cameraRight = glm::normalize(m_camera->rotation() * glm::vec3(1.f, 0.f, 0.f));
+    glm::vec3 cameraForward = glm::normalize(m_camera->get_rotation() * glm::vec3(0.f, 0.f, 1.f));
+    glm::vec3 cameraRight = glm::normalize(m_camera->get_rotation() * glm::vec3(1.f, 0.f, 0.f));
 
-#if 1
+#if 0
     // Control camera with arrow keys
     float sensitivity = 90.f * static_cast<float>(m_deltaTime);
+    glm::vec2 input{ };
+
     if( Input::get_key_down(KeyCode::Right) )
-        m_camera->rotation() *= glm::angleAxis(glm::radians(-sensitivity), glm::vec3(0.f, 1.f, 0.f));
+        input.x += 1.f;
     if( Input::get_key_down(KeyCode::Left) )
-        m_camera->rotation() *= glm::angleAxis(glm::radians(sensitivity), glm::vec3(0.f, 1.f, 0.f));
+        input.x -= 1.f;
     if( Input::get_key_down(KeyCode::Up) )
-        m_camera->rotation() *= glm::angleAxis(glm::radians(sensitivity), cameraRight);
+        input.y += 1.f;
     if( Input::get_key_down(KeyCode::Down) )
-        m_camera->rotation() *= glm::angleAxis(glm::radians(-sensitivity), cameraRight);
+        input.y -= 1.f;
+
+    m_camera->rotate(glm::vec3(input.y * sensitivity, input.x * sensitivity, 0.f));
 #else
     // Control camera with mouse
     if( Input::get_mouse_button_pressed(1) )
@@ -132,15 +136,14 @@ void SandboxApp::parse_inputs()
         float mouseX = static_cast<float>(sensitivity * Input::get_mouse_move_horizontal());
         float mouseY = static_cast<float>(sensitivity * Input::get_mouse_move_vertical());
 
-        m_camera->rotation() *= glm::angleAxis(-glm::radians(mouseY), cameraRight);
-        m_camera->rotation() *= glm::angleAxis(-glm::radians(mouseX), glm::vec3(0.f, -1.f, 0.f));
+        m_camera->rotate(glm::vec3(mouseY, mouseX, 0.f));
     }
 #endif
 
     if( Input::get_key_down(KeyCode::Enter) )
     {
         m_camera->position() = glm::vec3(0.f, 0.f, 0.f);
-        m_camera->rotation() = glm::quat(glm::vec3(0.f));
+        m_camera->set_rotation(glm::vec3(0.f));
     }
 
     glm::vec3 translation = cameraRight * move.x + cameraForward * move.z + glm::vec3(0.f, 1.f, 0.f) * move.y;
