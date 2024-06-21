@@ -1,7 +1,7 @@
 #include "SpherePayload.h"
 
-SpherePayload::SpherePayload(mtl::aabb3 random_range) :
-    m_position(random_range.random_point_inside()),
+SpherePayload::SpherePayload(glm::vec3 position) :
+    m_position(position),
     m_radius(),
     m_color(),
     m_bounds()
@@ -13,7 +13,7 @@ SpherePayload::SpherePayload(mtl::aabb3 random_range) :
         glm::clamp((rand() / static_cast<float>(RAND_MAX)), 0.f, 1.f)
     };
 
-    m_radius = 1.5f;
+    m_radius = 0.3f;
     m_bounds = calculate_bounds();
 }
 

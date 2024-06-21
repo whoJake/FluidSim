@@ -3,7 +3,7 @@
 #include "core/Device.h"
 #include "input/Input.h"
 
-#include "threading/JobDispatcher.h"
+#include "loaders/obj_waveform.h"
 
 void SandboxApp::on_app_startup()
 {
@@ -49,7 +49,8 @@ void SandboxApp::on_app_startup()
         102
     );
 
-    m_camera->position() += glm::vec3(0.f, 0.f, 30.f);
+    m_camera->position() += glm::vec3(0.f, -40.f, 35.f);
+    m_camera->rotation() *= glm::angleAxis(glm::radians(70.f), glm::vec3(1.f, 0.f, 0.f));
 }
 
 void SandboxApp::on_app_shutdown()

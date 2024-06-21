@@ -5,7 +5,7 @@
 class SpherePayload : public mtl::bvh_payload
 {
 public:
-    SpherePayload(mtl::aabb3 random_range);
+    SpherePayload(glm::vec3 position);
     ~SpherePayload() = default;
 
     SpherePayload() = default;

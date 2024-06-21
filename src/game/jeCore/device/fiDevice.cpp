@@ -19,6 +19,12 @@ void fiDevice::close()
     try_close();
 }
 
+void fiDevice::seek_to_start()
+{
+    m_handle.clear();
+    m_handle.seekg(0);
+}
+
 std::vector<uint8_t> fiDevice::read(size_t size)
 {
     std::vector<uint8_t> retval;
@@ -50,7 +56,7 @@ std::vector<uint8_t> fiDevice::read_at(size_t size, size_t offset)
 
 bool fiDevice::read_line(std::vector<uint8_t>* out, char delimiter, char maybe)
 {
-    if( !m_handle.is_open() || m_handle.eof() )
+    if( !m_handle.is_open() || m_handle.eof() || m_handle.bad() )
     {
         return false;
     }
@@ -91,4 +97,9 @@ void fiDevice::try_close()
     {
         m_handle.close();
     }
+}
+
+bool fiDevice::is_open() const
+{
+    return m_handle.is_open();
 }

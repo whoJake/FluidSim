@@ -108,8 +108,13 @@ public:
     };
 
 public:
+    constexpr fixed_vector() :
+        fixed_vector(0)
+    { }
+
     constexpr fixed_vector(size_t size) :
-        fixed_vector(size, T{})
+        m_data(new T[size]),
+        m_size(size)
     { }
 
     template<typename ...Args>
@@ -146,17 +151,18 @@ public:
 
     constexpr fixed_vector& operator=(fixed_vector<T>&& other)
     {
-        TRAP_NEQ(m_size, other.size(), "Cannot move fixed_vector into fixed_vector of different size.");
-
+        delete[] m_data;
         m_data = other.m_data;
+        m_size = other.size();
         other.m_data = nullptr;
         return *this;
     }
 
     constexpr fixed_vector& operator=(const fixed_vector<T>& other)
     {
-        TRAP_NEQ(m_size, other.size(), "Cannot copy fixed_vector into fixed_vector of different size.");
-
+        delete[] m_data;
+        m_size = other.m_size;
+        m_data = new T[m_size];
         memcpy(m_data, other.m_data, m_size * sizeof(T));
         return *this;
     }
@@ -236,7 +242,7 @@ public:
 
 private:
     T* m_data;
-    const size_t m_size;
+    size_t m_size;
 };
 
 } // mtl
