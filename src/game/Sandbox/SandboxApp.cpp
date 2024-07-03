@@ -2,6 +2,7 @@
 
 #include "core/Device.h"
 #include "input/Input.h"
+#include "system/timer.h"
 
 #include "loaders/obj_waveform.h"
 
@@ -66,14 +67,18 @@ void SandboxApp::update()
 
     parse_inputs();
 
-    for( size_t y = 0; y < m_camera->get_viewport_height(); y++ )
     {
-        for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
-        {
-            mtl::ray ray = m_camera->get_pixel_ray(x, y);
-            glm::vec3 outColor = m_blas.traverse(ray);
+        sys::timer<sys::milliseconds> timer("Time to calculate image: ");
 
-            m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
+        for( size_t y = 0; y < m_camera->get_viewport_height(); y++ )
+        {
+            for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
+            {
+                mtl::ray ray = m_camera->get_pixel_ray(x, y);
+                glm::vec3 outColor = m_blas.traverse(ray);
+
+                m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
+            }
         }
     }
 

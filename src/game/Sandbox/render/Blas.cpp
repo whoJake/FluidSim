@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include "device/fiDevice.h"
 #include "loaders/obj_waveform.h"
+#include "system/timer.h"
 
 Blas::Blas(uint32_t test_spheres) :
     m_data(test_spheres),

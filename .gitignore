@@ -12,3 +12,6 @@ bin/
 bin-int/
 logs/
 build/
+
+# Rider IDE
+.idea/
