@@ -1,5 +1,4 @@
-#pragma once
-#include "SpherePayload.h"
+﻿#pragma once
 #include "TrianglePayload.h"
 #include "data/bvh.h"
 #include "data/ray.h"
@@ -10,7 +9,8 @@ public:
     Blas(uint32_t test_spheres);
 
     glm::vec3 traverse(const mtl::ray& ray) const;
+
+    uint32_t mode{ 1 };
 private:
-    mtl::fixed_bvh<SpherePayload> m_data;
-    mtl::fixed_bvh<TrianglePayload> m_data2;
+    mtl::fixed_bvh<TrianglePayload> m_data;
 };

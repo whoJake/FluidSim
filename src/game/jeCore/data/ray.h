@@ -1,4 +1,6 @@
-#pragma once
+﻿#pragma once
+
+#include "aabb.h"
 
 namespace mtl
 {
@@ -29,6 +31,23 @@ struct ray
         }
 
         return (-b - sqrt(disc)) / (2.f * a);
+    }
+
+    inline glm::vec2 intersects(const mtl::aabb3& bound) const
+    {
+        float tx1 = (bound.min.x - position.x) / direction.x;
+        float tx2 = (bound.max.x - position.x) / direction.x;
+        float tmin = std::min(tx1, tx2);
+        float tmax = std::max(tx1, tx2);
+        float ty1 = (bound.min.y - position.y) / direction.y;
+        float ty2 = (bound.max.y - position.y) / direction.y;
+        tmin = std::max(tmin, std::min(ty1, ty2));
+        tmax = std::min(tmax, std::max(ty1, ty2));
+        float tz1 = (bound.min.z - position.z) / direction.z;
+        float tz2 = (bound.max.z - position.z) / direction.z;
+        tmin = std::max(tmin, std::min(tz1, tz2));
+        tmax = std::min(tmax, std::max(tz1, tz2));
+        return { tmin, tmax };
     }
 };
 

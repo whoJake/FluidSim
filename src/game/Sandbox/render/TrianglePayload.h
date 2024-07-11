@@ -1,6 +1,6 @@
 #pragma once
 
-#include "data/bvh.h"
+#include "data/bvh_payload.h"
 
 class TrianglePayload : public mtl::bvh_payload
 {
@@ -19,6 +19,10 @@ public:
     mtl::aabb3 get_bounds() const override;
 
     bool check_ray(const mtl::ray& ray, mtl::ray_hit_info* hit) const override;
+
+    glm::vec3 sample_normals(glm::vec3 position) const;
+
+    glm::vec3 get_color() const;
 private:
     mtl::aabb3 calculate_bounds() const;
 private:

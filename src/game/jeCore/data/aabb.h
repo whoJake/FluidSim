@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdlib>
 
@@ -13,9 +13,14 @@ public:
         return (min + max) / 2.f;
     }
 
+    constexpr glm::vec3 size() const
+    {
+        return (max - min);
+    }
+    
     constexpr glm::vec3 extent() const
     {
-        return (max - min) / 2.f;
+        return size() / 2.f;
     }
 
     constexpr bool contains(const glm::vec3& point) const
@@ -68,13 +73,8 @@ public:
 
     constexpr void expand_to_fit(const aabb3& other)
     {
-        min.x = std::min(min.x, other.min.x);
-        min.y = std::min(min.y, other.min.z);
-        min.z = std::min(min.z, other.min.z);
-
-        max.x = std::max(max.x, other.max.x);
-        max.y = std::max(max.y, other.max.z);
-        max.z = std::max(max.z, other.max.z);
+        expand_to_fit(other.min);
+        expand_to_fit(other.max);
     }
 
     inline glm::vec3 random_point_inside() const
@@ -95,9 +95,26 @@ public:
         float z = 2 * (size.x * size.y);
         return x + y + z;
     }
+
+    inline float get_sah_cost() const
+    {
+        // half of get_surface area, since theoretically you can only see half of the box's surface area at once
+
+        glm::vec3 size = max - min;
+        float x = size.y * size.z;
+        float y = size.x * size.z;
+        float z = size.x * size.y;
+        return x + y + z;
+    }
 public:
     glm::vec3 min;
     glm::vec3 max;
+};
+
+inline static aabb3 aabb3_empty
+{
+    { std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max() },
+    { std::numeric_limits<float>::min(), std::numeric_limits<float>::min(), std::numeric_limits<float>::min() }
 };
 
 } // mtl

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "data/bvh.h"
+#include "data/bvh_payload.h"
 
 class SpherePayload : public mtl::bvh_payload
 {
