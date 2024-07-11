@@ -3,7 +3,8 @@
 #include <sstream>
 #include <iostream>
 #include <chrono>
-#include <ostream>
+#include "logging/Log.h"
+#include "logging/ConsoleTarget.h"
 #include <format>
 
 namespace sys
@@ -44,21 +45,34 @@ public:
         || std::is_same_v<fidelity, minutes>
         , "Timer template must be instantiated with a std::chrono::duration type.");
 
-    timer() :
+    timer(jclog::Log* log, const char* format) :
         m_start(now()),
-        m_stream(std::cout),
-        m_prefix("Timer finished: ")
+        m_log(log),
+        m_format(format),
+        m_cleanupLog(false)
     { }
-
-    timer(const char* prefix) :
+    
+    timer(const char* format) :
         m_start(now()),
-        m_stream(std::cout),
-        m_prefix(prefix)
+        m_log(new jclog::Log()),
+        m_format(format),
+        m_cleanupLog(true)
+    {
+        m_log->register_target(new jclog::ConsoleTarget());
+    }
+    
+    timer() :
+        timer("Timer finished: {}")
     { }
 
     ~timer()
     {
         output_timer();
+
+        if( m_cleanupLog )
+        {
+            delete m_log;
+        }
     }
 
     [[nodiscard]] static moment now()
@@ -145,17 +159,14 @@ private:
      
     inline void output_timer() const
     {
-        m_stream << std::format(
-            "{}{}{}",
-            m_prefix,
-            get_fidelity_string(),
-            fidelity_suffix())
-            << std::endl;
-}
+        std::string time = std::format("{}{}", get_fidelity_string(), fidelity_suffix());
+        m_log->trace(m_format, time);
+    }
 private:
     moment m_start;
-    std::ostream& m_stream;
-    const char* m_prefix;
+    jclog::Log* m_log;
+    const char* m_format;
+    bool m_cleanupLog; // horrible solution
 };
 
 } // sys
