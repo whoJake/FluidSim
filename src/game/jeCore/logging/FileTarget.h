@@ -10,7 +10,7 @@ class FileTarget : public LogTarget
 {
 public:
     FileTarget(const char* logDirectory);
-    ~FileTarget();
+    ~FileTarget() override;
     FileTarget(FileTarget&&) = delete;
     FileTarget(const FileTarget&) = delete;
 

@@ -1,4 +1,4 @@
-#include "ApplicationBase.h"
+﻿#include "ApplicationBase.h"
 #include "device/fiDevice.h"
 
 PARAM(args_file);
@@ -22,7 +22,6 @@ int ApplicationBase::run(int argc, const char* argv[])
         return ExitFlagBits::InitFailure;
     }
 
-#ifdef CFG_DEBUG
     Param::set_executable(argv[0]);
     Param::add_params(argc-1, &argv[1]);
 
@@ -41,7 +40,6 @@ int ApplicationBase::run(int argc, const char* argv[])
             Param::add_params(1, (const char**)&persistentStr);
         }
     }
-#endif
 
     ExitFlags exitFlags;
     exitFlags = app_main();

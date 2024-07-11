@@ -9,6 +9,7 @@ class EmptyTarget : public LogTarget
 {
 public:
     EmptyTarget() = default;
+    ~EmptyTarget() override = default;
     
     EmptyTarget(EmptyTarget&&) = delete;
     EmptyTarget(const EmptyTarget&) = delete;

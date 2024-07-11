@@ -9,7 +9,7 @@ class ConsoleTarget: public LogTarget
 public:
     ConsoleTarget(bool hasTimestamp = true, const char* timestampFormat = "%H:%M:%S");
     //ConsoleLog(bool hasTimestamp = true, const char* timestampFormat = "%Y-%m-%d %H:%M:%S");
-    ~ConsoleTarget();
+    ~ConsoleTarget() override;
     ConsoleTarget(ConsoleTarget&&) = delete;
     ConsoleTarget(const ConsoleTarget&) = delete;
 

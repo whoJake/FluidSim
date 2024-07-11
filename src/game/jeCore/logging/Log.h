@@ -20,7 +20,7 @@ public:
         }
     }
     Log(Log&&) = delete;
-    Log(const Log&) = delete;
+    Log(const Log& other) = delete;
 
     void register_target(LogTarget* target)
     {

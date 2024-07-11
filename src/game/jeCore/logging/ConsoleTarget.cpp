@@ -1,4 +1,4 @@
-#include "ConsoleTarget.h"
+﻿#include "ConsoleTarget.h"
 
 #include <iostream>
 #include <format>
@@ -77,7 +77,7 @@ void ConsoleTarget::log(Level level, const char* logstr) const
         break;
     }
 
-    std::cout << level_prefix(level) << LOG_COLOR_RESET << "] " << logstr << std::endl;
+    std::cout << level_prefix(level) << LOG_COLOR_RESET << "] " << logstr << '\n';
 }
 
 void ConsoleTarget::log(Level level, std::exception exception, const char* logstr) const

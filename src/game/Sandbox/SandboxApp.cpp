@@ -1,13 +1,19 @@
-#include "SandboxApp.h"
+﻿#include "SandboxApp.h"
 
 #include "core/Device.h"
 #include "input/Input.h"
 #include "system/timer.h"
+#include "system/log.h"
+#include <thread>
 
 #include "loaders/obj_waveform.h"
 
 void SandboxApp::on_app_startup()
 {
+    m_log.register_target(new jclog::ConsoleTarget());
+    // m_log.register_target(new jclog::FileTarget("logs/apple.txt"));
+    m_log.trace("rotation,frametime");
+    
     std::vector<VkPresentModeKHR> presentModes =
         { VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
 
@@ -24,7 +30,7 @@ void SandboxApp::on_app_startup()
 
     m_renderer = std::make_unique<ImageRenderer>(*m_context);
 
-    VkExtent3D extent{ 800, 600, 1 };
+    VkExtent3D extent{ 400, 300, 1 };
 
     m_image = std::make_unique<vk::Image>(
         m_context->get_device(),
@@ -50,8 +56,10 @@ void SandboxApp::on_app_startup()
         102
     );
 
-    m_camera->position() = glm::vec3(0.f, 5.f, -5.f);
-    m_camera->set_rotation(glm::vec3(45.f, 0.f, 0.f));
+    m_camera->position() = glm::vec3(0.f, 1.f, -3.f);
+    m_camera->set_rotation(glm::vec3(25.f, 0.f, 0.f));
+
+    m_blas = std::make_unique<Blas>(20);
 }
 
 void SandboxApp::on_app_shutdown()
@@ -67,20 +75,50 @@ void SandboxApp::update()
 
     parse_inputs();
 
+    static float currentRotation = 180.f;
+    constexpr float distanceFromOrigin = 25.f;
+
+#define ROTATE 1
+
+    // Move camera
+#if ROTATE
+    m_camera->position() = glm::vec3(
+        std::sinf(glm::radians(currentRotation)) * distanceFromOrigin,
+        22.f,
+        std::cosf(glm::radians(currentRotation)) * distanceFromOrigin);
+#endif
+    
     {
-        sys::timer<sys::milliseconds> timer("Time to calculate image: ");
+        std::string format = std::format("{},", static_cast<int>(currentRotation));
+        format += " {}";
+        
+    #if 0
+        sys::timer<sys::milliseconds> timer(&m_log, format.c_str());
+    #elif 0
+        sys::timer<sys::milliseconds> timer(&m_log, "Frametime {}");
+    #endif
 
         for( size_t y = 0; y < m_camera->get_viewport_height(); y++ )
         {
             for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
             {
                 mtl::ray ray = m_camera->get_pixel_ray(x, y);
-                glm::vec3 outColor = m_blas.traverse(ray);
+                glm::vec3 outColor = m_blas->traverse(ray);
 
                 m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
             }
         }
     }
+
+    // Rotate camera
+    float degreesPerSecond = 60.f;
+    currentRotation += degreesPerSecond * m_deltaTime;
+    float temp;
+    currentRotation = std::modf(currentRotation / 360.f, &temp) * 360.f;
+    
+#if ROTATE
+    m_camera->rotate(glm::vec3(0.f, degreesPerSecond * m_deltaTime, 0.f));
+#endif
 
     m_renderer->render_image(m_image.get());
     Input::tick();
@@ -88,6 +126,13 @@ void SandboxApp::update()
 
 void SandboxApp::parse_inputs()
 {
+    if( Input::get_key_pressed(KeyCode::_1) )
+        m_blas->mode = 1;
+    if( Input::get_key_pressed(KeyCode::_2) )
+        m_blas->mode = 2;
+    if( Input::get_key_pressed(KeyCode::_3) )
+        m_blas->mode = 3;
+
     glm::vec3 move{ };
     if( Input::get_key_down(KeyCode::A) )
         move.x -= 1;

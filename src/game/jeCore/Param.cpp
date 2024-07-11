@@ -1,4 +1,4 @@
-#include "Params.h"
+﻿#include "Params.h"
 #include <vector>
 
 #include <sstream>
@@ -12,7 +12,6 @@ Param::Param(const char* name) :
 
 bool Param::get() const
 {
-#ifdef CFG_DEBUG
     for( const char* arg : s_args )
     {
         if( !strncmp(arg, m_name, strlen(m_name)) )
@@ -20,13 +19,11 @@ bool Param::get() const
             return true;
         }
     }
-#endif
     return false;
 }
 
 const char* Param::value() const
 {
-#ifdef CFG_DEBUG
     for( const char* arg : s_args )
     {
         if( !strncmp(arg, m_name, strlen(m_name)) )
@@ -39,7 +36,6 @@ const char* Param::value() const
             return equal;
         }
     }
-#endif
     return nullptr;
 }
 

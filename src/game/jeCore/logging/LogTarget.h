@@ -65,12 +65,12 @@ static constexpr const char* level_prefix(Level level)
 class LogTarget
 {
 public:
-    virtual ~LogTarget() { };
+    virtual ~LogTarget() { }
 
     virtual void log(Level level, const char* logstr) const = 0;
     virtual void log(Level level, std::exception exception, const char* logstr) const = 0;
 protected:
-    LogTarget() { };
+    LogTarget() { }
 };
 
 } // jclog

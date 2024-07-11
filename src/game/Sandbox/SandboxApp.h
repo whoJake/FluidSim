@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "application/WindowedApplication.h"
 #include "platform/events/Event.h"
@@ -34,8 +34,10 @@ private:
     std::unique_ptr<Image> m_cpuImage;
 
     std::unique_ptr<Camera> m_camera;
-    Blas m_blas{ 20 };
+    std::unique_ptr<Blas> m_blas;
 
     std::chrono::steady_clock::time_point m_lastFrameBeginTime{ std::chrono::high_resolution_clock::now() };
-    double m_deltaTime;
+    double m_deltaTime{ 0.f };
+
+    jclog::Log m_log{ };
 };
