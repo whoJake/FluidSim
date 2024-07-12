@@ -33,7 +33,7 @@
 
 #include "data/fixed_vector.h"
 
-#include "logging/jclog.h"
-#include "pch/logging.h"
 #include "pch/assert.h"
 #include "Params.h"
+
+#include "system/log.h"

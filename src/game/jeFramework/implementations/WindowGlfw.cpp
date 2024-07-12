@@ -1,4 +1,4 @@
-#include "WindowGlfw.h"
+﻿#include "WindowGlfw.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -128,10 +128,7 @@ inline KeyCode translate_key_code(int key) {
 
 static void error_callback(int error, const char* msg)
 {
-    if( g_singleThreadedLog )
-    {
-        JCLOG_ERROR(*g_singleThreadedLog, "GLFW", "GLFW error code {}. {}", error, msg);
-    }
+    SYSLOG_ERROR("GLFW", "GLFW error code {}. {}", error, msg);
 }
 
 WindowGlfw::WindowGlfw(const Properties& properties):

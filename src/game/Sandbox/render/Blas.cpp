@@ -17,8 +17,8 @@ Blas::Blas(uint32_t test_spheres) :
     };
 
     fiDevice device;
-    device.open("assets/obj/12140_Skull_v3_L2.obj");
-    // device.open("assets/obj/apple.obj");
+    // device.open("assets/obj/12140_Skull_v3_L2.obj");
+    device.open("assets/obj/apple.obj");
 
     obj::file obj_file;
     obj_file.parse(device);
@@ -43,7 +43,7 @@ Blas::Blas(uint32_t test_spheres) :
         obj::vertex v2 = triangleObjs[i].vertices[1];
         obj::vertex v3 = triangleObjs[i].vertices[2];
 
-        glm::vec3 rotation{ -90.f, 0.f, 0.f };
+        glm::vec3 rotation{ 0.f, 0.f, 0.f };
         glm::quat rot(glm::vec3(glm::radians(rotation.x), glm::radians(rotation.y), glm::radians(rotation.z)));
 
         triangles[i] = TrianglePayload(
@@ -72,14 +72,14 @@ Blas::Blas(uint32_t test_spheres) :
         m_data.build(&settings, &stats);
     }
 
-    JCLOG_INFO(*g_singleThreadedLog, "Build Stats:", "");
-    JCLOG_INFO(*g_singleThreadedLog, "\tTriangle Count: {}", triCount);
-    JCLOG_INFO(*g_singleThreadedLog, "\tMax Depth: {}", stats.max_depth);
-    JCLOG_INFO(*g_singleThreadedLog, "\tNode Count: {}", stats.node_count);
-    JCLOG_INFO(*g_singleThreadedLog, "\tMax Primitives in Node: {}", stats.max_primitives_in_node);
-    JCLOG_INFO(*g_singleThreadedLog, "\tMin Primitives in Node: {}", stats.min_primitives_in_node);
-    JCLOG_INFO(*g_singleThreadedLog, "\tAverage Primitives per Node: {}", static_cast<float>(triCount) / stats.leaf_node_count);
-    JCLOG_INFO(*g_singleThreadedLog, "\tLeaf Node Count: {}", stats.leaf_node_count);
+    SYSLOG_INFO("Build Stats:", "");
+    SYSLOG_INFO("\tTriangle Count: {}", triCount);
+    SYSLOG_INFO("\tMax Depth: {}", stats.max_depth);
+    SYSLOG_INFO("\tNode Count: {}", stats.node_count);
+    SYSLOG_INFO("\tMax Primitives in Node: {}", stats.max_primitives_in_node);
+    SYSLOG_INFO("\tMin Primitives in Node: {}", stats.min_primitives_in_node);
+    SYSLOG_INFO("\tAverage Primitives per Node: {}", static_cast<float>(triCount) / stats.leaf_node_count);
+    SYSLOG_INFO("\tLeaf Node Count: {}", stats.leaf_node_count);
 }
 
 glm::vec3 Blas::traverse(const mtl::ray& ray) const

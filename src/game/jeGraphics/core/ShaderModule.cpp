@@ -1,4 +1,4 @@
-#include "ShaderModule.h"
+﻿#include "ShaderModule.h"
 #include "Device.h"
 #include "shader_parser/SPIRVReflection.h"
 #include "shader_parser/GLSLCompiler.h"
@@ -19,13 +19,13 @@ ShaderModule::ShaderModule(Device&                     device,
     m_SPIRV(),
     m_resources()
 {
-    GLSLCompiler compiler(m_device.get_log());
+    GLSLCompiler compiler;
     std::string compilerInfoLog;
     bool compileSuccess = compiler.compile_to_spirv(stage, glslSource, entryPoint, &m_SPIRV, &compilerInfoLog);
 
     if( !compileSuccess )
     {
-        JCLOG_ERROR(get_device().get_log(), "{}", compilerInfoLog.c_str());
+        GRAPHICS_ERROR("{}", compilerInfoLog.c_str());
         QUITFMT("Shader compilation failed. See above for details.");
     }
 

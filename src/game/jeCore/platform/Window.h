@@ -1,7 +1,6 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <functional>
-#include "logging/jclog.h"
 #include "events/Event.h"
 
 namespace vk

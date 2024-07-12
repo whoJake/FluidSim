@@ -17,7 +17,7 @@ int ApplicationBase::run(int argc, const char* argv[])
 {
     m_running = true;
 
-    if( init_global_log() )
+    if( !sys::log::initialise() )
     {
         return ExitFlagBits::InitFailure;
     }

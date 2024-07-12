@@ -38,6 +38,4 @@ private:
 
     std::chrono::steady_clock::time_point m_lastFrameBeginTime{ std::chrono::high_resolution_clock::now() };
     double m_deltaTime{ 0.f };
-
-    jclog::Log m_log{ };
 };

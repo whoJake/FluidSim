@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef NOMINMAX
     #define NOMINMAX
@@ -7,8 +7,15 @@
 #include "vk_mem_alloc.h"
 
 #define VK_CHECK(result, msg, ...) do{ if(result != VK_SUCCESS){ QUITFMT(msg, __VA_ARGS__); } }while(0)
-
 #define VK_ASSERT(condition, msg, ...) do{ if(!condition){ QUITFMT(msg, __VA_ARGS__); } }while(0)
+
+#define GRAPHICS_MSG(fmt, ...) CHANNEL_LOG_MSG(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+#define GRAPHICS_PROFILE(fmt, ...) CHANNEL_LOG_PROFILE(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+#define GRAPHICS_DEBUG(fmt, ...) CHANNEL_LOG_DEBUG(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+#define GRAPHICS_INFO(fmt, ...) CHANNEL_LOG_INFO(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+#define GRAPHICS_WARN(fmt, ...) CHANNEL_LOG_WARN(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+#define GRAPHICS_ERROR(fmt, ...) CHANNEL_LOG_ERROR(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+#define GRAPHICS_FATAL(fmt, ...) CHANNEL_LOG_FATAL(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 
 #define MAX_VK_FENCE_TIMEOUT = std::numeric_limits<size_t>::max();
 
@@ -187,7 +194,7 @@ static std::vector<std::string> get_device_features_overlap(const VkPhysicalDevi
 */
 
 template<typename T, typename... A>
-inline T& request_resource(const jclog::Log& log, std::unordered_map<size_t, T>& resources, A&... args)
+inline T& request_resource(std::unordered_map<size_t, T>& resources, A&... args)
 {
     size_t hash{ 0 };
     hash_params(hash, args...);
@@ -198,16 +205,10 @@ inline T& request_resource(const jclog::Log& log, std::unordered_map<size_t, T>&
 
     // Could be reduced to a single .emplace call but its useful to know when an object is being created before creating it
 
-    JCLOG_TRACK(log, "Generating #{} ( {} ) cache object", resources.size(), typeid(T).name());
+    GRAPHICS_PROFILE("Generating #{} ( {} ) cache object", resources.size(), typeid(T).name());
     T resource(args...);
     auto ins_it = resources.emplace(hash, std::move(resource));
     return (ins_it.first)->second;
-}
-
-template<typename T, typename... A>
-inline T& request_resource(std::unordered_map<size_t, T>& resources, A&... args)
-{
-    return request_resource(jclog::Log(), resources, args...);
 }
 
 //---------------------

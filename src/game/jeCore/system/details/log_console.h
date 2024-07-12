@@ -16,6 +16,8 @@ public:
     ~console_target();
 
     void output(message* msg) override;
+private:
+    mtl::fixed_vector<color> m_levelToColor;
 };
 
 } // details

@@ -1,9 +1,8 @@
-#include "JobDispatcher.h"
+﻿#include "JobDispatcher.h"
 
 #include <thread>
 
 JobDispatch* JobDispatch::m_instance = nullptr;
-
 
 #define DEFAULT_WORKER_THREADS 4
 PARAM(worker_threads);
@@ -63,14 +62,6 @@ void JobDispatch::initialize()
         });
 
         info.id = worker.get_id();
-        auto pair = instance().m_threadLogs.emplace(
-            std::piecewise_construct,
-            std::tuple(info.id),
-            std::tuple());
-
-        std::string logFilename = std::format("logs/{}.txt", workerName.c_str());
-        std::remove(logFilename.c_str());
-        pair.first->second.register_target(new jclog::FileTarget(logFilename.c_str()));
 
         worker.detach();
     }
@@ -101,11 +92,6 @@ void JobDispatch::reset_counters()
     }
 
     instance().m_counters.clear();
-}
-
-jclog::Log& JobDispatch::get_thread_log(std::thread::id tid)
-{
-    return instance().m_threadLogs.at(tid);
 }
 
 JobDispatch& JobDispatch::instance()

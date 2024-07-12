@@ -87,7 +87,7 @@ inline EShLanguage GLSLCompiler::get_shader_language(VkShaderStageFlagBits stage
     case VK_SHADER_STAGE_COMPUTE_BIT:
         return EShLangCompute;
     default:
-        JCLOG_WARN(m_log, "Shader langauge not implemented yet, defaulting to vertex shader.");
+        GRAPHICS_WARN("Shader langauge not implemented yet, defaulting to vertex shader.");
         return EShLangVertex;
     }
 }

@@ -1,10 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include <sstream>
 #include <iostream>
 #include <chrono>
-#include "logging/Log.h"
-#include "logging/ConsoleTarget.h"
 #include <format>
 
 namespace sys
@@ -45,21 +43,17 @@ public:
         || std::is_same_v<fidelity, minutes>
         , "Timer template must be instantiated with a std::chrono::duration type.");
 
-    timer(jclog::Log* log, const char* format) :
+    timer(sys::log::channel channel, const char* format) :
         m_start(now()),
-        m_log(log),
         m_format(format),
-        m_cleanupLog(false)
+        m_channel(channel)
     { }
     
     timer(const char* format) :
         m_start(now()),
-        m_log(new jclog::Log()),
         m_format(format),
-        m_cleanupLog(true)
-    {
-        m_log->register_target(new jclog::ConsoleTarget());
-    }
+        m_channel(sys::log::channel::none)
+    { }
     
     timer() :
         timer("Timer finished: {}")
@@ -68,11 +62,6 @@ public:
     ~timer()
     {
         output_timer();
-
-        if( m_cleanupLog )
-        {
-            delete m_log;
-        }
     }
 
     [[nodiscard]] static moment now()
@@ -160,13 +149,12 @@ private:
     inline void output_timer() const
     {
         std::string time = std::format("{}{}", get_fidelity_string(), fidelity_suffix());
-        m_log->trace(m_format, time);
+        CHANNEL_LOG_PROFILE(m_channel, m_format, time);
     }
 private:
     moment m_start;
-    jclog::Log* m_log;
     const char* m_format;
-    bool m_cleanupLog; // horrible solution
+    ::sys::log::channel m_channel;
 };
 
 } // sys

@@ -1,4 +1,4 @@
-#define VMA_IMPLEMENTATION // Single vma include?
+﻿#define VMA_IMPLEMENTATION // Single vma include?
 #include "Instance.h"
 
 #include "PhysicalDevice.h"
@@ -10,16 +10,16 @@ namespace vk
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
     if( severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT )
-        JCLOG_ERROR(*g_singleThreadedLog, pCallbackData->pMessage);
+        GRAPHICS_ERROR(pCallbackData->pMessage);
     else if( severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT )
-        JCLOG_WARN(*g_singleThreadedLog, pCallbackData->pMessage);
+        GRAPHICS_WARN(pCallbackData->pMessage);
     else
-        JCLOG_INFO(*g_singleThreadedLog, pCallbackData->pMessage);
+        GRAPHICS_INFO(pCallbackData->pMessage);
 
     return VK_FALSE;
 }
 
-VkResult create_debug_utils_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
+static VkResult create_debug_utils_messenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if( func != nullptr )
@@ -28,7 +28,7 @@ VkResult create_debug_utils_messenger(VkInstance instance, const VkDebugUtilsMes
         return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-void destroy_debug_utils_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+static void destroy_debug_utils_messenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if( func != nullptr )
@@ -40,7 +40,6 @@ Instance::Instance(const std::string&             applicationName,
                    uint32_t                       apiVersion,
                    const std::vector<const char*> enabledExtensions,
                    const std::vector<const char*> enabledValidationLayers) :
-    m_log(*g_singleThreadedLog), // cba to remove this
     m_apiVersion(apiVersion),
     m_enabledExtensions(enabledExtensions)
 {
@@ -54,9 +53,9 @@ Instance::Instance(const std::string&             applicationName,
         vkEnumerateInstanceLayerProperties(&validationLayerCount, availableLayers.data());
 
         /// log available layers
-        JCLOG_DEBUG(m_log, "Available Instance Layers: ");
+        GRAPHICS_DEBUG("Available Instance Layers: ");
         for( auto& layer : availableLayers )
-            JCLOG_DEBUG(m_log, "\t{}", std::string(layer.layerName).c_str());
+            GRAPHICS_DEBUG("\t{}", std::string(layer.layerName).c_str());
 
         for( const char* layerName : enabledValidationLayers )
         {
@@ -72,7 +71,7 @@ Instance::Instance(const std::string&             applicationName,
 
             if( !foundLayer )
             {
-                JCLOG_ERROR(m_log, "Validation layer {} requested but not available", layerName);
+                GRAPHICS_ERROR("Validation layer {} requested but not available", layerName);
                 QUITFMT("Requested validation layer which is not available. See above for details.");
             }
         }
@@ -97,9 +96,9 @@ Instance::Instance(const std::string&             applicationName,
     vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
 
     /// log available extensions
-    JCLOG_DEBUG(m_log, "Available Instance Extensions:");
+    GRAPHICS_DEBUG("Available Instance Extensions:");
     for( auto& ext : availableExtensions )
-        JCLOG_DEBUG(m_log, "\t{}", std::string(ext.extensionName).c_str());
+        GRAPHICS_DEBUG("\t{}", std::string(ext.extensionName).c_str());
 
     for( const char* extension : enabledExtensions )
     {
@@ -116,7 +115,7 @@ Instance::Instance(const std::string&             applicationName,
 
         if( !foundExtension )
         {
-            JCLOG_ERROR(m_log, "Extension {} requested but not available", extension);
+            GRAPHICS_ERROR("Extension {} requested but not available", extension);
             QUITFMT("Requested extension that is not available. See above for details.");
         }
     }
@@ -175,7 +174,7 @@ void Instance::query_gpus()
     vkEnumeratePhysicalDevices(m_handle, &deviceCount, physicalDevices.data());
 
     /// log found gpus
-    JCLOG_INFO(m_log, "Available GPUs:");
+    GRAPHICS_INFO("Available GPUs:");
     m_gpus.reserve(deviceCount);
     for( uint32_t i = 0; i < deviceCount; i++ )
     {
@@ -200,11 +199,6 @@ PhysicalDevice& Instance::get_first_gpu() const
 VkInstance Instance::get_handle() const
 {
     return m_handle;
-}
-
-const jclog::Log& Instance::get_log() const
-{
-    return m_log;
 }
 
 uint32_t Instance::get_api_version() const

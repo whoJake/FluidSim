@@ -42,7 +42,7 @@ Swapchain::Swapchain(Swapchain& oldSwapchain,
 
     if( oldSwapchain.get_handle() == VK_NULL_HANDLE )
     {
-        JCLOG_INFO(get_device().get_log(), "Found {} supported surface formats.", formatCount);
+        GRAPHICS_INFO("Found {} supported surface formats.", formatCount);
     }
 
     uint32_t presentModeCount{ 0 };
@@ -54,7 +54,7 @@ Swapchain::Swapchain(Swapchain& oldSwapchain,
 
     if( oldSwapchain.get_handle() == VK_NULL_HANDLE )
     {
-        JCLOG_INFO(get_device().get_log(), "Found {} supported present modes.", presentModeCount);
+        GRAPHICS_INFO("Found {} supported present modes.", presentModeCount);
     }
 
     m_properties.oldSwapchain = oldSwapchain.get_handle();
@@ -168,7 +168,7 @@ VkExtent2D Swapchain::choose_extent(VkExtent2D requestedExtent, VkExtent2D minSu
 
     if( requestedExtent.width < 1 || requestedExtent.height < 1 )
     {
-        // JCLOG_WARN(get_device().get_log(), "Swapchain image extent ({}, {}) is unsupported. Selecting ({}, {}).", requestedExtent.width, requestedExtent.height, currentExtent.width, currentExtent.height);
+        // GRAPHICS_WARN("Swapchain image extent ({}, {}) is unsupported. Selecting ({}, {}).", requestedExtent.width, requestedExtent.height, currentExtent.width, currentExtent.height);
         return currentExtent;
     }
 
@@ -196,7 +196,7 @@ VkSurfaceFormatKHR Swapchain::choose_surface_format(const std::vector<VkSurfaceF
         }
     }
 
-    JCLOG_WARN(get_device().get_log(), "Couldn't find a supported surface format in priority list provided, defaulting to first supported format.");
+    GRAPHICS_WARN("Couldn't find a supported surface format in priority list provided, defaulting to first supported format.");
     return supportedSurfaceFormats[0];
 }
 
@@ -228,7 +228,7 @@ VkSurfaceTransformFlagsKHR Swapchain::choose_transform(VkSurfaceTransformFlagBit
     if( requestedTransform & supportedTransforms )
         return requestedTransform;
 
-    JCLOG_WARN(get_device().get_log(), "Requested surface transform is not supported. Choosing default transform instead.");
+    GRAPHICS_WARN("Requested surface transform is not supported. Choosing default transform instead.");
     return currentTransform;
 }
 
@@ -237,7 +237,7 @@ VkCompositeAlphaFlagBitsKHR Swapchain::choose_composite_alpha(VkCompositeAlphaFl
     if( requestedCompositeAlpha & supportedCompositeAlpha )
         return requestedCompositeAlpha;
 
-    JCLOG_WARN(get_device().get_log(), "Requested composite alpha is not supported. Defaulting to VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR");
+    GRAPHICS_WARN("Requested composite alpha is not supported. Defaulting to VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR");
     return VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 }
 
@@ -250,7 +250,7 @@ VkPresentModeKHR Swapchain::choose_present_mode(const std::vector<VkPresentModeK
             return presentModePriority[i];
     }
 
-    JCLOG_WARN(get_device().get_log(), "Couldn't find a supported present mode in priority list provided, defaulting to first supported present mode.");
+    GRAPHICS_WARN("Couldn't find a supported present mode in priority list provided, defaulting to first supported present mode.");
     return supportedPresentModes[0];
 }
 

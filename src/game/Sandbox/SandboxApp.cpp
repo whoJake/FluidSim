@@ -10,10 +10,6 @@
 
 void SandboxApp::on_app_startup()
 {
-    m_log.register_target(new jclog::ConsoleTarget());
-    // m_log.register_target(new jclog::FileTarget("logs/apple.txt"));
-    m_log.trace("rotation,frametime");
-    
     std::vector<VkPresentModeKHR> presentModes =
         { VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
 
@@ -57,7 +53,7 @@ void SandboxApp::on_app_startup()
     );
 
     m_camera->position() = glm::vec3(0.f, 1.f, -3.f);
-    m_camera->set_rotation(glm::vec3(25.f, 0.f, 0.f));
+    m_camera->set_rotation(glm::vec3(45.f, 0.f, 0.f));
 
     m_blas = std::make_unique<Blas>(20);
 }
@@ -76,7 +72,7 @@ void SandboxApp::update()
     parse_inputs();
 
     static float currentRotation = 180.f;
-    constexpr float distanceFromOrigin = 25.f;
+    constexpr float distanceFromOrigin = 5.f;
 
 #define ROTATE 1
 
@@ -84,7 +80,7 @@ void SandboxApp::update()
 #if ROTATE
     m_camera->position() = glm::vec3(
         std::sinf(glm::radians(currentRotation)) * distanceFromOrigin,
-        22.f,
+        5.f,
         std::cosf(glm::radians(currentRotation)) * distanceFromOrigin);
 #endif
     

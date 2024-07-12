@@ -1,4 +1,4 @@
-#include "Buffer.h"
+﻿#include "Buffer.h"
 
 #include "Device.h"
 
@@ -74,7 +74,7 @@ void Buffer::unmap()
 {
     if( !m_mapped )
     {
-        JCLOG_WARN(get_device().get_log(), "Trying to unmap memory that is not mapped.");
+        GRAPHICS_WARN("Trying to unmap memory that is not mapped.");
         return;
     }
 

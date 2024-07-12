@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "vkcommon.h"
 
@@ -56,8 +56,6 @@ public:
 
     VkInstance get_handle() const;
 
-    const jclog::Log& get_log() const;
-
     uint32_t get_api_version() const;
 
     const std::vector<const char*>& get_enabled_extensions() const;
@@ -72,7 +70,6 @@ private:
     /* @brief The Vulkan instance handle */
     VkInstance m_handle{ VK_NULL_HANDLE };
 
-    jclog::Log& m_log;
     uint32_t m_apiVersion;
 
     /* @brief The enabled extensions */

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 
 #include <ostream>
@@ -16,6 +16,7 @@ public:
         size_t seed = 0x517cc1b727220a95;
         for( char c : string )
         {
+            // this is terrible btw
             std::hash<char> hasher;
             size_t hash = hasher(c);
 

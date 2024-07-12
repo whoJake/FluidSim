@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <functional>
 #include <atomic>
@@ -42,8 +42,6 @@ public:
 
     static void reset_counters();
 
-    static jclog::Log& get_thread_log(std::thread::id tid = std::this_thread::get_id());
-
     static void poll();
 private:
     static std::atomic<uint32_t>* request_atomic_counter(uint32_t initialValue);
@@ -58,6 +56,4 @@ private:
     std::condition_variable m_wakeCondition;
 
     std::unordered_set<std::atomic<uint32_t>*> m_counters{ };
-
-    std::unordered_map<std::thread::id, jclog::Log> m_threadLogs;
 };

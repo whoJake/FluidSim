@@ -1,4 +1,4 @@
-#include "Device.h"
+﻿#include "Device.h"
 
 #include <algorithm>
 #include "Instance.h"
@@ -9,12 +9,11 @@ namespace vk
 Device::Device(PhysicalDevice&                 gpu,
                VkSurfaceKHR                    surface,
                const std::vector<const char*>& requestedExtensions) :
-    m_log(*g_singleThreadedLog),
     m_gpu(gpu),
     m_surface(surface),
     m_resourceCache(*this)
 {
-    JCLOG_NONE(m_log, "{} GPU selected.", std::string(gpu.get_properties().deviceName).c_str());
+    GRAPHICS_MSG("{} GPU selected.", std::string(gpu.get_properties().deviceName).c_str());
 
     //--Prepare the device queues--
     uint32_t queueFamilyCount = to_u32(m_gpu.get_queue_family_properties().size());
@@ -41,10 +40,10 @@ Device::Device(PhysicalDevice&                 gpu,
 
     //--Display available extensions
     if( deviceExtensionCount != 0 )
-        JCLOG_DEBUG(m_log, "Device supports the following extensions:");
+        GRAPHICS_DEBUG("Device supports the following extensions:");
     for( VkExtensionProperties& property : m_deviceExtensions )
     {
-        JCLOG_DEBUG(m_log, "\t{}", std::string(property.extensionName).c_str());
+        GRAPHICS_DEBUG("\t{}", std::string(property.extensionName).c_str());
     }
 
 
@@ -65,7 +64,7 @@ Device::Device(PhysicalDevice&                 gpu,
     {
         for( const char* extension : unsupportedExtensions )
         {
-            JCLOG_ERROR(m_log, "{} is required but not supported", extension);
+            GRAPHICS_ERROR("{} is required but not supported", extension);
         }
         QUITFMT("Extensions required but not supported. See above for details.");
     }
@@ -114,11 +113,6 @@ Device::~Device()
 VkDevice Device::get_handle() const
 {
     return m_handle;
-}
-
-const jclog::Log& Device::get_log() const
-{
-    return m_log;
 }
 
 const PhysicalDevice& Device::get_gpu() const

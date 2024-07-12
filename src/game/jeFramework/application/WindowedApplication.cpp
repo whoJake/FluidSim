@@ -1,4 +1,4 @@
-#include "WindowedApplication.h"
+﻿#include "WindowedApplication.h"
 
 #include "platform/Window.h"
 #include "implementations/WindowGlfw.h"
@@ -20,10 +20,13 @@ WindowedApplication::WindowedApplication(const char* appName, const Window::Prop
 { }
 
 WindowedApplication::~WindowedApplication()
-{ 
-    m_handles.device->wait_idle();
+{
+    if( m_handles.device )
+    {
+        m_handles.device->wait_idle();
+        delete m_handles.device;
+    }
 
-    delete m_handles.device;
     delete m_handles.instance;
 }
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "vkcommon.h"
 #include "PhysicalDevice.h"
@@ -34,7 +34,6 @@ public:
     Device& operator=(Device&&) = delete;
 
     VkDevice get_handle() const;
-    const jclog::Log& get_log() const;
     const PhysicalDevice& get_gpu() const;
     VkSurfaceKHR get_surface() const;
     const Queue& get_queue(uint32_t familyIndex, uint32_t index) const;
@@ -53,7 +52,6 @@ public:
 
 private:
     VkDevice m_handle{ VK_NULL_HANDLE };
-    jclog::Log& m_log;
 
     const PhysicalDevice& m_gpu;
 

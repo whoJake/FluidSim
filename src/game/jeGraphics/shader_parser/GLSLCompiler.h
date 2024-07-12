@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "glslang/Public/ShaderLang.h"
 #include "vkcommon.h"
@@ -9,10 +9,8 @@ namespace vk
 class GLSLCompiler
 {
 public:
-    GLSLCompiler(const jclog::Log&                 log,
-                 glslang::EShTargetLanguage        targetLang           = glslang::EShTargetLanguage::EShTargetSpv,
+    GLSLCompiler(glslang::EShTargetLanguage        targetLang           = glslang::EShTargetLanguage::EShTargetSpv,
                  glslang::EShTargetLanguageVersion targetLangVer        = glslang::EShTargetLanguageVersion::EShTargetSpv_1_5) :
-        m_log(log),
         m_targetLang(targetLang),
         m_targetLangVer(targetLangVer)
     { }
@@ -33,7 +31,6 @@ public:
         std::string*                            infoLog);
 
 private:
-    const jclog::Log& m_log;
     glslang::EShTargetLanguage m_targetLang;
     glslang::EShTargetLanguageVersion m_targetLangVer;
 

@@ -21,7 +21,7 @@ PhysicalDevice::PhysicalDevice(const Instance& instance, VkPhysicalDevice physic
     m_queueFamilyProperties.resize(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(m_handle, &queueFamilyCount, m_queueFamilyProperties.data());
 
-    JCLOG_INFO(m_instance.get_log(), "\t{}", std::string(m_properties.deviceName).c_str());
+    GRAPHICS_INFO("\t{}", std::string(m_properties.deviceName).c_str());
 }
 
 const VkPhysicalDeviceFeatures& PhysicalDevice::get_features() const
@@ -64,20 +64,20 @@ bool PhysicalDevice::is_present_supported(VkSurfaceKHR surface, uint32_t queueFa
 
 void PhysicalDevice::request_features(VkPhysicalDeviceFeatures features)
 {
-    JCLOG_DEBUG(m_instance.get_log(), "Physical Device features requested: ");
+    GRAPHICS_DEBUG("Physical Device features requested: ");
     auto requested = get_device_features_overlap(features, features, true);
     for( auto& req : requested )
     {
-        JCLOG_DEBUG(m_instance.get_log(), "\t{}", req.c_str());
+        GRAPHICS_DEBUG("\t{}", req.c_str());
     }
 
     auto unsupported = get_device_features_overlap(features, m_features, false);
     if( unsupported.size() > 0 )
     {
-        JCLOG_ERROR(m_instance.get_log(), "The following features were requested but aren't available on this physical device:");
+        GRAPHICS_ERROR("The following features were requested but aren't available on this physical device:");
         for( std::string& feature : unsupported )
         {
-            JCLOG_ERROR(m_instance.get_log(), "\t{}", feature.c_str());
+            GRAPHICS_ERROR("\t{}", feature.c_str());
         }
         QUITFMT("Features were requested but not available on the physical device selected. See above for details.");
     }
