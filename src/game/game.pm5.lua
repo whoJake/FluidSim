@@ -5,7 +5,8 @@
   {
     "Debug",
     "ReleasePdb",
-    "Release"
+    "Release",
+    "Final"
   }
 
   -- Project names
@@ -15,6 +16,8 @@
   
   prj_DataDrivenGen = "DataDrivenGen"
   prj_Sandbox = "Sandbox"
+
+  prj_ImGui = "DearImGui"
 
   g_Vendordir = "../3rdparty/"
   g_Outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}/"
@@ -26,14 +29,6 @@
   language "C++"
   cppdialect "C++20"
   staticruntime "off"
-
-  includedirs
-  {
-    "%{prj.name}",
-    
-    "%{g_Vendordir}/pugixml-1.14/src", --used by core
-    "%{g_Vendordir}/glm-1.0.0/glm", --used by core
-  }
 
   files
   {
@@ -48,7 +43,6 @@
   exceptionhandling ("Off")
   buildoptions
   {
-    "/FIforceinclude.h",
     "/Zc:__cplusplus",
   }
 
@@ -97,6 +91,16 @@
     runtime "Release"
     buildoptions "/MD"
 
+  filter "configurations:Final"
+    defines
+    {
+        "CFG_FINAL",
+    }
+    symbols "Off"
+    optimize "Off"
+    runtime "Release"
+    buildoptions "/MD"
+
   filter {}
 
   ----------------------------------------------------------------------
@@ -106,7 +110,19 @@
   project (prj_Core)
     location "%{prj.name}"
     kind "StaticLib"
-
+    
+    includedirs
+    {
+      "%{prj.name}",
+    
+      "%{g_Vendordir}/pugixml-1.14/src", --used by core
+      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+    }
+    
+    buildoptions
+    {
+      "/FIforceinclude.h",
+    }
     --pchheader "forceinclude.h"
     --pchsource "forceinclude.cpp"
 
@@ -120,6 +136,10 @@
 
     includedirs
     {
+      "%{g_Vendordir}/pugixml-1.14/src", --used by core
+      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+      
+      "%{prj.name}",
       "%{prj_Core}",
 
       -- glfw
@@ -131,6 +151,11 @@
       "%{g_Vendordir}/glslang/StandAlone",
       "%{g_Vendordir}/glslang/Include",
       "%{g_Vendordir}/glslang/SPIRV",
+    }
+    
+    buildoptions
+    {
+      "/FIforceinclude.h",
     }
 
     dependson
@@ -190,6 +215,11 @@
       {
       }
 
+     filter "configurations:Final"
+      defines
+      {
+      }
+
   ----------------------------------------------------------------------
   -------------------------------FRAMEWORK------------------------------
   ----------------------------------------------------------------------
@@ -198,14 +228,27 @@
     location "%{prj.name}"
     kind "StaticLib"
 
+    files
+    {
+        "%{g_Vendordir}/imgui-1.90.9/*.h",
+        "%{g_Vendordir}/imgui-1.90.9/*.cpp",
+    }
+
     includedirs
     {
+      "%{g_Vendordir}/pugixml-1.14/src", --used by core
+      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+      
+      "%{prj.name}",
       "%{prj_Core}",
       "%{prj_Graphics}",
 
       -- from prj_Graphics
       -- glfw
       "%{g_Vendordir}/glfw",
+
+      -- from prj_ImGui
+      "%{prj_ImGui}",
 
       -- vulkan
       "%VULKAN_SDK%/Include",
@@ -215,10 +258,16 @@
       "%{g_Vendordir}/glslang/SPIRV",
     }
 
+    buildoptions
+    {
+      "/FIforceinclude.h",
+    }
+
     dependson
     {
       "%{prj_Core}",
       "%{prj_Graphics}",
+      "%{prj_ImGui}",
     }
 
     libdirs
@@ -229,6 +278,7 @@
     {
       "%{prj_Core}",
       "%{prj_Graphics}",
+      "%{prj_ImGui}",
     }
 
     filter "configurations:Debug"
@@ -242,6 +292,11 @@
       }
 
     filter "configurations:Release"
+      defines
+      {
+      }
+
+     filter "configurations:Final"
       defines
       {
       }
@@ -253,9 +308,13 @@
   project (prj_Sandbox)
     location "%{prj.name}"
     kind "ConsoleApp"
-
+    
     includedirs
     {
+      "%{g_Vendordir}/pugixml-1.14/src", --used by core
+      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+      
+      "%{prj.name}",
       "%{prj_Core}",
       "%{prj_Graphics}",
       "%{prj_Framework}",
@@ -263,6 +322,13 @@
       -- from prj_Graphics
       -- glfw
       "%{g_Vendordir}/glfw",
+
+      -- from prj_Framework
+      -- imgui
+      "%{g_Vendordir}/imgui-1.90.9",
+
+      -- from prj_ImGui
+      "%{prj_ImGui}",
 
       -- vulkan
       "%VULKAN_SDK%/Include",
@@ -276,7 +342,13 @@
     {
       "%{prj_Core}",
       "%{prj_Graphics}",
+      "%{prj_ImGui}",
       "%{prj_Framework}",
+    }
+
+    buildoptions
+    {
+      "/FIforceinclude.h",
     }
 
     libdirs
@@ -287,6 +359,7 @@
     {
       "%{prj_Core}",
       "%{prj_Graphics}",
+      "%{prj_ImGui}",
       "%{prj_Framework}",
     }
 
@@ -301,6 +374,11 @@
       }
 
     filter "configurations:Release"
+      defines
+      {
+      }
+
+     filter "configurations:Final"
       defines
       {
       }
@@ -317,12 +395,21 @@
 
     includedirs
     {
+      "%{prj.name}",
+      "%{g_Vendordir}/pugixml-1.14/src", --used by core
+      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+
       "%{prj_Core}",
     }
 
     dependson
     {
       "%{prj_Core}",
+    }
+
+    buildoptions
+    {
+      "/FIforceinclude.h",
     }
 
     libdirs
@@ -345,6 +432,51 @@
       }
 
     filter "configurations:Release"
+      defines
+      {
+      }
+
+     filter "configurations:Final"
+      defines
+      {
+      }
+
+  ----------------------------------------------------------------------
+  ----------------------------------ImGui-------------------------------
+  ----------------------------------------------------------------------
+
+  project (prj_ImGui)
+    location "%{prj.name}"
+    kind "StaticLib"
+
+    includedirs
+    {
+      "%{prj.name}",
+    }
+
+    removefiles
+    {
+        "%{prj.name}/examples/**",
+        "%{prj.name}/backends/**",
+        "%{prj.name}/misc/**",
+    }
+
+    filter "configurations:Debug"
+      defines
+      {
+      }
+
+    filter "configurations:ReleasePdb"
+      defines
+      {
+      }
+
+    filter "configurations:Release"
+      defines
+      {
+      }
+
+     filter "configurations:Final"
       defines
       {
       }
