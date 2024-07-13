@@ -16,6 +16,7 @@ struct ray
 {
     glm::vec3 position;
     glm::vec3 direction;
+    glm::vec3 invDirection;
 
     inline float intersects(glm::vec3 sphere_pos, float sphere_radius) const
     {
@@ -33,21 +34,27 @@ struct ray
         return (-b - sqrt(disc)) / (2.f * a);
     }
 
-    inline glm::vec2 intersects(const mtl::aabb3& bound) const
+    inline bool intersects(const mtl::aabb3& bounds, f32* distance = nullptr) const
     {
-        float tx1 = (bound.min.x - position.x) / direction.x;
-        float tx2 = (bound.max.x - position.x) / direction.x;
-        float tmin = std::min(tx1, tx2);
-        float tmax = std::max(tx1, tx2);
-        float ty1 = (bound.min.y - position.y) / direction.y;
-        float ty2 = (bound.max.y - position.y) / direction.y;
-        tmin = std::max(tmin, std::min(ty1, ty2));
-        tmax = std::min(tmax, std::max(ty1, ty2));
-        float tz1 = (bound.min.z - position.z) / direction.z;
-        float tz2 = (bound.max.z - position.z) / direction.z;
-        tmin = std::max(tmin, std::min(tz1, tz2));
-        tmax = std::min(tmax, std::max(tz1, tz2));
-        return { tmin, tmax };
+        f32 t1 = (bounds.min.x - position.x) * invDirection.x;
+        f32 t2 = (bounds.max.x - position.x) * invDirection.x;
+        f32 t3 = (bounds.min.y - position.y) * invDirection.y;
+        f32 t4 = (bounds.max.y - position.y) * invDirection.y;
+        f32 t5 = (bounds.min.z - position.z) * invDirection.z;
+        f32 t6 = (bounds.max.z - position.z) * invDirection.z;
+
+        f32 tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
+        f32 tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
+
+        if( tmax < 0.f )
+            return false;
+
+        if( tmin > tmax )
+            return false;
+
+        if( distance )
+            *distance = tmin;
+        return true;
     }
 };
 

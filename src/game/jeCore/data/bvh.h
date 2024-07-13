@@ -112,21 +112,19 @@ private:
     inline void traverse_impl(const ray& target, bvh_traverse_options options, bvh_traverse_stats* stats, bvh_traverse_output<payload>* output, u32 nodeIndex) const
     {
         stats->nodes_checked++;
-        glm::vec2 intersect = target.intersects(m_nodes[nodeIndex].bounds);
-
-        if( !(intersect.y >= intersect.x && intersect.y > 0) )
+        if( !target.intersects(m_nodes[nodeIndex].bounds) )
         {
             return;
         }
 
         if( m_nodes[nodeIndex].is_leaf() )
         {
-            stats->primitives_checked++;
             u32 payloadIdx = m_nodes[nodeIndex].left;
             u32 payloadCnt = m_nodes[nodeIndex].count;
 
             for( uint32_t i = 0; i < m_nodes[nodeIndex].count; i++ )
             {
+                stats->primitives_checked++;
                 uint32_t pIdx = m_nodes[nodeIndex].left + i;
 
                 ray_hit_info hitInfo{ };
@@ -144,52 +142,50 @@ private:
         }
         else
         {
-            glm::vec2 n1 = target.intersects(m_nodes[m_nodes[nodeIndex].left].bounds);
-            f32 n1d = n1.x;
-            if( n1.y >= n1.x && n1.y > 0 )
-            {
-                n1d = f32_max;
-            }
+            /*
+            bool checkFirst = false;
 
-            glm::vec2 n2 = target.intersects(m_nodes[m_nodes[nodeIndex].left + 1u].bounds);
-            f32 n2d = n2.x;
-            if( n2.y >= n2.x && n2.y > 0 )
+            f32 nodeADist;
+            f32 nodeBDist;
+            if( target.intersects(m_nodes[m_nodes[nodeIndex].left].bounds, &nodeADist) )
             {
-                n2d = std::numeric_limits<float>::max();
-            }
+                if( target.intersects(m_nodes[m_nodes[nodeIndex].left + 1].bounds, &nodeBDist) )
+                {
+                    checkFirst = nodeADist < nodeBDist;
+                }
 
-            if( n1d < n2d )
-            {
-                traverse_impl(target, options, stats, output, m_nodes[nodeIndex].left);
-                traverse_impl(target, options, stats, output, m_nodes[nodeIndex].left + 1u);
+                checkFirst = false;
             }
-            else
+            else if( target.intersects(m_nodes[m_nodes[nodeIndex].left + 1].bounds, &nodeBDist) )
             {
-                traverse_impl(target, options, stats, output, m_nodes[nodeIndex].left + 1u);
-                traverse_impl(target, options, stats, output, m_nodes[nodeIndex].left);
+                checkFirst = true;
             }
+            */
+
+            traverse_impl(target, options, stats, output, m_nodes[nodeIndex].left);
+            traverse_impl(target, options, stats, output, m_nodes[nodeIndex].left + 1);
         }
     }
 
-    inline void update_node_bounds(uint32_t nodeIndex)
+    inline void update_node_bounds(u32 nodeIndex)
     {
-        bvh::details::node* node = &m_nodes[nodeIndex];
+        bvh::details::node& node = m_nodes[nodeIndex];
         
-        if( node->count == 0 )
+        if( !node.is_leaf() )
         {
             // error?
             return;
         }
 
-        node->bounds = aabb3_empty;
-        for( u32 i = 0; i < node->count; i++ )
+        node.bounds = aabb3_empty;
+        for( u32 i = 0; i < node.count; i++ )
         {
-            u32 payloadIndex = node->left + i;
-            node->bounds.expand_to_fit(m_payloads[payloadIndex].get_bounds());
+            u32 payloadIndex = node.left + i;
+            node.bounds.expand_to_fit(m_payloads[payloadIndex].get_bounds());
         }
     }
     
-    inline void split(bvh_build_settings* options, uint32_t nodeIndex, u32 curDepth, bvh_build_stats* stats)
+    inline void split(bvh_build_settings* options, u32 nodeIndex, u32 curDepth, bvh_build_stats* stats)
     {
         if( stats )
         {

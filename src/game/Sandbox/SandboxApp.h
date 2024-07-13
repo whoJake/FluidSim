@@ -15,6 +15,8 @@
 class SandboxApp : public WindowedApplication
 {
 public:
+    SandboxApp();
+
     void on_app_startup() override;
     void on_app_shutdown() override;
 

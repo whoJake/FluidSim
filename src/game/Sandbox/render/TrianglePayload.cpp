@@ -41,11 +41,10 @@ mtl::aabb3 TrianglePayload::get_bounds() const
 
 mtl::aabb3 TrianglePayload::calculate_bounds() const
 {
-    mtl::aabb3 retval
-    {
-        m_vertices[0],
-        m_vertices[1]
-    };
+    mtl::aabb3 retval = mtl::aabb3_empty;
+
+    retval.expand_to_fit(m_vertices[0]);
+    retval.expand_to_fit(m_vertices[1]);
     retval.expand_to_fit(m_vertices[2]);
 
     return retval;
@@ -53,26 +52,34 @@ mtl::aabb3 TrianglePayload::calculate_bounds() const
 
 bool TrianglePayload::check_ray(const mtl::ray& ray, mtl::ray_hit_info* hit) const
 {
+    constexpr f32 epsilon = std::numeric_limits<f32>::epsilon();
+
     glm::vec3 edge1 = m_vertices[1] - m_vertices[0];
     glm::vec3 edge2 = m_vertices[2] - m_vertices[0];
     glm::vec3 h = glm::cross( ray.direction, edge2 );
 
-    float a = glm::dot(edge1, h);
+    f32 a = glm::dot(edge1, h);
 
-    if ( a > -0.0001f && a < 0.0001f ) return false;
+    if ( a > epsilon && a < epsilon )
+        return false; // ray is parallel to the triangle
 
-    float f = 1.f / a;
+    f32 f = 1.f / a;
     glm::vec3 s = ray.position - m_vertices[0];
-    float u = f * glm::dot(s, h);
+    f32 u = f * glm::dot(s, h);
 
-    if (u < 0.f || u > 1.f ) return false;
+    if (u < 0.f || u > 1.f )
+        return false;
 
     glm::vec3 q = glm::cross(s, edge1);
-    float v = f * glm::dot(ray.direction, q);
+    f32 v = f * glm::dot(ray.direction, q);
 
-    if (v < 0.f || u + v > 1.f) return false;
+    if (v < 0.f || u + v > 1.f)
+         return false;
 
-    float t = f * glm::dot(edge2, q);
+    f32 t = f * glm::dot(edge2, q);
+    if( t < epsilon )
+        return false; // behind the ray
+
     hit->distance = t;
     hit->diffuse = m_color;
     hit->normal = sample_normals(ray.position + (ray.direction * t));

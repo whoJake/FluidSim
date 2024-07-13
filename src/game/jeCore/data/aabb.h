@@ -113,8 +113,8 @@ public:
 
 inline static aabb3 aabb3_empty
 {
-    { std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max() },
-    { std::numeric_limits<float>::min(), std::numeric_limits<float>::min(), std::numeric_limits<float>::min() }
+    { f32_max, f32_max, f32_max },
+    { f32_min, f32_min, f32_min }
 };
 
 } // mtl

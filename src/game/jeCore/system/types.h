@@ -41,10 +41,10 @@ using i64 = int64_t;
 
 using f32 = float;
 #define f32_max std::numeric_limits<f32>::max()
-#define f32_min std::numeric_limits<f32>::min()
+#define f32_min -f32_max
 #define f32_cast(v) static_cast<f32>(v)
 
 using f64 = double;
 #define f64_max std::numeric_limits<f64>::max()
-#define f64_max std::numeric_limits<f64>::max()
+#define f64_min -f64_max
 #define f64_cast(v) static_cast<f64>(v)

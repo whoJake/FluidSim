@@ -54,6 +54,11 @@ Window& WindowedApplication::get_window()
     return *m_window;
 }
 
+const char* WindowedApplication::get_application_name() const
+{
+    return m_name;
+}
+
 bool WindowedApplication::create_window()
 {
     m_windowProperties.eventfn = BIND_EVENT_FN(WindowedApplication::on_event);

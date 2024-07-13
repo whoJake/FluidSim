@@ -43,7 +43,7 @@ public:
     };
 
     struct Properties {
-        std::string title = "Windowed Application Title";
+        std::string title = "Windowed Application";
         Mode mode = Mode::Windowed;
         bool resizable = true;
         VSync vsync = VSync::Default;

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "ApplicationBase.h"
 
@@ -32,6 +32,8 @@ public:
     virtual void on_event(Event& e) { };
 
     Window& get_window();
+
+    const char* get_application_name() const;
 protected:
     virtual std::vector<const char*> request_instance_extensions() const;
 

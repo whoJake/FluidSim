@@ -1,4 +1,4 @@
-#include "Camera.h"
+﻿#include "Camera.h"
 
 Camera::Camera(uint32_t width, uint32_t height, uint32_t fov) :
     m_position(),
@@ -73,12 +73,14 @@ mtl::ray Camera::get_pixel_ray(size_t x, size_t y) const
 
     float cameraDistance = 1.f / (std::tanf(glm::radians(m_fov * 0.5f)));
 
-    glm::vec3 direction = glm::vec3(uv, cameraDistance);
+    glm::vec3 direction = glm::normalize(get_rotation() * glm::vec3(uv, cameraDistance));
     return
     {
         m_position,
         // direction
-        glm::normalize(get_rotation() * direction)
+        direction,
+        // inverse direction
+        glm::vec3(1.f / direction.x, 1.f / direction.y, 1.f / direction.z)
     };
 }
 

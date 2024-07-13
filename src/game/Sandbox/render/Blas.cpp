@@ -94,7 +94,7 @@ glm::vec3 Blas::traverse(const mtl::ray& ray) const
 
     if( !output.payload_hit )
     {
-        if( mode == 1 )
+        if( mode == 1 || mode == 4 )
             return glm::vec3(0.f, 0.f, 0.f);
     }
 
@@ -115,6 +115,8 @@ glm::vec3 Blas::traverse(const mtl::ray& ray) const
         return glm::vec3(stats.nodes_checked / 75.f);
     case 3:
         return glm::vec3(stats.primitives_checked / 30.f);
+    case 4:
+        return glm::vec3(output.distance / 20.f);
     }
     
     // dai hen

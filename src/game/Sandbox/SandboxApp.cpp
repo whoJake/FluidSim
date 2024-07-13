@@ -8,6 +8,10 @@
 
 #include "loaders/obj_waveform.h"
 
+SandboxApp::SandboxApp() :
+    WindowedApplication("Windowed Application", { })
+{ }
+
 void SandboxApp::on_app_startup()
 {
     std::vector<VkPresentModeKHR> presentModes =
@@ -71,10 +75,33 @@ void SandboxApp::update()
 
     parse_inputs();
 
+    // debug frametime average
+    {
+        static u32 frame = 0;
+        static u32 max = 50;
+
+        static f32 accum = 0.f;
+
+        if( frame == max )
+        {
+            f32 ft = (accum / max);
+            f32 fps = 1.f / ft;
+            // SYSLOG_PROFILE("{} fps average: {}fps", max, fps);
+            get_window().set_title(std::format("{} : {}fps", get_application_name(), fps));
+            frame = 0;
+            accum = 0.f;
+        }
+        else
+        {
+            accum += f32_cast(m_deltaTime);
+            frame++;
+        }
+    }
+
     static float currentRotation = 180.f;
     constexpr float distanceFromOrigin = 5.f;
 
-#define ROTATE 0
+#define ROTATE 1
 
     // Move camera
 #if ROTATE
@@ -128,6 +155,8 @@ void SandboxApp::parse_inputs()
         m_blas->mode = 2;
     if( Input::get_key_pressed(KeyCode::_3) )
         m_blas->mode = 3;
+    if( Input::get_key_pressed(KeyCode::_4) )
+        m_blas->mode = 4;
 
     glm::vec3 move{ };
     if( Input::get_key_down(KeyCode::A) )

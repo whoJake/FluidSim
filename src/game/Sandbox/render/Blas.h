@@ -10,7 +10,7 @@ public:
 
     glm::vec3 traverse(const mtl::ray& ray) const;
 
-    uint32_t mode{ 1 };
+    uint32_t mode{ 4 };
 private:
     mtl::fixed_bvh<TrianglePayload> m_data;
 };
