@@ -1,4 +1,4 @@
-workspace "game"
+﻿workspace "game"
     architecture "x64"
 
   configurations
@@ -37,6 +37,7 @@ workspace "game"
 
   files
   {
+    "%{prj.name}/**.inl",
     "%{prj.name}/**.h",
     "%{prj.name}/**.cpp",
     "%{prj.name}/**.hpp",

@@ -2,7 +2,8 @@
 #include "aabb.h"
 #include "ray.h"
 #include "bvh_payload.h"
-#include "implementation/bvh_helpers.h"
+#include "details/bvh_node.h"
+#include "details/bvh_split_functions.h"
 
 namespace mtl
 {
@@ -15,38 +16,38 @@ enum class bvh_split_method
 
 struct bvh_build_settings
 {
-    size_t maxDepth{ 10 };
-    size_t minPayloadsPerNode{ 5 };
+    u64 maxDepth{ 10 };
+    u64 minPayloadsPerNode{ 5 };
     bvh_split_method split_method{ bvh_split_method::HALF_LONGEST_AXIS };
 };
 
 struct bvh_traverse_options
 {
-    uint32_t unused;
+    u32 unused;
 };
 
 template<typename payload>
 struct bvh_traverse_output
 {
     const payload* payload_hit;
-    float distance;
+    f32 distance;
 };
 
 struct bvh_traverse_stats
 {
-    uint32_t bounces_performed;
-    float distance_travelled;
-    uint32_t primitives_checked;
-    uint32_t nodes_checked;
+    u32 bounces_performed;
+    f32 distance_travelled;
+    u32 primitives_checked;
+    u32 nodes_checked;
 };
 
 struct bvh_build_stats
 {
-    uint32_t max_depth{ 0 };
-    uint32_t node_count{ 0 };
-    uint32_t max_primitives_in_node{ 0 };
-    uint32_t min_primitives_in_node{ std::numeric_limits<uint32_t>::max() };
-    uint32_t leaf_node_count{ 0 };
+    u32 max_depth{ 0 };
+    u32 node_count{ 0 };
+    u32 max_primitives_in_node{ 0 };
+    u32 min_primitives_in_node{ u32_max };
+    u32 leaf_node_count{ 0 };
 };
 
 template<typename payload>
@@ -77,7 +78,7 @@ public:
         bvh_traverse_output<payload> retval
         {
             nullptr,
-            std::numeric_limits<float>::max()
+            f32_max
         };
 
         traverse_impl(target, options, out_stats, &retval, 0);
@@ -85,20 +86,30 @@ public:
         return retval;
     }
 
+    inline u32 count_primitives(u32 idx = 0) const
+    {
+        if( m_nodes[idx].is_leaf() )
+        {
+            return m_nodes[idx].count;
+        }
+
+        return count_primitives(m_nodes[idx].left) + count_primitives(m_nodes[idx].left + 1);
+    }
+
     inline void build(bvh_build_settings* options, bvh_build_stats* stats)
     {
         m_nodes.clear();
 
         // assign root node.
-        bvh_node root{ };
+        bvh::details::node root{ };
         root.left = 0;
-        root.count = static_cast<uint32_t>(m_payloads.size());
+        root.count = u32_cast(m_payloads.size());
         m_nodes.push_back(root);
 
         split(options, 0, 0, stats);
     }
 private:
-    inline void traverse_impl(const ray& target, bvh_traverse_options options, bvh_traverse_stats* stats, bvh_traverse_output<payload>* output, uint32_t nodeIndex) const
+    inline void traverse_impl(const ray& target, bvh_traverse_options options, bvh_traverse_stats* stats, bvh_traverse_output<payload>* output, u32 nodeIndex) const
     {
         stats->nodes_checked++;
         glm::vec2 intersect = target.intersects(m_nodes[nodeIndex].bounds);
@@ -111,8 +122,8 @@ private:
         if( m_nodes[nodeIndex].is_leaf() )
         {
             stats->primitives_checked++;
-            uint32_t payloadIdx = m_nodes[nodeIndex].left;
-            uint32_t payloadCnt = m_nodes[nodeIndex].count;
+            u32 payloadIdx = m_nodes[nodeIndex].left;
+            u32 payloadCnt = m_nodes[nodeIndex].count;
 
             for( uint32_t i = 0; i < m_nodes[nodeIndex].count; i++ )
             {
@@ -134,14 +145,14 @@ private:
         else
         {
             glm::vec2 n1 = target.intersects(m_nodes[m_nodes[nodeIndex].left].bounds);
-            float n1d = n1.x;
+            f32 n1d = n1.x;
             if( n1.y >= n1.x && n1.y > 0 )
             {
-                n1d = std::numeric_limits<float>::max();
+                n1d = f32_max;
             }
 
             glm::vec2 n2 = target.intersects(m_nodes[m_nodes[nodeIndex].left + 1u].bounds);
-            float n2d = n2.x;
+            f32 n2d = n2.x;
             if( n2.y >= n2.x && n2.y > 0 )
             {
                 n2d = std::numeric_limits<float>::max();
@@ -162,7 +173,7 @@ private:
 
     inline void update_node_bounds(uint32_t nodeIndex)
     {
-        bvh_node* node = &m_nodes[nodeIndex];
+        bvh::details::node* node = &m_nodes[nodeIndex];
         
         if( node->count == 0 )
         {
@@ -170,15 +181,15 @@ private:
             return;
         }
 
-        node->bounds = aabb3(m_payloads[node->left].get_bounds());
-        for( uint32_t i = 1; i < node->count; i++ )
+        node->bounds = aabb3_empty;
+        for( u32 i = 0; i < node->count; i++ )
         {
-            uint32_t payloadIndex = node->left + i;
+            u32 payloadIndex = node->left + i;
             node->bounds.expand_to_fit(m_payloads[payloadIndex].get_bounds());
         }
     }
     
-    inline void split(bvh_build_settings* options, uint32_t nodeIndex, uint32_t curDepth, bvh_build_stats* stats)
+    inline void split(bvh_build_settings* options, uint32_t nodeIndex, u32 curDepth, bvh_build_stats* stats)
     {
         if( stats )
         {
@@ -201,27 +212,27 @@ private:
             return;
         }
 
-        bvh_split splitAxis{ };
+        bvh::details::split splitAxis{ };
         switch( options->split_method )
         {
         case bvh_split_method::HALF_LONGEST_AXIS:
-            splitAxis = bvh_func::half_bounds(m_nodes[nodeIndex].bounds);
+            splitAxis = bvh::details::half_longest_axis(m_nodes[nodeIndex].bounds);
             break;
         case bvh_split_method::OPTIMAL_SAH:
-            splitAxis = bvh_func::optimal_sah(m_payloads, m_nodes[nodeIndex].left, m_nodes[nodeIndex].count, m_nodes[nodeIndex].bounds);
+            splitAxis = bvh::details::optimal_sah(m_payloads, m_nodes[nodeIndex].left, m_nodes[nodeIndex].count, m_nodes[nodeIndex].bounds);
             break;
         }
 
 
         // perform split
-        uint32_t i = m_nodes[nodeIndex].left;
-        uint32_t j = m_nodes[nodeIndex].left + m_nodes[nodeIndex].count - 1;
+        u32 i = m_nodes[nodeIndex].left;
+        u32 j = m_nodes[nodeIndex].left + m_nodes[nodeIndex].count - 1;
 
-        uint32_t k = 0;
+        u32 k = 0;
         while( i <= j )
         {
             glm::vec3 tmp = m_payloads[i].get_point();
-            if( bvh_func::get_side(m_payloads[i].get_point(), splitAxis) )
+            if( bvh::details::get_side(m_payloads[i].get_point(), splitAxis) )
             {
                 i++;
             }
@@ -231,8 +242,8 @@ private:
             }
         }
 
-        uint32_t leftCount = i - m_nodes[nodeIndex].left;
-        uint32_t rightCount = m_nodes[nodeIndex].count - leftCount;
+        u32 leftCount = i - m_nodes[nodeIndex].left;
+        u32 rightCount = m_nodes[nodeIndex].count - leftCount;
 
         // skip split in these cases
         if( leftCount == 0 || leftCount == m_nodes[nodeIndex].count || leftCount <= options->minPayloadsPerNode || rightCount <= options->minPayloadsPerNode )
@@ -247,21 +258,21 @@ private:
             return;
         }
 
-        bvh_node left
+        bvh::details::node left
         {
             { },
             m_nodes[nodeIndex].left,
             leftCount
         };
 
-        bvh_node right
+        bvh::details::node right
         {
             { },
             i,
             m_nodes[nodeIndex].count - leftCount
         };
         
-        m_nodes[nodeIndex].left = static_cast<uint32_t>(m_nodes.size());
+        m_nodes[nodeIndex].left = u32_cast(m_nodes.size());
         m_nodes[nodeIndex].count = 0;
 
         m_nodes.push_back(left);
@@ -272,7 +283,7 @@ private:
     }
 private:
     mtl::fixed_vector<payload> m_payloads;
-    std::vector<bvh_node> m_nodes;
+    std::vector<bvh::details::node> m_nodes;
 };
 
 } // mtl

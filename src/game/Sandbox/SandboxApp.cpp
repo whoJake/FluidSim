@@ -26,7 +26,7 @@ void SandboxApp::on_app_startup()
 
     m_renderer = std::make_unique<ImageRenderer>(*m_context);
 
-    VkExtent3D extent{ 400, 300, 1 };
+    VkExtent3D extent{ 600, 400, 1 };
 
     m_image = std::make_unique<vk::Image>(
         m_context->get_device(),
@@ -74,7 +74,7 @@ void SandboxApp::update()
     static float currentRotation = 180.f;
     constexpr float distanceFromOrigin = 5.f;
 
-#define ROTATE 1
+#define ROTATE 0
 
     // Move camera
 #if ROTATE

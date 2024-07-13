@@ -80,6 +80,7 @@ Blas::Blas(uint32_t test_spheres) :
     SYSLOG_INFO("\tMin Primitives in Node: {}", stats.min_primitives_in_node);
     SYSLOG_INFO("\tAverage Primitives per Node: {}", static_cast<float>(triCount) / stats.leaf_node_count);
     SYSLOG_INFO("\tLeaf Node Count: {}", stats.leaf_node_count);
+    SYSLOG_INFO("\tPrimitive Count: {}", m_data.count_primitives());
 }
 
 glm::vec3 Blas::traverse(const mtl::ray& ray) const
