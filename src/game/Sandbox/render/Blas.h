@@ -8,7 +8,7 @@ class Blas
 public:
     Blas(uint32_t test_spheres);
 
-    glm::vec3 traverse(const mtl::ray& ray) const;
+    glm::vec3 traverse(const mtl::ray& ray, const glm::vec3& sun) const;
 
     uint32_t mode{ 4 };
 private:

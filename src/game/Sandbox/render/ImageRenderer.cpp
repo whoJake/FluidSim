@@ -1,13 +1,15 @@
-#include "ImageRenderer.h"
+﻿#include "ImageRenderer.h"
 
-ImageRenderer::ImageRenderer(vk::RenderContext& context) :
+ImageRenderer::ImageRenderer(vk::RenderContext& context, Window* window, mygui::Context** imguiContext) :
     m_context(context)
 {
-    initialize();
+    initialize(window, imguiContext);
 }
 
 ImageRenderer::~ImageRenderer()
-{ }
+{
+    delete m_imguiContext;
+}
 
 void ImageRenderer::render_image(vk::Image* image)
 {
@@ -54,11 +56,29 @@ void ImageRenderer::render_image(vk::Image* image)
 
     cmdBuffer.blit_image(*image, VK_IMAGE_LAYOUT_GENERAL, targetImage, VK_IMAGE_LAYOUT_GENERAL, { region }, filter);
 
+    std::vector<VkClearValue> clearColours;
+
+    cmdBuffer.begin_render_pass(&currTarget, *m_renderPass, currFramebuffer, clearColours);
+
+    VkViewport viewport{ };
+    viewport.x = 0.f;
+    viewport.y = 0.f;
+    viewport.width = f32_cast(currTarget.get_extent().width);
+    viewport.height = f32_cast(currTarget.get_extent().height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    cmdBuffer.set_viewport(viewport);
+
+    m_imguiContext->render(&cmdBuffer);
+
+    cmdBuffer.end_render_pass();
+
     cmdBuffer.end();
     m_context.submit_and_end(cmdBuffer);
 }
 
-void ImageRenderer::initialize()
+void ImageRenderer::initialize(Window* window, mygui::Context** myguiContext)
 {
     // Create render pass
     std::vector<vk::Attachment> attachments({
@@ -66,17 +86,27 @@ void ImageRenderer::initialize()
     });
 
     std::vector<vk::LoadStoreInfo> infos({
-        { VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE }
+        { VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE }
     });
 
-    std::vector<vk::SubpassInfo> subpassInfos({ { 
-        { },
-        { 0 },
-        { },
-        false,
-        1,
-        VK_RESOLVE_MODE_NONE,
-        "Subpass" } });
+    std::vector<vk::SubpassInfo> subpassInfos{ 
+        { 
+            { },
+            { 0 },
+            { },
+            true,
+            0,
+            VK_RESOLVE_MODE_NONE,
+            "ImGui Pass"
+        },
+    };
 
     m_renderPass = std::make_unique<vk::RenderPass>(vk::RenderPass(m_context.get_device(), attachments, infos, subpassInfos));
+
+    *myguiContext = new mygui::Context(
+        window,
+        &m_context,
+        m_renderPass.get());
+
+    m_imguiContext = *myguiContext;
 }

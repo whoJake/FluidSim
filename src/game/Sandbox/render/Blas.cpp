@@ -83,7 +83,7 @@ Blas::Blas(uint32_t test_spheres) :
     SYSLOG_INFO("\tPrimitive Count: {}", m_data.count_primitives());
 }
 
-glm::vec3 Blas::traverse(const mtl::ray& ray) const
+glm::vec3 Blas::traverse(const mtl::ray& ray, const glm::vec3& _sun) const
 {
     bool sucess = false;
 
@@ -98,7 +98,7 @@ glm::vec3 Blas::traverse(const mtl::ray& ray) const
             return glm::vec3(0.f, 0.f, 0.f);
     }
 
-    glm::vec3 sun = glm::normalize(glm::vec3{ 0.4f, -1.f, -.2f });
+    glm::vec3 sun = glm::normalize(_sun);
     float strength = 0.f;
 
     if( mode == 1 )

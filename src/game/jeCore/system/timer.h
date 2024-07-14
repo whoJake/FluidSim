@@ -22,7 +22,12 @@ static constexpr long long microseconds_in_millisecond = static_cast<long long>(
 static constexpr long long milliseconds_in_second = static_cast<long long>(1e3);
 static constexpr long long seconds_in_minute = static_cast<long long>(60);
 static constexpr long long minutes_in_hour = static_cast<long long>(60);
-    
+
+[[nodiscard]] static moment now()
+{
+    return std::chrono::high_resolution_clock::now();
+}
+
 template<typename fidelity>   
 class timer
 {
@@ -62,11 +67,6 @@ public:
     ~timer()
     {
         output_timer();
-    }
-
-    [[nodiscard]] static moment now()
-    {
-        return std::chrono::high_resolution_clock::now();
     }
 
     [[nodiscard]] static constexpr const char* fidelity_suffix()

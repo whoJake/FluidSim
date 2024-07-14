@@ -4,9 +4,10 @@
 #include "input/Input.h"
 #include "system/timer.h"
 #include "system/log.h"
-#include <thread>
 
-#include "loaders/obj_waveform.h"
+#include "imgui.h"
+
+#include "input/imgui/imgui_bindings.h"
 
 SandboxApp::SandboxApp() :
     WindowedApplication("Windowed Application", { })
@@ -14,6 +15,8 @@ SandboxApp::SandboxApp() :
 
 void SandboxApp::on_app_startup()
 {
+    ImGui::CreateContext();
+
     std::vector<VkPresentModeKHR> presentModes =
         { VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
 
@@ -28,7 +31,7 @@ void SandboxApp::on_app_startup()
         surfaceFormats,
         vk::RenderTarget::no_depth_create_function);
 
-    m_renderer = std::make_unique<ImageRenderer>(*m_context);
+    m_renderer = std::make_unique<ImageRenderer>(*m_context, &get_window(), &m_myguiContext);
 
     VkExtent3D extent{ 600, 400, 1 };
 
@@ -73,7 +76,17 @@ void SandboxApp::update()
     calculate_delta_time();
     get_window().process_events();
 
+    m_myguiContext->begin_frame();
+
+    // ImGui::ShowDemoWindow();
+
+    ImGui::Begin("Sun Direction");
+    ImGui::SliderFloat3("Value", m_sunDirection, -1.f, 1.f);
+    ImGui::End();
+
     parse_inputs();
+
+    //ImGui::ShowDemoWindow();
 
     // debug frametime average
     {
@@ -126,7 +139,7 @@ void SandboxApp::update()
             for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
             {
                 mtl::ray ray = m_camera->get_pixel_ray(x, y);
-                glm::vec3 outColor = m_blas->traverse(ray);
+                glm::vec3 outColor = m_blas->traverse(ray, { m_sunDirection[0], m_sunDirection[1], m_sunDirection[2] });
 
                 m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
             }
@@ -142,6 +155,8 @@ void SandboxApp::update()
 #if ROTATE
     m_camera->rotate(glm::vec3(0.f, degreesPerSecond * m_deltaTime, 0.f));
 #endif
+
+    m_myguiContext->end_frame();
 
     m_renderer->render_image(m_image.get());
     Input::tick();
@@ -228,6 +243,7 @@ void SandboxApp::parse_inputs()
 
 void SandboxApp::on_event(Event& e)
 {
+    mygui::dispatch_event(e);
     Input::register_event(e);
 
     EventDispatcher dispatch(e);
