@@ -43,52 +43,92 @@ public:
 public:
     constexpr explicit hash_string(size_t precalculated_hash) :
         m_hash(precalculated_hash)
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
     constexpr explicit hash_string(const char* string) :
         m_hash(hash_function(string))
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy(string)
     #endif
     { }
 
     constexpr explicit hash_string(const wchar_t* string) :
         m_hash(hash_function(string))
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
     constexpr explicit hash_string(const std::string& string) :
         m_hash(hash_function(string))
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy(string)
     #endif
     { }
 
     constexpr explicit hash_string(const std::wstring& string) :
         m_hash(hash_function(string))
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
     constexpr explicit hash_string(std::string_view string) :
         m_hash(hash_function(string))
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy(string)
     #endif
     { }
 
     constexpr explicit hash_string(std::wstring_view string) :
         m_hash(hash_function(string))
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
+
+    constexpr explicit hash_string(hash_string&& other) noexcept :
+        m_hash(other.m_hash)
+    #ifndef CFG_FINAL
+        , m_debugCopy(std::move(other.m_debugCopy))
+    #endif
+    {
+        other.m_hash = 0;
+    #ifndef CFG_FINAL
+        m_debugCopy = { };
+    #endif
+    }
+
+    constexpr explicit hash_string(const hash_string& other) :
+        m_hash(other.m_hash)
+    #ifndef CFG_FINAL
+        , m_debugCopy(other.m_debugCopy)
+    #endif
+    { }
+
+    constexpr hash_string& operator=(hash_string&& other) noexcept
+    {
+        m_hash = other.m_hash;
+        other.m_hash = 0;
+    #ifndef CFG_FINAL
+        m_debugCopy = std::move(other.m_debugCopy);
+        other.m_debugCopy = { };
+    #endif
+
+        return *this;
+    }
+
+    constexpr hash_string& operator=(const hash_string& other)
+    {
+        m_hash = other.m_hash;
+    #ifndef CFG_FINAL
+        m_debugCopy = other.m_debugCopy;
+    #endif
+        return *this;
+    }
 
     constexpr ~hash_string() = default;
 
@@ -97,7 +137,7 @@ public:
     friend std::ostream& operator<<(std::ostream& stream, const hash_string& output)
     {
         stream << std::format("{:x}", output.get_hash());
-    #ifdef CFG_DEBUG
+    #ifndef CFG_FINAL
         stream << std::format(" ({})", output.m_debugCopy);
     #endif
     }
@@ -108,7 +148,7 @@ public:
     }
 private:
     size_t m_hash;
-#ifdef CFG_DEBUG
+#ifndef CFG_FINAL
     std::string m_debugCopy;
 #endif
 };
