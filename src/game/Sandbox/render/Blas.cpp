@@ -83,40 +83,58 @@ Blas::Blas(uint32_t test_spheres) :
     SYSLOG_INFO("\tPrimitive Count: {}", m_data.count_primitives());
 }
 
-glm::vec3 Blas::traverse(const mtl::ray& ray, const glm::vec3& _sun) const
+glm::vec3 Blas::traverse(const mtl::ray& ray, const glm::vec3& sun, u32 bounces) const
 {
     bool sucess = false;
 
     mtl::bvh_traverse_options options{ };
 
+    mtl::ray cRay = ray;
+    glm::vec3 color{ 0.f, 0.f, 0.f };
+    float firstDist = 0.f;
+    bool hasColor = false;
     mtl::bvh_traverse_stats stats{ };
-    mtl::bvh_traverse_output output = m_data.traverse(ray, options, &stats);
-
-    if( !output.payload_hit )
+    for( u32 iteration = 0; iteration <= bounces; iteration++ )
     {
-        if( mode == 1 || mode == 4 )
-            return glm::vec3(0.f, 0.f, 0.f);
-    }
+        mtl::bvh_traverse_output result = m_data.traverse(cRay, options, &stats);
+        if( !result.payload_hit )
+        {
+            // no hit. we're finished here.
+            break;
+        }
 
-    glm::vec3 sun = glm::normalize(_sun);
-    float strength = 0.f;
+        glm::vec3 hitNormal = result.payload_hit->sample_normals(cRay.position + (cRay.direction * result.distance));
+        glm::vec3 hitColor = result.payload_hit->get_color() * std::clamp(glm::dot(sun, hitNormal), 0.2f, 1.f);
 
-    if( mode == 1 )
-    {
-        glm::vec3 hitNormal = output.payload_hit->sample_normals(ray.position + (ray.direction * output.distance));
-        strength = glm::clamp(glm::dot(sun, hitNormal), 0.2f, 1.f);
+        if( hasColor )
+        {
+            color = (color + hitColor) / 2.f;
+        }
+        else
+        {
+            color = hitColor;
+            firstDist = result.distance;
+            hasColor = true;
+        }
+
+        cRay.position += cRay.direction * (result.distance - 0.00001f);
+        cRay.direction = glm::reflect(cRay.direction, hitNormal);
+        cRay.invDirection = glm::vec3(
+            1.f / cRay.direction.x,
+            1.f / cRay.direction.y,
+            1.f / cRay.direction.z);
     }
 
     switch( mode )
     {
     case 1:
-        return output.payload_hit->get_color() * strength;
+        return color;
     case 2:
         return glm::vec3(stats.nodes_checked / 75.f);
     case 3:
         return glm::vec3(stats.primitives_checked / 30.f);
     case 4:
-        return glm::vec3(output.distance / 20.f);
+        return glm::vec3(firstDist / 20.f);
     }
     
     // dai hen

@@ -80,8 +80,9 @@ void SandboxApp::update()
 
     // ImGui::ShowDemoWindow();
 
-    ImGui::Begin("Sun Direction");
+    ImGui::Begin("Settings");
     ImGui::SliderFloat3("Value", m_sunDirection, -1.f, 1.f);
+    ImGui::InputInt("Bounces", &m_bounces);
     ImGui::End();
 
     parse_inputs();
@@ -139,7 +140,7 @@ void SandboxApp::update()
             for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
             {
                 mtl::ray ray = m_camera->get_pixel_ray(x, y);
-                glm::vec3 outColor = m_blas->traverse(ray, { m_sunDirection[0], m_sunDirection[1], m_sunDirection[2] });
+                glm::vec3 outColor = m_blas->traverse(ray, { m_sunDirection[0], m_sunDirection[1], m_sunDirection[2] }, m_bounces);
 
                 m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
             }

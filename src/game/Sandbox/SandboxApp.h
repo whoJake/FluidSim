@@ -41,6 +41,7 @@ private:
     std::chrono::steady_clock::time_point m_lastFrameBeginTime{ std::chrono::high_resolution_clock::now() };
     double m_deltaTime{ 0.f };
 
+    i32 m_bounces{ 0 };
     float m_sunDirection[3] { 0.4f, -1.f, -.2f };
 
     mygui::Context* m_myguiContext;
