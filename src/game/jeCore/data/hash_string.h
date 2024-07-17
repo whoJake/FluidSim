@@ -10,87 +10,68 @@ namespace mtl
 class hash_string
 {
 public:
-    static constexpr size_t hash_function(std::string_view string)
+    static size_t hash_function(std::string_view string)
     {
-        // https://stackoverflow.com/questions/5889238/why-is-xor-the-default-way-to-combine-hashes ?
-        size_t seed = 0x517cc1b727220a95;
-        for( char c : string )
-        {
-            // this is terrible btw
-            std::hash<char> hasher;
-            size_t hash = hasher(c);
-
-            hash += 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= hash;
-        }
-        return seed;
+        std::hash<std::string_view> hasher;
+        return hasher(string);
     }
 
-    static constexpr size_t hash_function(std::wstring_view wstring)
+    static size_t hash_function(std::wstring_view wstring)
     {
-        // https://stackoverflow.com/questions/5889238/why-is-xor-the-default-way-to-combine-hashes ?
-        size_t seed = 0x517cc1b727220a95;
-        for( wchar_t c : wstring )
-        {
-            std::hash<wchar_t> hasher;
-            size_t hash = hasher(c);
-
-            hash += 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= hash;
-        }
-        return seed;
+        std::hash<std::wstring_view> hasher;
+        return hasher(wstring);
     }
 public:
-    constexpr explicit hash_string(size_t precalculated_hash) :
+    explicit hash_string(size_t precalculated_hash) :
         m_hash(precalculated_hash)
     #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
-    constexpr explicit hash_string(const char* string) :
+    explicit hash_string(const char* string) :
         m_hash(hash_function(string))
     #ifndef CFG_FINAL
         , m_debugCopy(string)
     #endif
     { }
 
-    constexpr explicit hash_string(const wchar_t* string) :
+    explicit hash_string(const wchar_t* string) :
         m_hash(hash_function(string))
     #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
-    constexpr explicit hash_string(const std::string& string) :
+    explicit hash_string(const std::string& string) :
         m_hash(hash_function(string))
     #ifndef CFG_FINAL
         , m_debugCopy(string)
     #endif
     { }
 
-    constexpr explicit hash_string(const std::wstring& string) :
+    explicit hash_string(const std::wstring& string) :
         m_hash(hash_function(string))
     #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
-    constexpr explicit hash_string(std::string_view string) :
+    explicit hash_string(std::string_view string) :
         m_hash(hash_function(string))
     #ifndef CFG_FINAL
         , m_debugCopy(string)
     #endif
     { }
 
-    constexpr explicit hash_string(std::wstring_view string) :
+    explicit hash_string(std::wstring_view string) :
         m_hash(hash_function(string))
     #ifndef CFG_FINAL
         , m_debugCopy()
     #endif
     { }
 
-    constexpr explicit hash_string(hash_string&& other) noexcept :
+    explicit hash_string(hash_string&& other) noexcept :
         m_hash(other.m_hash)
     #ifndef CFG_FINAL
         , m_debugCopy(std::move(other.m_debugCopy))
@@ -102,14 +83,14 @@ public:
     #endif
     }
 
-    constexpr explicit hash_string(const hash_string& other) :
+    explicit hash_string(const hash_string& other) :
         m_hash(other.m_hash)
     #ifndef CFG_FINAL
         , m_debugCopy(other.m_debugCopy)
     #endif
     { }
 
-    constexpr hash_string& operator=(hash_string&& other) noexcept
+    hash_string& operator=(hash_string&& other) noexcept
     {
         m_hash = other.m_hash;
         other.m_hash = 0;
@@ -121,7 +102,7 @@ public:
         return *this;
     }
 
-    constexpr hash_string& operator=(const hash_string& other)
+    hash_string& operator=(const hash_string& other)
     {
         m_hash = other.m_hash;
     #ifndef CFG_FINAL
@@ -130,9 +111,9 @@ public:
         return *this;
     }
 
-    constexpr ~hash_string() = default;
+    ~hash_string() = default;
 
-    inline constexpr std::strong_ordering operator<=>(const hash_string& other) const = default;
+    inline std::strong_ordering operator<=>(const hash_string& other) const = default;
 
     friend std::ostream& operator<<(std::ostream& stream, const hash_string& output)
     {
@@ -142,7 +123,7 @@ public:
     #endif
     }
 
-    inline constexpr size_t get_hash() const
+    inline size_t get_hash() const
     {
         return m_hash;
     }
