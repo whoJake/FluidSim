@@ -1,4 +1,4 @@
-#include "SPIRVReflection.h"
+﻿#include "SPIRVReflection.h"
 #include <limits>
 
 namespace vk
@@ -56,6 +56,27 @@ inline static void read_resource_size(const spirv_cross::Compiler&     compiler,
     default:
         shaderResource->stride = 0;
         break;
+    }
+}
+
+inline static void read_resource_struct_members(const spirv_cross::Compiler& compiler,
+                                                const spirv_cross::Resource& resource,
+                                                ShaderResource*              shaderResource)
+{
+    uint32_t index = 0;
+    while( true )
+    {
+        std::string memberName = compiler.get_member_name(resource.base_type_id, index);
+        if( memberName.empty() )
+            return;
+
+        ShaderStructMember member{ };
+        member.name = memberName;
+        member.offset = compiler.type_struct_member_offset(compiler.get_type(resource.base_type_id), index);
+        member.size = compiler.get_declared_struct_member_size(compiler.get_type(resource.base_type_id), index);
+
+        shaderResource->structMembers.push_back(member);
+        index++;
     }
 }
 
@@ -244,6 +265,7 @@ inline static void read_shader_resource<ShaderResourceType::BufferUniform>(const
         shaderResource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
         shaderResource.binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
 
+        read_resource_struct_members(compiler, resource, &shaderResource);
         read_resource_struct_size(compiler, resource, &shaderResource);
         read_resource_array_size(compiler, resource, &shaderResource);
 
@@ -269,6 +291,7 @@ inline static void read_shader_resource<ShaderResourceType::BufferStorage>(const
         shaderResource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
         shaderResource.binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
 
+        read_resource_struct_members(compiler, resource, &shaderResource);
         read_resource_struct_size(compiler, resource, &shaderResource);
         read_resource_array_size(compiler, resource, &shaderResource);
 
@@ -333,6 +356,7 @@ void SPIRVReflection::parse_push_constants(std::vector<ShaderResource>& resource
 
         shaderResource.offset = offset;
 
+        read_resource_struct_members(m_compiler, resource, &shaderResource);
         read_resource_struct_size(m_compiler, resource, &shaderResource);
 
         resources.push_back(shaderResource);

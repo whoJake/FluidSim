@@ -59,6 +59,8 @@ submesh& submesh::operator=(const submesh& other)
     m_indices = other.m_indices;
     m_vertexCount = other.m_vertexCount;
     m_indexSize = other.m_indexSize;
+
+    return *this;
 }
 
 submesh::~submesh()
@@ -133,7 +135,7 @@ mesh::mesh() :
     m_submeshs()
 { }
 
-mesh::mesh(mesh&& other) :
+mesh::mesh(mesh&& other) noexcept :
     m_name(std::move(other.m_name)),
     m_submeshs(std::move(other.m_submeshs))
 { }

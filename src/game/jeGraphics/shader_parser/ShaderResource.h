@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "vkcommon.h"
 
@@ -96,6 +96,13 @@ struct ShaderResourceQualifiers {
     };
 };
 
+struct ShaderStructMember
+{
+    std::string name;
+    uint32_t offset;
+    uint32_t size;
+};
+
 struct ShaderResource {
     std::string name;
     ShaderResourceType type;
@@ -114,6 +121,8 @@ struct ShaderResource {
     uint32_t offset;
     uint32_t stride;
     uint32_t constantID;
+
+    std::vector<ShaderStructMember> structMembers;
 };
 
 } // vk
