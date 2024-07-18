@@ -1,10 +1,10 @@
 #include "GLSLCompiler.h"
 
 // Some of these had to have glslang brought in as dependency instead of from VulkanSDK :(
-#include "DirStackFileIncluder.h"
-#include "GLSL.std.450.h"
-#include "GlslangToSpv.h"
-#include "ShHandle.h"
+#include "StandAlone/DirStackFileIncluder.h"
+#include "SPIRV/GLSL.std.450.h"
+#include "SPIRV/GlslangToSpv.h"
+#include "glslang/Include/ShHandle.h"
 #include "glslang/Public/ResourceLimits.h"
 
 namespace vk

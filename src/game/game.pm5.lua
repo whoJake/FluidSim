@@ -147,10 +147,10 @@
 
       -- vulkan
       "%VULKAN_SDK%/Include",
-      "%{g_Vendordir}/vma3.0.1/include",
-      "%{g_Vendordir}/glslang/StandAlone",
-      "%{g_Vendordir}/glslang/Include",
-      "%{g_Vendordir}/glslang/SPIRV",
+      "%{g_Vendordir}/vma3.0.1",
+
+      -- spirv/glsl
+      "%{g_Vendordir}/glslang",
     }
     
     buildoptions
@@ -171,28 +171,23 @@
 
     links
     {
+      "%{prj_Core}",
+
       -- glfw
       "glfw3_mt",
 
       -- vulkan
       "vulkan-1",
-
-      -- spirv/glslang
       "spirv-cross-core",
       "spirv-cross-glsl",
-
       "glslang",
-      "HLSL",
-      "SPIRV",
-      "OGLCompiler",
+      "glslang-default-resource-limits",
       "OSDependent",
-      "SPIRV-Tools",
-      "SPIRV-Tools-opt",
       "GenericCodeGen",
       "MachineIndependent",
-      "glslang-default-resource-limits",
-
-      "%{prj_Core}",
+      "SPIRV",
+      "SPIRV-Tools",
+      "SPIRV-Tools-opt",
     }
 
     filter "system:windows"
@@ -247,15 +242,12 @@
       -- glfw
       "%{g_Vendordir}/glfw",
 
-      -- from prj_ImGui
-      "%{prj_ImGui}",
-
       -- vulkan
       "%VULKAN_SDK%/Include",
-      "%{g_Vendordir}/vma3.0.1/include",
-      "%{g_Vendordir}/glslang/StandAlone",
-      "%{g_Vendordir}/glslang/Include",
-      "%{g_Vendordir}/glslang/SPIRV",
+      "%{g_Vendordir}/vma3.0.1",
+
+      -- from prj_ImGui
+      "%{prj_ImGui}",
     }
 
     buildoptions
@@ -323,19 +315,16 @@
       -- glfw
       "%{g_Vendordir}/glfw",
 
+      -- vulkan
+      "%VULKAN_SDK%/Include",
+      "%{g_Vendordir}/vma3.0.1",
+
       -- from prj_Framework
       -- imgui
       "%{g_Vendordir}/imgui-1.90.9",
 
       -- from prj_ImGui
       "%{prj_ImGui}",
-
-      -- vulkan
-      "%VULKAN_SDK%/Include",
-      "%{g_Vendordir}/vma3.0.1/include",
-      "%{g_Vendordir}/glslang/StandAlone",
-      "%{g_Vendordir}/glslang/Include",
-      "%{g_Vendordir}/glslang/SPIRV",
     }
 
     dependson
