@@ -1,4 +1,5 @@
 ﻿#include "ImageRenderer.h"
+#include "graphics/Shader.h"
 
 ImageRenderer::ImageRenderer(vk::RenderContext& context, Window* window, mygui::Context** imguiContext) :
     m_context(context)
@@ -102,6 +103,18 @@ void ImageRenderer::initialize(Window* window, mygui::Context** myguiContext)
     };
 
     m_renderPass = std::make_unique<vk::RenderPass>(vk::RenderPass(m_context.get_device(), attachments, infos, subpassInfos));
+
+    {
+        graphics::ShaderDefinition def{ };
+        def.vertex = "assets/shaders/basic.vert";
+        def.fragment = "assets/shaders/basic.frag";
+        def.renderPass = m_renderPass.get();
+        def.subpass = 0;
+
+        graphics::Shader shader(m_context, &def);
+
+        int i = 0;
+    }
 
     *myguiContext = new mygui::Context(
         window,

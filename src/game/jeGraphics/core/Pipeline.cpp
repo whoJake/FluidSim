@@ -5,8 +5,9 @@
 namespace vk
 {
 
-Pipeline::Pipeline(Device& device) :
-    Resource(VK_NULL_HANDLE, device)
+Pipeline::Pipeline(Device& device, PipelineState state) :
+    Resource(VK_NULL_HANDLE, device),
+    m_state(state)
 { }
 
 Pipeline::Pipeline(Pipeline&& other) :
@@ -28,8 +29,8 @@ const PipelineState& Pipeline::get_state() const
 
 GraphicsPipeline::GraphicsPipeline(Device&         device,
                                    VkPipelineCache cache,
-                                   PipelineState&  state) :
-    Pipeline(device)
+                                   PipelineState   state) :
+    Pipeline(device, state)
 {
     std::vector<VkShaderModule> shaderModules;
     std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos;

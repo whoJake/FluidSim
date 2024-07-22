@@ -3,6 +3,9 @@
 
 int main(int argc, const char* argv[])
 {
-    SandboxApp app;
-    return app.run(argc, argv);
+    {
+        SandboxApp app;
+        app.run(argc, argv);
+    }
+    return 0;
 }

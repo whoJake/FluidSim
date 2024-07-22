@@ -10,7 +10,7 @@ namespace vk
 class Pipeline : public Resource<VkPipeline>
 {
 public:
-    Pipeline(Device& device);
+    Pipeline(Device& device, PipelineState state);
     virtual ~Pipeline();
 
     Pipeline(Pipeline&& other);
@@ -28,7 +28,7 @@ class GraphicsPipeline : public Pipeline
 public:
     GraphicsPipeline(Device&         device,
                      VkPipelineCache cache,
-                     PipelineState&  state);
+                     PipelineState   state);
     virtual ~GraphicsPipeline() = default;
 
     GraphicsPipeline(GraphicsPipeline&&) = default;
