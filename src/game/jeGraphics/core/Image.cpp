@@ -120,7 +120,7 @@ Image::~Image()
 {
     if( m_mapped )
     {
-        GRAPHICS_WARN("Destroying an Image which is currently still mapped.");
+        VULKAN_WARN("Destroying an Image which is currently still mapped.");
         unmap();
     }
 
@@ -166,7 +166,7 @@ uint8_t* Image::map()
         return m_mappedData;
 
     if( m_tiling != VK_IMAGE_TILING_LINEAR )
-        GRAPHICS_WARN("Mapping image memory that is not linear.");
+        VULKAN_WARN("Mapping image memory that is not linear.");
 
     VkResult result = vmaMapMemory(get_device().get_allocator(), m_allocation, (void**)&m_mappedData);
     VK_CHECK(result, "Failed to map image memory.");
@@ -180,7 +180,7 @@ void Image::unmap()
 {
     if( !m_mapped )
     {
-        GRAPHICS_WARN("Trying to unmap memory that is not mapped.");
+        VULKAN_WARN("Trying to unmap memory that is not mapped.");
         return;
     }
 

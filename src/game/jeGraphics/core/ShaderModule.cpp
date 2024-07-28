@@ -25,7 +25,7 @@ ShaderModule::ShaderModule(Device&                     device,
 
     if( !compileSuccess )
     {
-        GRAPHICS_ERROR("{}", compilerInfoLog.c_str());
+        VULKAN_ERROR("{}", compilerInfoLog.c_str());
         QUITFMT("Shader compilation failed. See above for details.");
     }
 

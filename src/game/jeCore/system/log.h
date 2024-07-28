@@ -11,7 +11,8 @@ enum channel
 {
     none = 1 << 0,
     system = 1 << 1,
-    graphics = 1 << 2,
+    vulkan = 1 << 2,
+    graphics = 1 << 3,
 
     count = 3,
 };
@@ -133,6 +134,8 @@ inline constexpr const char* channel_to_string(channel chnl)
     {
     case channel::system:
         return "system";
+    case channel::vulkan:
+        return "vulkan";
     case channel::graphics:
         return "graphics";
     case channel::none:

@@ -74,7 +74,7 @@ void Buffer::unmap()
 {
     if( !m_mapped )
     {
-        GRAPHICS_WARN("Trying to unmap memory that is not mapped.");
+        VULKAN_WARN("Trying to unmap memory that is not mapped.");
         return;
     }
 

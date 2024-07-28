@@ -13,7 +13,7 @@ Device::Device(PhysicalDevice&                 gpu,
     m_surface(surface),
     m_resourceCache(*this)
 {
-    GRAPHICS_MSG("{} GPU selected.", std::string(gpu.get_properties().deviceName).c_str());
+    VULKAN_MSG("{} GPU selected.", std::string(gpu.get_properties().deviceName).c_str());
 
     //--Prepare the device queues--
     uint32_t queueFamilyCount = to_u32(m_gpu.get_queue_family_properties().size());
@@ -40,10 +40,10 @@ Device::Device(PhysicalDevice&                 gpu,
 
     //--Display available extensions
     if( deviceExtensionCount != 0 )
-        GRAPHICS_DEBUG("Device supports the following extensions:");
+        VULKAN_DEBUG("Device supports the following extensions:");
     for( VkExtensionProperties& property : m_deviceExtensions )
     {
-        GRAPHICS_DEBUG("\t{}", std::string(property.extensionName).c_str());
+        VULKAN_DEBUG("\t{}", std::string(property.extensionName).c_str());
     }
 
 
@@ -64,7 +64,7 @@ Device::Device(PhysicalDevice&                 gpu,
     {
         for( const char* extension : unsupportedExtensions )
         {
-            GRAPHICS_ERROR("{} is required but not supported", extension);
+            VULKAN_ERROR("{} is required but not supported", extension);
         }
         QUITFMT("Extensions required but not supported. See above for details.");
     }

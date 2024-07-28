@@ -5,6 +5,7 @@
 #include "RenderPass.h"
 #include "rendering/RenderTarget.h"
 #include "Framebuffer.h"
+#include "DescriptorSet.h"
 #include "DescriptorSetLayout.h"
 #include "Pipeline.h"
 #include "Buffer.h"
@@ -112,6 +113,11 @@ void CommandBuffer::set_viewport(VkViewport viewport)
 void CommandBuffer::set_scissor(VkRect2D scissor)
 {
     vkCmdSetScissor(get_handle(), 0, 1, &scissor);
+}
+
+void CommandBuffer::bind_descriptor_set(const DescriptorSet& set, VkPipelineBindPoint bindPoint)
+{
+    vkCmdBindDescriptorSets(get_handle(), bindPoint, m_state.get_pipeline_layout().get_handle(), 0, 1, &(set.get_handle()), 0, nullptr);
 }
 
 void CommandBuffer::push_constants(PipelineLayout& layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pData)

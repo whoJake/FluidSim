@@ -71,7 +71,7 @@ public:
     #endif
     { }
 
-    explicit hash_string(hash_string&& other) noexcept :
+    hash_string(hash_string&& other) noexcept :
         m_hash(other.m_hash)
     #ifndef CFG_FINAL
         , m_debugCopy(std::move(other.m_debugCopy))
@@ -83,7 +83,7 @@ public:
     #endif
     }
 
-    explicit hash_string(const hash_string& other) :
+    hash_string(const hash_string& other) :
         m_hash(other.m_hash)
     #ifndef CFG_FINAL
         , m_debugCopy(other.m_debugCopy)

@@ -9,6 +9,10 @@
 
 #include "input/imgui/imgui_bindings.h"
 
+glm::vec2 g_offset = { };
+glm::vec2 g_scale = { 1.f, 1.f };
+glm::vec3 g_color = { };
+
 SandboxApp::SandboxApp() :
     WindowedApplication("Windowed Application", { })
 { }
@@ -29,7 +33,7 @@ void SandboxApp::on_app_startup()
         get_window(),
         presentModes,
         surfaceFormats,
-        vk::RenderTarget::no_depth_create_function);
+        vk::RenderTarget::default_create_function);
 
     m_renderer = std::make_unique<ImageRenderer>(*m_context, &get_window(), &m_myguiContext);
 
@@ -83,6 +87,11 @@ void SandboxApp::update()
     ImGui::Begin("Settings");
     ImGui::SliderFloat3("Value", m_sunDirection, -1.f, 1.f);
     ImGui::InputInt("Bounces", &m_bounces);
+    ImGui::Separator();
+    ImGui::SliderFloat2("dbg Scale", &g_scale.x, 0.1f, 5.f);
+    ImGui::SliderFloat2("dbg Offset", &g_offset.x, -1.f, 1.f);
+    ImGui::ColorPicker3("dbg Color", &g_color.x);
+
     ImGui::End();
 
     parse_inputs();
@@ -133,8 +142,7 @@ void SandboxApp::update()
         sys::timer<sys::milliseconds> timer(&m_log, format.c_str());
     #elif 0
         sys::timer<sys::milliseconds> timer(&m_log, "Frametime {}");
-    #endif
-
+    #elif 1
         for( size_t y = 0; y < m_camera->get_viewport_height(); y++ )
         {
             for( size_t x = 0; x < m_camera->get_viewport_width(); x++ )
@@ -145,6 +153,7 @@ void SandboxApp::update()
                 m_cpuImage->set_pixel(x, y, glm::vec4(outColor, 1.f));
             }
         }
+    #endif
     }
 
     // Rotate camera

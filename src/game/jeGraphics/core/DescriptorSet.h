@@ -27,6 +27,7 @@ public:
 
     const DescriptorSetLayout& get_descriptor_set_layout() const;
 
+    void write_buffers(VkDescriptorType type, u32 dstBinding = 0, u32 count = 1) const;
 private:
     DescriptorPool& m_pool;
 

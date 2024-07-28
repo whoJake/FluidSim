@@ -17,6 +17,7 @@ class PipelineLayout;
 class DescriptorSetLayout;
 class Pipeline;
 class Buffer;
+class DescriptorSet;
 
 class CommandBuffer : public Resource<VkCommandBuffer>
 {
@@ -61,6 +62,8 @@ public:
 
     void set_scissor(VkRect2D scissor);
     
+    void bind_descriptor_set(const DescriptorSet& set, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
+
     void push_constants(PipelineLayout& layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pData);
 
     void bind_vertex_buffers(Buffer& buffer, uint32_t binding);

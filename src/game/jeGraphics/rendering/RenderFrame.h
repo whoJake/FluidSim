@@ -49,10 +49,10 @@ public:
                                           size_t                   threadIndex = 0,
                                           VkCommandBufferLevel     level       = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-    VkDescriptorSet request_descriptor_set(const DescriptorSetLayout&                 layout,
-                                           size_t                                     threadIndex = 0,
-                                           const std::vector<VkDescriptorBufferInfo>& buffers = { },
-                                           const std::vector<VkDescriptorImageInfo>&  images  = { });
+    const DescriptorSet& request_descriptor_set(const DescriptorSetLayout&                 layout,
+                                                size_t                                     threadIndex = 0,
+                                                const std::vector<VkDescriptorBufferInfo>& buffers = { },
+                                                const std::vector<VkDescriptorImageInfo>&  images  = { });
 
     void clear_descriptors();
 

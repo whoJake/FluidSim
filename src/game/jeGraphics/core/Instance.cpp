@@ -10,11 +10,11 @@ namespace vk
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
     if( severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT )
-        GRAPHICS_ERROR(pCallbackData->pMessage);
+        VULKAN_ERROR(pCallbackData->pMessage);
     else if( severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT )
-        GRAPHICS_WARN(pCallbackData->pMessage);
+        VULKAN_WARN(pCallbackData->pMessage);
     else
-        GRAPHICS_INFO(pCallbackData->pMessage);
+        VULKAN_INFO(pCallbackData->pMessage);
 
     return VK_FALSE;
 }
@@ -53,9 +53,9 @@ Instance::Instance(const std::string&             applicationName,
         vkEnumerateInstanceLayerProperties(&validationLayerCount, availableLayers.data());
 
         /// log available layers
-        GRAPHICS_DEBUG("Available Instance Layers: ");
+        VULKAN_DEBUG("Available Instance Layers: ");
         for( auto& layer : availableLayers )
-            GRAPHICS_DEBUG("\t{}", std::string(layer.layerName).c_str());
+            VULKAN_DEBUG("\t{}", std::string(layer.layerName).c_str());
 
         for( const char* layerName : enabledValidationLayers )
         {
@@ -71,7 +71,7 @@ Instance::Instance(const std::string&             applicationName,
 
             if( !foundLayer )
             {
-                GRAPHICS_ERROR("Validation layer {} requested but not available", layerName);
+                VULKAN_ERROR("Validation layer {} requested but not available", layerName);
                 QUITFMT("Requested validation layer which is not available. See above for details.");
             }
         }
@@ -96,9 +96,9 @@ Instance::Instance(const std::string&             applicationName,
     vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
 
     /// log available extensions
-    GRAPHICS_DEBUG("Available Instance Extensions:");
+    VULKAN_DEBUG("Available Instance Extensions:");
     for( auto& ext : availableExtensions )
-        GRAPHICS_DEBUG("\t{}", std::string(ext.extensionName).c_str());
+        VULKAN_DEBUG("\t{}", std::string(ext.extensionName).c_str());
 
     for( const char* extension : enabledExtensions )
     {
@@ -115,7 +115,7 @@ Instance::Instance(const std::string&             applicationName,
 
         if( !foundExtension )
         {
-            GRAPHICS_ERROR("Extension {} requested but not available", extension);
+            VULKAN_ERROR("Extension {} requested but not available", extension);
             QUITFMT("Requested extension that is not available. See above for details.");
         }
     }
@@ -174,7 +174,7 @@ void Instance::query_gpus()
     vkEnumeratePhysicalDevices(m_handle, &deviceCount, physicalDevices.data());
 
     /// log found gpus
-    GRAPHICS_INFO("Available GPUs:");
+    VULKAN_INFO("Available GPUs:");
     m_gpus.reserve(deviceCount);
     for( uint32_t i = 0; i < deviceCount; i++ )
     {
