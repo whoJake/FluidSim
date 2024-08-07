@@ -117,7 +117,10 @@ void CommandBuffer::set_scissor(VkRect2D scissor)
 
 void CommandBuffer::bind_descriptor_set(const DescriptorSet& set, VkPipelineBindPoint bindPoint)
 {
-    vkCmdBindDescriptorSets(get_handle(), bindPoint, m_state.get_pipeline_layout().get_handle(), 0, 1, &(set.get_handle()), 0, nullptr);
+    std::vector<VkDescriptorSet> sets;
+    sets.push_back(set.get_handle());
+
+    vkCmdBindDescriptorSets(get_handle(), bindPoint, m_state.get_pipeline_layout().get_handle(), 0, u32_cast(sets.size()), sets.data(), 0, nullptr);
 }
 
 void CommandBuffer::push_constants(PipelineLayout& layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pData)

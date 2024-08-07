@@ -136,17 +136,15 @@ void ImageRenderer::initialize(Window* window, mygui::Context** myguiContext)
     m_imguiContext = *myguiContext;
 
     {
-        graphics::ShaderDefinition def;
-        def.name = "Test shader";
+        fw::gfx::ShaderDefinition def;
+        def.name = mtl::hash_string("Test shader");
         def.vertex = "assets/shaders/material_test.vert";
         def.fragment = "assets/shaders/material_test.frag";
         def.metadata = "";
-        def.renderPass = m_renderPass.get();
-        def.subpass = 0;
 
-        m_shader = std::make_unique<graphics::Shader>(m_context, &def);
+        m_shader = std::make_unique<fw::gfx::Shader>(m_context, &def);
 
-        m_material = std::make_unique<graphics::Material>(m_context, m_shader.get(), graphics::MaterialFlagBits::none);
+        m_material = std::make_unique<fw::gfx::Material>(m_context, m_shader.get(), fw::gfx::MaterialFlagBits::none);
     }
 
 }

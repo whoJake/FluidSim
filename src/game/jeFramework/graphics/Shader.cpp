@@ -9,22 +9,27 @@
 #include "rendering/RenderContext.h"
 #include "rendering/ContextBackedBuffer.h"
 
-namespace graphics
+namespace fw
+{
+namespace gfx
 {
 
-Shader::Shader(vk::RenderContext& context, ShaderDefinition* definition) :
+Shader::Shader(vk::RenderContext& context,
+		       const ShaderDefinition* definition,
+	           vk::RenderPass* renderPass,
+			   u32 subpass) :
 	m_name(definition->name),
 	m_context(context)
 {
 	initialise_layout(definition);
-	initialise_pipeline(definition->metadata, definition->renderPass, definition->subpass);
+	initialise_pipeline(definition->metadata, renderPass, subpass);
 
 	const std::vector<vk::ShaderResource> resources = m_layout->get_resources(vk::ShaderResourceType::BufferUniform);
-	
+
 	for( const vk::ShaderResource& resource : resources )
 	{
 		// set 2 is what is reserved for shader uniform buffer usage
-		if( resource.set != 0 )
+		if( resource.set != custom_set_idx )
 			continue;
 
 		for( vk::ShaderStructMember member : resource.structMembers )
@@ -43,7 +48,7 @@ Shader::~Shader()
 u32 Shader::get_binding_count() const
 {
 	u32 maxBinding = u32_min;
-	for( const auto&[_, proxy] : m_resourceOffsets )
+	for( const auto& [_, proxy] : m_resourceOffsets )
 	{
 		maxBinding = std::max(maxBinding, proxy.binding);
 	}
@@ -67,7 +72,7 @@ u64 Shader::get_binding_size(u32 idx) const
 
 const Shader::ResourceProxy* Shader::lookup_resource(mtl::hash_string location) const
 {
-	for( const auto&[ref, proxy] : m_resourceOffsets )
+	for( const auto& [ref, proxy] : m_resourceOffsets )
 	{
 		if( ref == location )
 		{
@@ -88,17 +93,17 @@ vk::Pipeline& Shader::get_pipeline() const
 	return *m_pipeline;
 }
 
-std::string_view Shader::get_name() const
+u64 Shader::get_descriptor_set_layout_count() const
 {
-	return m_name;
+	return m_descriptorSetLayouts.size();
 }
 
-const vk::DescriptorSetLayout& Shader::get_descriptor_set_layout() const
+const vk::DescriptorSetLayout& Shader::get_descriptor_set_layout(u32 idx) const
 {
-	return *m_descriptorSetLayout;
+	return *m_descriptorSetLayouts[idx];
 }
 
-void Shader::initialise_layout(ShaderDefinition* definition)
+void Shader::initialise_layout(const ShaderDefinition* definition)
 {
 	fiDevice device;
 	std::vector<vk::ShaderModule*> pModules;
@@ -108,12 +113,6 @@ void Shader::initialise_layout(ShaderDefinition* definition)
 		|| !definition->fragment )
 	{
 		QUITFMT("A shader is required to have a vertex and fragment shader.");
-	}
-
-	// required to have a renderpass
-	if( !definition->renderPass )
-	{
-		QUITFMT("A renderpass must be passed when creating a shader.");
 	}
 
 	device.open(definition->vertex);
@@ -146,19 +145,24 @@ void Shader::initialise_layout(ShaderDefinition* definition)
 
 	m_layout = std::make_unique<vk::PipelineLayout>(m_context.get_device(), pModules);
 
-	std::vector<vk::ShaderResource> allResources;
+	std::unordered_map<u32, std::vector<vk::ShaderResource>> resources;
+	u32 maxSetIdx = 0;
+
 	for( vk::ShaderModule* module : pModules )
 	{
 		for( vk::ShaderResource resource : module->get_resources() )
 		{
-			if( resource.set == 0 )
-			{
-				allResources.push_back(resource);
-			}
+			resources[resource.set].push_back(resource);
+			maxSetIdx = std::max(maxSetIdx, resource.set);
 		}
 	}
 
-	m_descriptorSetLayout = &m_context.get_device().get_resource_cache().request_descriptor_set_layout(2, pModules, allResources);
+	m_descriptorSetLayouts.resize(maxSetIdx + 1);
+
+	for( auto& [set, resourceList] : resources )
+	{
+		m_descriptorSetLayouts[set] = &m_context.get_device().get_resource_cache().request_descriptor_set_layout(set, pModules, resourceList);
+	}
 }
 
 void Shader::initialise_pipeline(const char* metadataFile, vk::RenderPass* renderpass, u32 subpass)
@@ -175,7 +179,37 @@ void Shader::initialise_pipeline(const char* metadataFile, vk::RenderPass* rende
 	colorstate.attachments.push_back(vk::ColorBlendAttachmentState());
 	state.set_color_blend_state(colorstate);
 
+	VkVertexInputBindingDescription posBindingDesc{ };
+	posBindingDesc.binding = 0;
+	posBindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	posBindingDesc.stride = sizeof(glm::vec4) * 2;
+
+	VkVertexInputAttributeDescription posAttrDesc{ };
+	posAttrDesc.binding = 0;
+	posAttrDesc.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	posAttrDesc.location = 0;
+	posAttrDesc.offset = 0;
+
+	VkVertexInputAttributeDescription nmlAttrDesc{ };
+	nmlAttrDesc.binding = 0;
+	nmlAttrDesc.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	nmlAttrDesc.location = 1;
+	nmlAttrDesc.offset = sizeof(glm::vec4);
+
+	vk::VertexInputStageState inputstate;
+	inputstate.bindings.push_back(posBindingDesc);
+	inputstate.attributes.push_back(posAttrDesc);
+	inputstate.attributes.push_back(nmlAttrDesc);
+
+	state.set_vertex_input_state(inputstate);
+
 	m_pipeline = std::make_unique<vk::GraphicsPipeline>(m_context.get_device(), nullptr, state);
 }
 
-} // graphics
+const mtl::hash_string& Shader::get_name() const
+{
+	return m_name;
+}
+
+} // gfx
+} // fw

@@ -26,6 +26,6 @@ private:
     std::unique_ptr<vk::Image> m_blitTarget;
     mygui::Context* m_imguiContext;
 
-    std::unique_ptr<graphics::Shader> m_shader;
-    std::unique_ptr<graphics::Material> m_material;
+    std::unique_ptr<fw::gfx::Shader> m_shader;
+    std::unique_ptr<fw::gfx::Material> m_material;
 };

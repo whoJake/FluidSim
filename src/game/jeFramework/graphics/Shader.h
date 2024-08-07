@@ -14,19 +14,19 @@ namespace vk
     class RenderPass;
 } // vk
 
-namespace graphics
+namespace fw
+{
+namespace gfx
 {
 
 struct ShaderDefinition
 {
-    std::string name;
+    mtl::hash_string name;
 
     const char* vertex;
     const char* fragment;
-    
+
     const char* metadata;
-    vk::RenderPass* renderPass;
-    u32 subpass;
 };
 
 class Shader
@@ -39,7 +39,10 @@ public:
         u32 size;
     };
 
-    Shader(vk::RenderContext& context, ShaderDefinition* definition);
+    Shader(vk::RenderContext& context,
+           const ShaderDefinition* definition,
+           vk::RenderPass* renderPass,
+           u32 subpass);
     ~Shader();
 
     u32 get_binding_count() const;
@@ -49,21 +52,27 @@ public:
 
     vk::PipelineLayout& get_layout() const;
     vk::Pipeline& get_pipeline() const;
-    std::string_view get_name() const;
-    const vk::DescriptorSetLayout& get_descriptor_set_layout() const;
+
+    u64 get_descriptor_set_layout_count() const;
+    const vk::DescriptorSetLayout& get_descriptor_set_layout(u32 idx = custom_set_idx) const;
+    const mtl::hash_string& get_name() const;
+
+    static constexpr u64 custom_set_idx = 1;
 private:
-    void initialise_layout(ShaderDefinition* definition);
+    void initialise_layout(const ShaderDefinition* definition);
     void initialise_pipeline(const char* metadataFile, vk::RenderPass* renderpass, u32 subpass);
 private:
-    std::string m_name;
+    mtl::hash_string m_name;
 
     vk::RenderContext& m_context;
 
     std::unique_ptr<vk::PipelineLayout> m_layout;
     std::unique_ptr<vk::Pipeline> m_pipeline;
-    vk::DescriptorSetLayout* m_descriptorSetLayout;
+
+    std::vector<vk::DescriptorSetLayout*> m_descriptorSetLayouts;
 
     std::unordered_map<mtl::hash_string, ResourceProxy> m_resourceOffsets;
 };
 
-} // graphics
+} // gfx
+} // fw

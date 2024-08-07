@@ -4,7 +4,9 @@
 #include "core/Buffer.h"
 #include "core/CommandBuffer.h"
 
-namespace graphics
+namespace fw
+{
+namespace gfx
 {
 
 enum MaterialFlagBits
@@ -14,6 +16,14 @@ enum MaterialFlagBits
 };
 
 using MaterialFlags = std::underlying_type_t<MaterialFlagBits>;
+
+struct MaterialDefinition
+{
+	mtl::hash_string name;
+	mtl::hash_string shader;
+
+	MaterialFlags flags;
+};
 
 class Material
 {
@@ -45,7 +55,8 @@ private:
 	MaterialFlags m_flags;
 };
 
-} // graphics
+} // gfx
+} // fw
 
 #ifndef INC_MATERIAL_INL
 #define INC_MATERIAL_INL

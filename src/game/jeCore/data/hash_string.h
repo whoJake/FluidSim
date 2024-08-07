@@ -22,6 +22,8 @@ public:
         return hasher(wstring);
     }
 public:
+    hash_string() = default;
+
     explicit hash_string(size_t precalculated_hash) :
         m_hash(precalculated_hash)
     #ifndef CFG_FINAL

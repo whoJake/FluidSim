@@ -16,6 +16,7 @@
   
   prj_DataDrivenGen = "DataDrivenGen"
   prj_Sandbox = "Sandbox"
+  prj_Crawler = "Crawler"
 
   prj_ImGui = "DearImGui"
 
@@ -298,6 +299,84 @@
   ----------------------------------------------------------------------
 
   project (prj_Sandbox)
+    location "%{prj.name}"
+    kind "ConsoleApp"
+    
+    includedirs
+    {
+      "%{g_Vendordir}/pugixml-1.14/src", --used by core
+      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+      
+      "%{prj.name}",
+      "%{prj_Core}",
+      "%{prj_Graphics}",
+      "%{prj_Framework}",
+
+      -- from prj_Graphics
+      -- glfw
+      "%{g_Vendordir}/glfw",
+
+      -- vulkan
+      "%VULKAN_SDK%/Include",
+      "%{g_Vendordir}/vma3.0.1",
+
+      -- from prj_Framework
+      -- imgui
+      "%{g_Vendordir}/imgui-1.90.9",
+
+      -- from prj_ImGui
+      "%{prj_ImGui}",
+    }
+
+    dependson
+    {
+      "%{prj_Core}",
+      "%{prj_Graphics}",
+      "%{prj_ImGui}",
+      "%{prj_Framework}",
+    }
+
+    buildoptions
+    {
+      "/FIforceinclude.h",
+    }
+
+    libdirs
+    {
+    }
+
+    links
+    {
+      "%{prj_Core}",
+      "%{prj_Graphics}",
+      "%{prj_ImGui}",
+      "%{prj_Framework}",
+    }
+
+    filter "configurations:Debug"
+      defines
+      {
+      }
+
+    filter "configurations:ReleasePdb"
+      defines
+      {
+      }
+
+    filter "configurations:Release"
+      defines
+      {
+      }
+
+     filter "configurations:Final"
+      defines
+      {
+      }
+    
+----------------------------------------------------------------------
+--------------------------------Crawler-------------------------------
+----------------------------------------------------------------------
+  project (prj_Crawler)
     location "%{prj.name}"
     kind "ConsoleApp"
     

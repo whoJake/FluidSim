@@ -84,7 +84,6 @@ u64 submesh::get_vertex_count() const
 
 std::vector<glm::vec4>& submesh::get_channel(u64 idx)
 {
-    set_channel_sizes(); // just incase
     return m_channels[idx];
 }
 

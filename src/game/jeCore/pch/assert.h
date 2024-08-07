@@ -15,10 +15,10 @@ inline void QuitFmt_Internal(const std::source_location& loc, const char* fmt, A
 }
 
 #ifdef CFG_DEBUG
-#define BREAKFMT(msg, ...) do{ sys::log::warn(msg, __VA_ARGS__); __debugbreak(); }while(0)
+#define BREAKFMT(msg, ...) do{ sys::log::warn(std::format(msg, __VA_ARGS__)); __debugbreak(); }while(0)
 #define QUITFMT(msg, ...) do{ QuitFmt_Internal(std::source_location::current(), msg, __VA_ARGS__ ); }while(0)
 #else
-#define BREAKFMT(msg, ...) do{ sys::log::warn(msg, __VA_ARGS__); }while(0)
+#define BREAKFMT(msg, ...) do{ sys::log::warn(std::format(msg, __VA_ARGS__)); }while(0)
 #define QUITFMT(msg, ...) do{ QuitFmt_Internal(std::source_location::current(), msg, __VA_ARGS__ ); }while(0)
 #endif
 

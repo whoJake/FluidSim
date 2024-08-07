@@ -1,6 +1,10 @@
 #include "Material.h"
 
-namespace graphics
+#include "Shader.h"
+
+namespace fw
+{
+namespace gfx
 {
 
 template<typename T>
@@ -12,20 +16,20 @@ void Material::set_variable_value(mtl::hash_string variable, T value)
 		return;
 	}
 
-	 const Shader::ResourceProxy* resource = m_shader->lookup_resource(variable);
-	 if( !resource )
-	 {
-		 SYSLOG_WARN("Resource {} doesn't exist on shader {}.", variable.get_hash(), m_shader->get_name());
-		 return;
-	 }
+	const Shader::ResourceProxy* resource = m_shader->lookup_resource(variable);
+	if( !resource )
+	{
+		SYSLOG_WARN("Resource {} doesn't exist on shader {}.", variable.get_hash(), m_shader->get_name());
+		return;
+	}
 
-	 if( sizeof(T) != resource->size )
-	 {
-		 SYSLOG_WARN("Invalid size {} of type T ({}). {} expected.", sizeof(T), typeid(T).name(), resource->size);
-		 return;
-	 }
+	if( sizeof(T) != resource->size )
+	{
+		SYSLOG_WARN("Invalid size {} of type T ({}). {} expected.", sizeof(T), typeid(T).name(), resource->size);
+		return;
+	}
 
-	 memcpy(m_buffer->map() + resource->offset, &value, sizeof(T));
+	memcpy(m_buffer->map() + resource->offset, &value, sizeof(T));
 }
 
 template<typename T>
@@ -55,4 +59,5 @@ T Material::get_variable_value(mtl::hash_string variable) const
 	return retval;
 }
 
-} // graphics
+} // gfx
+} // fw

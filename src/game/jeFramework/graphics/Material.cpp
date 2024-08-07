@@ -5,7 +5,9 @@
 #include "rendering/RenderContext.h"
 #include "rendering/RenderFrame.h"
 
-namespace graphics
+namespace fw
+{
+namespace gfx
 {
 
 Material::Material(vk::RenderContext& context, Shader* shader, MaterialFlags flags) :
@@ -48,6 +50,11 @@ void Material::bind(vk::CommandBuffer& buffer) const
 		return;
 	}
 
+	if( Shader::custom_set_idx >= m_shader->get_descriptor_set_layout_count() )
+	{
+		return;
+	}
+
 	const vk::DescriptorSet& set = m_context.get_active_frame().request_descriptor_set(
 		m_shader->get_descriptor_set_layout(),
 		0,
@@ -76,4 +83,5 @@ std::vector<VkDescriptorBufferInfo> Material::get_descriptor_buffer_infos() cons
 	return infos;
 }
 
-} // graphics
+} // gfx
+} // fw
