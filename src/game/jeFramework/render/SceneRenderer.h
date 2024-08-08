@@ -62,7 +62,7 @@ public:
 
 	void initialise_shaders(const std::vector<gfx::ShaderDefinition>& shaders);
 
-	void pre_render(glm::vec3 position);
+	void pre_render(glm::vec3 position, glm::vec3 rotation);
 	void render();
 
 	void add_scene(Scene* scene);

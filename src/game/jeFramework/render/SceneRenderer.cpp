@@ -22,7 +22,7 @@ SceneRenderer::SceneRenderer(vk::RenderContext& context) :
 	setup_renderpass();
 }
 
-void SceneRenderer::pre_render(glm::vec3 position)
+void SceneRenderer::pre_render(glm::vec3 position, glm::vec3 rotation)
 {
 	// find our visible entities
 	m_state.visibleEntities.clear();
@@ -68,7 +68,8 @@ void SceneRenderer::pre_render(glm::vec3 position)
 		GlobalSetData data{ };
 		VkExtent2D extent{ 1600, 1200 };
 		data.projection = glm::perspectiveFov(glm::radians(90.f), f32_cast(extent.width), f32_cast(extent.height), 0.01f, 10'000.f);
-		data.view = glm::translate(glm::mat4(1.f), -position);
+		data.view = glm::toMat4(glm::quat(rotation)) * glm::translate(glm::mat4(1.f) , -position);
+		// data.view = glm::translate(glm::mat4(1.f), -position);
 		data.model = glm::mat4(1.f);
 		data.mvp = data.model * data.view * data.projection;
 

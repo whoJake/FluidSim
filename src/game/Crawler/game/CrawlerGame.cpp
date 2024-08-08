@@ -36,8 +36,6 @@ void CrawlerGame::on_app_startup()
 
 void CrawlerGame::update_impl(float dt)
 {
-	Input::tick();
-
 	get_window().set_title(std::format("Crawler Game: {} fps", 1.f / dt));
 
 	glm::vec3 move{ };
@@ -46,9 +44,9 @@ void CrawlerGame::update_impl(float dt)
 	if( Input::get_key_down(KeyCode::D) )
 		move.x += 1;
 	if( Input::get_key_down(KeyCode::S) )
-		move.z -= 1;
-	if( Input::get_key_down(KeyCode::W) )
 		move.z += 1;
+	if( Input::get_key_down(KeyCode::W) )
+		move.z -= 1;
 	if( Input::get_key_down(KeyCode::Space) )
 		move.y += 1;
 	if( Input::get_key_down(KeyCode::LeftShift) )
@@ -57,7 +55,30 @@ void CrawlerGame::update_impl(float dt)
 	float speed = 10.f;
 	move *= speed * dt;
 
-	m_position += move;
+	glm::vec3 camFwd = glm::vec3(0.f, 0.f, 1.f) * glm::quat(m_rotation);
+	glm::vec3 camRght = glm::vec3(1.f, 0.f, 0.f) * glm::quat(m_rotation);
+
+	if( Input::get_mouse_button_pressed(1) )
+	{
+		Input::set_cursor_lock_state(get_window(), CursorLockState::LOCKED);
+	}
+	else if( Input::get_mouse_button_released(1) )
+	{
+		Input::set_cursor_lock_state(get_window(), CursorLockState::NONE);
+	}
+
+	if( Input::get_mouse_button_down(1) )
+	{
+		float sens = .2f;
+
+		float mouseX = static_cast<float>(sens * Input::get_mouse_move_horizontal());
+		float mouseY = static_cast<float>(sens * Input::get_mouse_move_vertical());
+
+		m_rotation.y += glm::radians(mouseX);
+		m_rotation.x += glm::radians(mouseY);
+	}
+
+	m_position += (camRght * move.x) + (camFwd * move.z) + (glm::vec3(0.f, 1.f, 0.f) * move.y);
 }
 
 void CrawlerGame::on_event(Event& e)
@@ -78,8 +99,9 @@ void CrawlerGame::update()
 	get_window().process_events();
 
 	update_impl(deltatime);
+	Input::tick();
 
-	m_renderer->pre_render(m_position);
+	m_renderer->pre_render(m_position, m_rotation);
 	m_renderer->render();
 }
 
@@ -146,6 +168,7 @@ void CrawlerGame::debug_setup()
 		fw::Blueprint* blueprint = fw::BlueprintManager::create_blueprint(&bpdef1);
 
 		// load model shit
+		const char* modelpath = "assets/models/car.obj";
 		{
 			blueprint->get_mesh().add_submesh();
 			mtl::submesh& submesh = blueprint->get_mesh().get_submesh(0);
@@ -153,7 +176,7 @@ void CrawlerGame::debug_setup()
 			submesh.add_channel();
 
 			fiDevice device;
-			device.open("assets/models/apple.obj");
+			device.open(modelpath);
 			obj::file model;
 			model.parse(device);
 

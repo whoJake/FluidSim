@@ -43,5 +43,6 @@ private:
 	std::unique_ptr<fw::Scene> m_scene;
 	std::unique_ptr<fw::SceneRenderer> m_renderer;
 
-	glm::vec3 m_position;
+	glm::vec3 m_position{ };
+	glm::vec3 m_rotation{ 0.f, glm::radians(180.f), 0.f };
 };
