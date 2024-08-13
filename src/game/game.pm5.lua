@@ -224,12 +224,6 @@
     location "%{prj.name}"
     kind "StaticLib"
 
-    files
-    {
-        "%{g_Vendordir}/imgui-1.90.9/*.h",
-        "%{g_Vendordir}/imgui-1.90.9/*.cpp",
-    }
-
     includedirs
     {
       "%{g_Vendordir}/pugixml-1.14/src", --used by core

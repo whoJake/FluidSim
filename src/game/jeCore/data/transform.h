@@ -6,14 +6,13 @@ namespace mtl
 class transform
 {
 public:
-	transform() = default;
 	constexpr transform(const glm::vec3& position = { },
 			  const glm::vec3& scale = { 1.f, 1.f, 1.f },
 		      const glm::vec3& rotation = { });
 
-	constexpr transform(const glm::vec3& position = { },
-			  const glm::vec3& scale = { 1.f, 1.f, 1.f },
-			  const glm::quat& rotation = glm::quat(glm::vec3(0.f)));
+	constexpr transform(const glm::vec3& position,
+			  const glm::vec3& scale,
+			  const glm::quat& rotation);
 
 	constexpr ~transform() = default;
 

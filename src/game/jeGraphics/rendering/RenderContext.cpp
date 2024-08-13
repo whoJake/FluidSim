@@ -207,7 +207,7 @@ void RenderContext::submit_and_end(const std::vector<CommandBuffer*>& commandBuf
     if( m_swapchain )
     {
         VK_ASSERT(m_aquiredSemaphore, "Failed to submit CommandBuffers as there is no image aquired semaphore, has it already been consumed?");
-        renderComplete = submit(get_device().get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT, 0), commandBuffers, { m_aquiredSemaphore }, { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT });
+        renderComplete = submit(get_device().get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT, 0), commandBuffers, { m_aquiredSemaphore }, { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT });
     }
     else
     {

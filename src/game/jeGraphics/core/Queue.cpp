@@ -66,7 +66,7 @@ bool Queue::has_present_support() const
 
 VkResult Queue::submit(const std::vector<VkSubmitInfo>& submitInfos, VkFence fence) const
 {
-    return vkQueueSubmit(m_handle, to_u32(submitInfos.size()), submitInfos.data(), fence);
+    return vkQueueSubmit(m_handle, u32_cast(submitInfos.size()), submitInfos.data(), fence);
 }
 
 VkResult Queue::present(const VkPresentInfoKHR& presentInfo) const

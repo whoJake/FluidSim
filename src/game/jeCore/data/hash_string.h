@@ -73,45 +73,8 @@ public:
     #endif
     { }
 
-    hash_string(hash_string&& other) noexcept :
-        m_hash(other.m_hash)
-    #ifndef CFG_FINAL
-        , m_debugCopy(std::move(other.m_debugCopy))
-    #endif
-    {
-        other.m_hash = 0;
-    #ifndef CFG_FINAL
-        m_debugCopy = { };
-    #endif
-    }
-
-    hash_string(const hash_string& other) :
-        m_hash(other.m_hash)
-    #ifndef CFG_FINAL
-        , m_debugCopy(other.m_debugCopy)
-    #endif
-    { }
-
-    hash_string& operator=(hash_string&& other) noexcept
-    {
-        m_hash = other.m_hash;
-        other.m_hash = 0;
-    #ifndef CFG_FINAL
-        m_debugCopy = std::move(other.m_debugCopy);
-        other.m_debugCopy = { };
-    #endif
-
-        return *this;
-    }
-
-    hash_string& operator=(const hash_string& other)
-    {
-        m_hash = other.m_hash;
-    #ifndef CFG_FINAL
-        m_debugCopy = other.m_debugCopy;
-    #endif
-        return *this;
-    }
+    DEFAULT_COPY(hash_string);
+    DEFAULT_MOVE(hash_string);
 
     ~hash_string() = default;
 

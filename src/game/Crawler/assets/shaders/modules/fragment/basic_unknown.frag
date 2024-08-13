@@ -24,5 +24,9 @@ layout (location=0) out vec4 out_color;
 
 void main()
 {
-	out_color = vec4(in_normal, 1.0);
+	vec3 sun = normalize(vec3(0.2, 0.3, -0.4));
+	float diffuse = dot(sun, in_normal);
+	diffuse = clamp(diffuse, 0.05, 1.0);
+
+	out_color = vec4(diffuse, diffuse, diffuse, 1.0);
 }

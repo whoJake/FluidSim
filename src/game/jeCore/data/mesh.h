@@ -27,6 +27,7 @@ public:
 
     u64 get_vertex_count() const;
     std::vector<glm::vec4>& get_channel(u64 idx);
+    const std::vector<glm::vec4>& get_channel(u64 idx) const;
     void set_vertex_count(u64 count);
 
     const hash_string& get_material_name() const;
@@ -57,6 +58,7 @@ public:
 
     u64 add_submesh();
     submesh& get_submesh(u32 idx);
+    const submesh& get_submesh(u32 idx) const;
     u64 get_submesh_count() const;
 
     void set_name(const hash_string& name);

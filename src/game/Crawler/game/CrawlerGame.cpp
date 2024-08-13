@@ -1,6 +1,8 @@
 #include "CrawlerGame.h"
 
 #include "input/Input.h"
+#include "scene/spatial/Entity.h"
+#include "scene/spatial/components/RenderableMesh.h"
 
 static Window::Properties default_window_properties
 {
@@ -55,8 +57,13 @@ void CrawlerGame::update_impl(float dt)
 	float speed = 10.f;
 	move *= speed * dt;
 
-	glm::vec3 camFwd = glm::vec3(0.f, 0.f, 1.f) * glm::quat(m_rotation);
-	glm::vec3 camRght = glm::vec3(1.f, 0.f, 0.f) * glm::quat(m_rotation);
+	glm::quat qRotation(glm::vec3(0.f));
+	qRotation *= glm::angleAxis(m_rotation.x, glm::vec3(1.f, 0.f, 0.f));
+	qRotation *= glm::angleAxis(m_rotation.y, glm::vec3(0.f, 1.f, 0.f));
+	qRotation *= glm::angleAxis(m_rotation.z, glm::vec3(0.f, 0.f, 1.f));
+
+	glm::vec3 camFwd = glm::vec3(0.f, 0.f, 1.f) * qRotation;
+	glm::vec3 camRght = glm::vec3(1.f, 0.f, 0.f) * qRotation;
 
 	if( Input::get_mouse_button_pressed(1) )
 	{
@@ -69,7 +76,7 @@ void CrawlerGame::update_impl(float dt)
 
 	if( Input::get_mouse_button_down(1) )
 	{
-		float sens = .2f;
+		float sens = .1f;
 
 		float mouseX = static_cast<float>(sens * Input::get_mouse_move_horizontal());
 		float mouseY = static_cast<float>(sens * Input::get_mouse_move_vertical());
@@ -98,6 +105,8 @@ void CrawlerGame::update()
 
 	get_window().process_events();
 
+	m_scene->pre_update();
+
 	update_impl(deltatime);
 	Input::tick();
 
@@ -114,7 +123,9 @@ bool CrawlerGame::on_window_resize(WindowResizeEvent& e)
 #include "loaders/obj_waveform.h"
 void CrawlerGame::debug_setup()
 {
-	fw::BlueprintManager::initialise();
+	m_scene = std::make_unique<fw::Scene>();
+
+	// fw::BlueprintManager::initialise();
 
 	{
 		// vk::RenderContext
@@ -136,17 +147,15 @@ void CrawlerGame::debug_setup()
 	m_scene = std::make_unique<fw::Scene>();
 	m_renderer = std::make_unique<fw::SceneRenderer>(*m_context);
 
+	fw::gfx::ShaderDefinition shader
 	{
-		fw::gfx::ShaderDefinition shader
-		{
-			mtl::hash_string("shader1"),
-			"assets/shaders/modules/vertex/basic_unknown.vert",
-			"assets/shaders/modules/fragment/basic_unknown.frag",
-			""
-		};
+		mtl::hash_string("shader1"),
+		"assets/shaders/modules/vertex/basic_unknown.vert",
+		"assets/shaders/modules/fragment/basic_unknown.frag",
+		""
+	};
 
-		m_renderer->initialise_shaders({ shader });
-	}
+	m_renderer->initialise_shaders({ shader });
 
 	fw::gfx::MaterialDefinition material
 	{
@@ -155,77 +164,17 @@ void CrawlerGame::debug_setup()
 		0
 	};
 
+	m_renderer->register_material(material);
+
+	fw::EntityDef entdef1
 	{
-		fw::BlueprintDef bpdef1
-		{
-			mtl::hash_string("blueprint1"),
-			mtl::aabb3_empty,
-			mtl::hash_string("random.mdl"),
+		glm::vec3(0.f),
+		glm::vec3(1.f),
+		glm::vec3(0.f)
+	};
 
-			material
-		};
-
-		fw::Blueprint* blueprint = fw::BlueprintManager::create_blueprint(&bpdef1);
-
-		// load model shit
-		const char* modelpath = "assets/models/car.obj";
-		{
-			blueprint->get_mesh().add_submesh();
-			mtl::submesh& submesh = blueprint->get_mesh().get_submesh(0);
-			submesh.add_channel();
-			submesh.add_channel();
-
-			fiDevice device;
-			device.open(modelpath);
-			obj::file model;
-			model.parse(device);
-
-			const auto& objects = model.get_objects();
-			const auto& vertices = model.get_vertices();
-			const auto& normals = model.get_normals();
-
-			for( const auto& obj : objects )
-			{
-				for( const auto& tri : obj.get_triangles() )
-				{
-					glm::vec3 v0 = vertices[tri.vertices[0].position - 1];
-					glm::vec3 v1 = vertices[tri.vertices[1].position - 1];
-					glm::vec3 v2 = vertices[tri.vertices[2].position - 1];
-
-					submesh.get_channel(0).push_back(glm::vec4(v0, 1.f));
-					submesh.get_channel(0).push_back(glm::vec4(v1, 1.f));
-					submesh.get_channel(0).push_back(glm::vec4(v2, 1.f));
-
-					glm::vec3 cross = glm::cross(v1 - v0, v2 - v0);
-					glm::vec3 normal = glm::normalize(cross);
-
-					// glm::vec3 n0 = normals[tri.vertices[0].normal];
-					// glm::vec3 n1 = normals[tri.vertices[1].normal];
-					// glm::vec3 n2 = normals[tri.vertices[2].normal];
-					glm::vec3 n0 = normal;
-					glm::vec3 n1 = normal;
-					glm::vec3 n2 = normal;
-
-					submesh.get_channel(1).push_back(glm::vec4(n0, 1.f));
-					submesh.get_channel(1).push_back(glm::vec4(n1, 1.f));
-					submesh.get_channel(1).push_back(glm::vec4(n2, 1.f));
-				}
-			}
-		}
-	}
-
-	{
-		fw::EntityDef entdef1
-		{
-			mtl::hash_string("entity1"),
-			mtl::hash_string("blueprint1"),
-
-			glm::vec3(0.f),
-			glm::vec3(1.f)
-		};
-
-		m_scene->create_entity(&entdef1);
-	}
+	fw::Entity* entity = m_scene->add_entity(entdef1);
+	entity->add_component<fw::RenderableMeshComponent>("assets/models/heli.obj");
 
 	m_renderer->add_scene(m_scene.get());
 }

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "data/hash_string.h"
+#include "../scene/spatial/Scene.h"
+#include "../scene/spatial/components/RenderableMesh.h"
 
 namespace vk
 {
@@ -15,10 +17,6 @@ class RenderPass;
 
 namespace fw
 {
-
-class Scene;
-class Blueprint;
-class Entity;
 
 namespace gfx
 {
@@ -61,6 +59,7 @@ public:
 	~SceneRenderer() = default;
 
 	void initialise_shaders(const std::vector<gfx::ShaderDefinition>& shaders);
+	void register_material(const gfx::MaterialDefinition& definition);
 
 	void pre_render(glm::vec3 position, glm::vec3 rotation);
 	void render();
@@ -68,8 +67,7 @@ public:
 	void add_scene(Scene* scene);
 private:
 	void setup_renderpass();
-	void register_material(const gfx::MaterialDefinition& definition);
-	void load_blueprint(Blueprint* blueprint);
+	void load_mesh(RenderableMeshComponent* meshComponent);
 
 	void set_global_buffer(GlobalSetData* data);
 private:
@@ -80,12 +78,14 @@ private:
 	std::unordered_map<mtl::hash_string, std::unique_ptr<gfx::Shader>> m_shaderStore;
 	std::unordered_map<mtl::hash_string, std::unique_ptr<gfx::Material>> m_materialStore;
 
-	struct BlueprintDrawData
+	struct MeshDrawData
 	{
+		mtl::hash_string material;
 		std::unique_ptr<vk::Buffer> vertexBuffer;
+		u32 vertexCount;
 	};
 
-	std::unordered_map<mtl::hash_string, BlueprintDrawData> m_loadedBlueprints;
+	std::unordered_map<mtl::hash_string, MeshDrawData> m_loadedMeshes;
 };
 
 } // fw

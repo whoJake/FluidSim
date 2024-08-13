@@ -16,7 +16,7 @@ class Framebuffer;
 class PipelineLayout;
 class DescriptorSetLayout;
 class Pipeline;
-class Buffer;
+class BufferView;
 class DescriptorSet;
 
 class CommandBuffer : public Resource<VkCommandBuffer>
@@ -66,11 +66,11 @@ public:
 
     void push_constants(PipelineLayout& layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pData);
 
-    void bind_vertex_buffers(Buffer& buffer, uint32_t binding);
+    void bind_vertex_buffers(const BufferView& buffer, uint32_t binding);
 
-    void bind_vertex_buffers(const std::vector<Buffer*>& buffers, uint32_t firstBinding);
+    void bind_vertex_buffers(const std::vector<BufferView>& buffers, uint32_t firstBinding);
 
-    void bind_index_buffer(Buffer& buffer, VkIndexType indexType = VK_INDEX_TYPE_UINT32);
+    void bind_index_buffer(const BufferView& buffer, VkIndexType indexType = VK_INDEX_TYPE_UINT32);
 
     void draw_indexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, uint32_t vertexOffset = 0, uint32_t firstInstance = 0);
 

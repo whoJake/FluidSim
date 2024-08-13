@@ -87,6 +87,11 @@ std::vector<glm::vec4>& submesh::get_channel(u64 idx)
     return m_channels[idx];
 }
 
+const std::vector<glm::vec4>& submesh::get_channel(u64 idx) const
+{
+    return m_channels[idx];
+}
+
 void submesh::set_vertex_count(u64 count)
 {
     for( std::vector<glm::vec4>& channel : m_channels )
@@ -173,6 +178,11 @@ u64 mesh::add_submesh()
 }
 
 submesh& mesh::get_submesh(u32 idx)
+{
+    return m_submeshs[idx];
+}
+
+const submesh& mesh::get_submesh(u32 idx) const
 {
     return m_submeshs[idx];
 }

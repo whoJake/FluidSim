@@ -1,16 +1,14 @@
 #include "SceneRenderer.h"
 
 #include "core/Buffer.h"
+#include "core/BufferView.h"
 #include "core/RenderPass.h"
 #include "rendering/RenderContext.h"
 
 #include "graphics/Shader.h"
 #include "graphics/Material.h"
 
-#include "scene/Scene.h"
-#include "scene/Blueprint.h"
-#include "scene/Entity.h"
-#include "scene/BlueprintManager.h"
+#include "loaders/obj_waveform.h"
 
 namespace fw
 {
@@ -44,20 +42,17 @@ void SceneRenderer::pre_render(glm::vec3 position, glm::vec3 rotation)
 	}
 
 	// ensure that all the our blueprint draw data is loaded/being loaded.
-	for( const Entity* entity : m_state.visibleEntities )
+	for( Entity* entity : m_state.visibleEntities )
 	{
-		Blueprint* blueprint = BlueprintManager::find_blueprint(entity->get_blueprint());
-
-		// cache our materials
-		gfx::MaterialDefinition& material = blueprint->get_material();
-		if( m_materialStore.find(material.name) == m_materialStore.end() )
+		if( !entity->has_component<RenderableMeshComponent>() )
 		{
-			register_material(material);
+			continue;
 		}
 
-		if( m_loadedBlueprints.find(blueprint->get_name()) == m_loadedBlueprints.end() )
+		RenderableMeshComponent* mesh = entity->get_component<RenderableMeshComponent>();
+		if( m_loadedMeshes.find(mesh->get_hash_string()) == m_loadedMeshes.end() )
 		{
-			load_blueprint(blueprint);
+			load_mesh(mesh);
 		}
 	}
 
@@ -68,7 +63,13 @@ void SceneRenderer::pre_render(glm::vec3 position, glm::vec3 rotation)
 		GlobalSetData data{ };
 		VkExtent2D extent{ 1600, 1200 };
 		data.projection = glm::perspectiveFov(glm::radians(90.f), f32_cast(extent.width), f32_cast(extent.height), 0.01f, 10'000.f);
-		data.view = glm::toMat4(glm::quat(rotation)) * glm::translate(glm::mat4(1.f) , -position);
+
+		glm::quat qRotation(glm::vec3(0.f));
+		qRotation *= glm::angleAxis(rotation.x, glm::vec3(1.f, 0.f, 0.f));
+		qRotation *= glm::angleAxis(rotation.y, glm::vec3(0.f, 1.f, 0.f));
+		qRotation *= glm::angleAxis(rotation.z, glm::vec3(0.f, 0.f, 1.f));
+
+		data.view = glm::toMat4(qRotation) * glm::translate(glm::mat4(1.f) , -position);
 		// data.view = glm::translate(glm::mat4(1.f), -position);
 		data.model = glm::mat4(1.f);
 		data.mvp = data.model * data.view * data.projection;
@@ -117,14 +118,16 @@ void SceneRenderer::render()
 
 	for( Entity* entity : m_state.visibleEntities )
 	{
-		Blueprint* blueprint = BlueprintManager::find_blueprint(entity->get_blueprint());
-		if( !blueprint )
+		if( !entity->has_component<RenderableMeshComponent>() )
+		{
 			continue;
+		}
 
-		// get blueprint draw data
+		RenderableMeshComponent* mesh = entity->get_component<RenderableMeshComponent>();
+		MeshDrawData& drawData = m_loadedMeshes[mesh->get_hash_string()];
 
 		// bind material
-		const gfx::Material& material = *m_materialStore[blueprint->get_material().name];
+		const gfx::Material& material = *m_materialStore[drawData.material];
 		material.bind(buffer);
 
 		VkDescriptorBufferInfo globalBufferInfo
@@ -142,13 +145,14 @@ void SceneRenderer::render()
 		globalSet.write_buffers(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, 1);
 		buffer.bind_descriptor_set(globalSet);
 
-		buffer.bind_vertex_buffers(*m_loadedBlueprints[blueprint->get_name()].vertexBuffer, 0);
-		buffer.draw(u32_cast(blueprint->get_mesh().get_submesh(0).get_channel(0).size()));
-
-		buffer.end_render_pass();
-		buffer.end();
-		m_context.submit_and_end(buffer);
+		vk::BufferView vertexBuffer(drawData.vertexBuffer.get());
+		buffer.bind_vertex_buffers(vertexBuffer, 0);
+		buffer.draw(drawData.vertexCount);
 	}
+
+	buffer.end_render_pass();
+	buffer.end();
+	m_context.submit_and_end(buffer);
 }
 
 void SceneRenderer::add_scene(Scene* scene)
@@ -216,39 +220,47 @@ void SceneRenderer::register_material(const gfx::MaterialDefinition& definition)
 	m_materialStore[definition.name] = std::make_unique<gfx::Material>(m_context, shader, definition.flags);
 }
 
-void SceneRenderer::load_blueprint(Blueprint* blueprint)
+void SceneRenderer::load_mesh(RenderableMeshComponent* meshComponent)
 {
-	BlueprintDrawData blueprintDrawData;
+	if( m_loadedMeshes.find(meshComponent->get_hash_string()) != m_loadedMeshes.end() )
+	{
+		return;
+	}
 
-	mtl::mesh& mesh = blueprint->get_mesh();
-	mtl::submesh& submesh = mesh.get_submesh(0);
+	meshComponent->load();
 
-	u64 vBufferSize = submesh.get_channel(0).size() * sizeof(glm::vec4);
-	u64 nBufferSize = submesh.get_channel(1).size() * sizeof(glm::vec4);
+	const mtl::mesh& mesh = meshComponent->get_mesh();
+	const mtl::submesh& submesh = mesh.get_submesh(0);
 
-	blueprintDrawData.vertexBuffer = std::make_unique<vk::Buffer>(
+	const auto& vertices = submesh.get_channel(0);
+	const auto& normals = submesh.get_channel(1);
+
+	std::vector<glm::vec4> data;
+
+	for( u64 i = 0; i < vertices.size(); i++ )
+	{
+		data.push_back(vertices[i]);
+		data.push_back(normals[i]);
+	}
+
+	MeshDrawData drawData;
+	drawData.material = submesh.get_material_name();
+	drawData.vertexBuffer = std::make_unique<vk::Buffer>(
 		m_context.get_device(),
-		vBufferSize + nBufferSize,
+		data.size() * sizeof(glm::vec4),
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VMA_MEMORY_USAGE_AUTO_PREFER_HOST
 	);
+	drawData.vertexCount = u32_cast(vertices.size());
 
-	u8* data = blueprintDrawData.vertexBuffer->map();
+	// Just unload as its not editable for now.
+	meshComponent->unload();
 
-	// interleave
-	for( u64 i = 0; i < submesh.get_channel(0).size(); i++ )
-	{
-		u64 offset = i * (sizeof(glm::vec4) * 2);
-		glm::vec4 vertex = submesh.get_channel(0)[i];
-		glm::vec4 normal = submesh.get_channel(1)[i];
+	u8* pBuffer = drawData.vertexBuffer->map();
+	memcpy(pBuffer, data.data(), data.size() * sizeof(glm::vec4));
+	drawData.vertexBuffer->unmap();
 
-		memcpy(data + offset, &vertex, sizeof(glm::vec4));
-		memcpy(data + offset + sizeof(glm::vec4), &normal, sizeof(glm::vec4));
-	}
-
-	blueprintDrawData.vertexBuffer->unmap();
-
-	m_loadedBlueprints[blueprint->get_name()] = std::move(blueprintDrawData);
+	m_loadedMeshes[meshComponent->get_hash_string()] = std::move(drawData);
 }
 
 void SceneRenderer::set_global_buffer(GlobalSetData* data)

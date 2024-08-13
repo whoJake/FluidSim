@@ -9,6 +9,7 @@
 #include "DescriptorSetLayout.h"
 #include "Pipeline.h"
 #include "Buffer.h"
+#include "BufferView.h"
 
 namespace vk
 {
@@ -128,27 +129,27 @@ void CommandBuffer::push_constants(PipelineLayout& layout, VkShaderStageFlags st
     vkCmdPushConstants(get_handle(), layout.get_handle(), stageFlags, offset, size, pData);
 }
 
-void CommandBuffer::bind_vertex_buffers(Buffer& buffer, uint32_t binding)
+void CommandBuffer::bind_vertex_buffers(const BufferView& buffer, uint32_t binding)
 {
-    bind_vertex_buffers({ &buffer }, binding);
+    bind_vertex_buffers(std::vector<BufferView>{ buffer }, binding);
 }
 
-void CommandBuffer::bind_index_buffer(Buffer& buffer, VkIndexType indexType)
+void CommandBuffer::bind_index_buffer(const BufferView& buffer, VkIndexType indexType)
 {
-    vkCmdBindIndexBuffer(get_handle(), buffer.get_handle(), 0, indexType);
+    vkCmdBindIndexBuffer(get_handle(), buffer.get_buffer().get_handle(), buffer.get_offset(), indexType);
 }
 
-void CommandBuffer::bind_vertex_buffers(const std::vector<Buffer*>& buffers, uint32_t firstBinding)
+void CommandBuffer::bind_vertex_buffers(const std::vector<BufferView>& buffers, uint32_t firstBinding)
 {
     std::vector<VkBuffer> handles(buffers.size());
     std::vector<VkDeviceSize> offsets(buffers.size());
     for( size_t i = 0; i < buffers.size(); i++ )
     {
-        offsets.at(i) = 0;
-        handles.at(i) = buffers.at(i)->get_handle();
+        offsets[i] = buffers[i].get_offset();
+        handles[i] = buffers[i].get_buffer().get_handle();
     }
 
-    vkCmdBindVertexBuffers(get_handle(), firstBinding, static_cast<uint32_t>(buffers.size()), handles.data(), offsets.data());
+    vkCmdBindVertexBuffers(get_handle(), firstBinding, u32_cast(buffers.size()), handles.data(), offsets.data());
 }
 
 void CommandBuffer::draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance)

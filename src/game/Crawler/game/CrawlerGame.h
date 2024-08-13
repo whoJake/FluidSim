@@ -7,15 +7,11 @@
 
 #include "rendering/RenderContext.h"
 
-#include "scene/Scene.h"
-#include "scene/Entity.h"
-#include "scene/Blueprint.h"
-#include "scene/BlueprintManager.h"
-
-#include "render/SceneRenderer.h"
-
 #include "graphics/Material.h"
 #include "graphics/Shader.h"
+
+#include "scene/spatial/Scene.h"
+#include "render/SceneRenderer.h"
 
 class CrawlerGame : public WindowedApplication
 {

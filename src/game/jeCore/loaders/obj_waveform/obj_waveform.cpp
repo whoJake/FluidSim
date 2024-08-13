@@ -212,8 +212,9 @@ void file::parse_face(size_t context, const std::string& line)
 
             vertex v
             {
-                std::stoi(components[0]),
-                std::stoi(components[2])
+                // waveform is 1 index'd for some horrible reason.
+                std::stoi(components[0]) - 1,
+                std::stoi(components[2]) - 1
             };
 
             defines.push_back(v);
