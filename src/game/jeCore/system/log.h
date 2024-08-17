@@ -41,6 +41,8 @@ void warn(std::string message, channel chnl = channel::none);
 void error(std::string message, channel chnl = channel::none);
 void fatal(std::string message, channel chnl = channel::none);
 
+void force_flush();
+
 template<typename... A>
 void messagef(channel chnl, level lvl, std::string format, A&&... args)
 {
@@ -62,6 +64,8 @@ void messagef(channel chnl, level lvl, std::string format, A&&... args)
 #define SYSLOG_WARN(fmt, ...) CHANNEL_LOG_WARN(::sys::log::channel::none, fmt, __VA_ARGS__)
 #define SYSLOG_ERROR(fmt, ...) CHANNEL_LOG_ERROR(::sys::log::channel::none, fmt, __VA_ARGS__)
 #define SYSLOG_FATAL(fmt, ...) CHANNEL_LOG_FATAL(::sys::log::channel::none, fmt, __VA_ARGS__)
+
+#define SYSLOG_FORCEFLUSH() ::sys::log::force_flush()
 
 enum class color
 {

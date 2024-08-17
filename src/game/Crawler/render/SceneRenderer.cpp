@@ -143,7 +143,7 @@ void SceneRenderer::render()
 		);
 
 		globalSet.write_buffers(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, 1);
-		buffer.bind_descriptor_set(globalSet);
+		buffer.bind_descriptor_set(globalSet, 0);
 
 		vk::BufferView vertexBuffer(drawData.vertexBuffer.get());
 		buffer.bind_vertex_buffers(vertexBuffer, 0);

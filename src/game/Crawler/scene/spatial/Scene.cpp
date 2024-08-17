@@ -1,8 +1,5 @@
 #include "Scene.h"
 
-namespace fw
-{
-
 Scene::Scene() :
     m_randomSource()
 { }
@@ -42,5 +39,3 @@ const std::vector<Entity*>& Scene::get_all_entities() const
 {
     return m_entities;
 }
-
-} // fw

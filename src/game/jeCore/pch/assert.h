@@ -11,6 +11,7 @@ inline void QuitFmt_Internal(const std::source_location& loc, const char* fmt, A
     std::stringstream ss{ };
     ss << "{} {} ln{}\n" << fmt;
     SYSLOG_FATAL(ss.str().c_str(), loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
+    SYSLOG_FORCEFLUSH();
     std::abort();
 }
 

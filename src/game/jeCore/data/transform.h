@@ -31,6 +31,7 @@ public:
 	constexpr void rotate(const glm::quat& rotation);
 
 	inline glm::mat4 get_matrix() const;
+	inline glm::mat4 get_matrix_as_view() const;
 	// constexpr void set_matrix(const glm::mat4& value);
 private:
 	// TODO: condense this all into a matrix

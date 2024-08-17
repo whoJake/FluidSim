@@ -3,9 +3,6 @@
 #include "Entity.h"
 #include <random>
 
-namespace fw
-{
-
 class Scene
 {
 public:
@@ -28,5 +25,3 @@ private:
 
     std::vector<EntityId> m_deletedEntities;
 };
-
-} // fw

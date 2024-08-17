@@ -17,6 +17,8 @@ public:
     ~basic_log() = default;
 
     void assign_message(message&& msg) override;
+
+    inline void flush() override { };
 private:
     logger m_logger;
 };

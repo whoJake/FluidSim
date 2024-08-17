@@ -70,5 +70,10 @@ void log::fatal(std::string message, channel chnl)
     log::message(message, chnl, level::fatal);
 }
 
+void log::force_flush()
+{
+    s_log->flush();
+}
+
 } // log
 } // sys

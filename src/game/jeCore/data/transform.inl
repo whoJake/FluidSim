@@ -75,4 +75,9 @@ glm::mat4 transform::get_matrix() const
 	return glm::translate(glm::scale(glm::mat4(1.f), m_scale) * glm::toMat4(m_rotation), m_position);
 }
 
+glm::mat4 transform::get_matrix_as_view() const
+{
+	return glm::translate(glm::toMat4(m_rotation), -m_position);
+}
+
 } // mtl

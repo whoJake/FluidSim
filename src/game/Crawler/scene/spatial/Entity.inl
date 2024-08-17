@@ -1,8 +1,5 @@
 #include "Entity.h"
 
-namespace fw
-{
-
 #define STATIC_CHECK_COMPONENT_T(type) static_assert(std::is_base_of_v<Component, type>)
 
 template<typename ComponentT>
@@ -101,5 +98,3 @@ void Entity::remove_component()
     m_components.pop_back();
     m_componentMapping.erase(id);
 }
-
-} // fw

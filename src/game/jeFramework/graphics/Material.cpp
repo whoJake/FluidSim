@@ -62,7 +62,7 @@ void Material::bind(vk::CommandBuffer& buffer) const
 	);
 
 	set.write_buffers(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, 1);
-	buffer.bind_descriptor_set(set);
+	buffer.bind_descriptor_set(set, Shader::custom_set_idx);
 }
 
 const Shader& Material::get_shader() const

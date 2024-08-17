@@ -2,9 +2,6 @@
 
 #include <random>
 
-namespace fw
-{
-
 bool EntityId::is_valid() const
 {
     return value == invalid_id;
@@ -35,5 +32,3 @@ bool Entity::is_valid() const
 {
     return m_id.is_valid();
 }
-
-} // fw

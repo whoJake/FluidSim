@@ -12,6 +12,7 @@
 
 #include "scene/spatial/Scene.h"
 #include "render/SceneRenderer.h"
+#include "render/Renderer.h"
 
 class CrawlerGame : public WindowedApplication
 {
@@ -36,9 +37,7 @@ private:
 
 	// testing
 	std::unique_ptr<vk::RenderContext> m_context;
-	std::unique_ptr<fw::Scene> m_scene;
-	std::unique_ptr<fw::SceneRenderer> m_renderer;
-
-	glm::vec3 m_position{ };
-	glm::vec3 m_rotation{ 0.f, glm::radians(180.f), 0.f };
+	std::unique_ptr<Scene> m_scene;
+	std::unique_ptr<Renderer> m_renderer;
+	Entity* m_camera;
 };

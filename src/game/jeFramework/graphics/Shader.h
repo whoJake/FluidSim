@@ -57,7 +57,7 @@ public:
     const vk::DescriptorSetLayout& get_descriptor_set_layout(u32 idx = custom_set_idx) const;
     const mtl::hash_string& get_name() const;
 
-    static constexpr u64 custom_set_idx = 1;
+    static constexpr u64 custom_set_idx = 3;
 private:
     void initialise_layout(const ShaderDefinition* definition);
     void initialise_pipeline(const char* metadataFile, vk::RenderPass* renderpass, u32 subpass);

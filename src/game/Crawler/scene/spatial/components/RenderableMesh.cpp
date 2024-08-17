@@ -1,9 +1,6 @@
 #include "RenderableMesh.h"
 #include "loaders/obj_waveform.h"
 
-namespace fw
-{
-
 RenderableMeshComponent::RenderableMeshComponent(std::string source) :
     m_hash(source),
     m_source(source)
@@ -73,5 +70,3 @@ const mtl::hash_string& RenderableMeshComponent::get_hash_string() const
 {
     return m_hash;
 }
-
-} // fw

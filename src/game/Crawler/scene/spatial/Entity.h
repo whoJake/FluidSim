@@ -4,9 +4,6 @@
 #include "data/transform.h"
 #include <random>
 
-namespace fw
-{
-
 struct EntityId
 {
     inline static constexpr u64 invalid_id = 0;
@@ -71,8 +68,6 @@ private:
     std::unordered_map<ComponentId, u64> m_componentMapping;
     std::vector<std::unique_ptr<Component>> m_components;
 };
-
-} // fw
 
 #ifndef INC_FW_ENTITY_INL
 #define INC_FW_ENTITY_INL

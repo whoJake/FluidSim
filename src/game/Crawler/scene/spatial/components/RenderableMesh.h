@@ -4,8 +4,10 @@
 #include "data/hash_string.h"
 #include "data/mesh.h"
 
-namespace fw
+struct RenderModelData
 {
+    glm::mat4 model_matrix;
+};
 
 class RenderableMeshComponent : public Component
 {
@@ -27,5 +29,3 @@ private:
 
     std::unique_ptr<mtl::mesh> m_mesh;
 };
-
-} // fw

@@ -2,7 +2,9 @@
 
 #include "input/Input.h"
 #include "scene/spatial/Entity.h"
+
 #include "scene/spatial/components/RenderableMesh.h"
+#include "scene/spatial/components/Camera.h"
 
 static Window::Properties default_window_properties
 {
@@ -57,13 +59,8 @@ void CrawlerGame::update_impl(float dt)
 	float speed = 10.f;
 	move *= speed * dt;
 
-	glm::quat qRotation(glm::vec3(0.f));
-	qRotation *= glm::angleAxis(m_rotation.x, glm::vec3(1.f, 0.f, 0.f));
-	qRotation *= glm::angleAxis(m_rotation.y, glm::vec3(0.f, 1.f, 0.f));
-	qRotation *= glm::angleAxis(m_rotation.z, glm::vec3(0.f, 0.f, 1.f));
-
-	glm::vec3 camFwd = glm::vec3(0.f, 0.f, 1.f) * qRotation;
-	glm::vec3 camRght = glm::vec3(1.f, 0.f, 0.f) * qRotation;
+	glm::vec3 camFwd = glm::vec3(0.f, 0.f, 1.f) * m_camera->transform().get_quat_rotation();
+	glm::vec3 camRght = glm::vec3(1.f, 0.f, 0.f) * m_camera->transform().get_quat_rotation();
 
 	if( Input::get_mouse_button_pressed(1) )
 	{
@@ -81,11 +78,11 @@ void CrawlerGame::update_impl(float dt)
 		float mouseX = static_cast<float>(sens * Input::get_mouse_move_horizontal());
 		float mouseY = static_cast<float>(sens * Input::get_mouse_move_vertical());
 
-		m_rotation.y += glm::radians(mouseX);
-		m_rotation.x += glm::radians(mouseY);
+		m_camera->transform().rotate({ 0.f, glm::radians(mouseX), 0.f });
+		m_camera->transform().rotate(glm::radians(mouseY) * camRght);
 	}
 
-	m_position += (camRght * move.x) + (camFwd * move.z) + (glm::vec3(0.f, 1.f, 0.f) * move.y);
+	m_camera->transform().move((camRght * move.x) + (camFwd * move.z) + (glm::vec3(0.f, 1.f, 0.f) * move.y));
 }
 
 void CrawlerGame::on_event(Event& e)
@@ -110,8 +107,11 @@ void CrawlerGame::update()
 	update_impl(deltatime);
 	Input::tick();
 
-	m_renderer->pre_render(m_position, m_rotation);
+	m_renderer->pre_render(m_scene.get(), deltatime);
 	m_renderer->render();
+
+	glm::vec3 pos = m_camera->transform().get_position();
+	// SYSLOG_INFO("Camera location x:{} y:{} z:{}", pos.x, pos.y, pos.z);
 }
 
 bool CrawlerGame::on_window_resize(WindowResizeEvent& e)
@@ -123,9 +123,7 @@ bool CrawlerGame::on_window_resize(WindowResizeEvent& e)
 #include "loaders/obj_waveform.h"
 void CrawlerGame::debug_setup()
 {
-	m_scene = std::make_unique<fw::Scene>();
-
-	// fw::BlueprintManager::initialise();
+	m_scene = std::make_unique<Scene>();
 
 	{
 		// vk::RenderContext
@@ -144,7 +142,9 @@ void CrawlerGame::debug_setup()
 			vk::RenderTarget::default_create_function);
 	}
 
-	m_scene = std::make_unique<fw::Scene>();
+	m_scene = std::make_unique<Scene>();
+
+	/*
 	m_renderer = std::make_unique<fw::SceneRenderer>(*m_context);
 
 	fw::gfx::ShaderDefinition shader
@@ -165,16 +165,51 @@ void CrawlerGame::debug_setup()
 	};
 
 	m_renderer->register_material(material);
+	*/
 
-	fw::EntityDef entdef1
+	EntityDef entdef1
 	{
-		glm::vec3(0.f),
+		glm::vec3(10.f, -5.f, 1.f),
+		glm::vec3(0.2f),
+		glm::vec3(0.f)
+	};
+
+	EntityDef entdef2
+	{
+		glm::vec3(-10.f, 0.f, -15.f),
+		glm::vec3(0.8f),
+		glm::vec3(0.f, glm::radians(180.f), 0.f)
+	};
+
+	EntityDef entdef3
+	{
+		glm::vec3(-40.f, -10.f, -10.f),
+		glm::vec3(0.3f),
+		glm::vec3(glm::radians(270.f), glm::radians(45.f), 0.f)
+
+	};
+
+	EntityDef entdef4
+	{
+		glm::vec3(0.f, 0.f, 5.f),
 		glm::vec3(1.f),
 		glm::vec3(0.f)
 	};
 
-	fw::Entity* entity = m_scene->add_entity(entdef1);
-	entity->add_component<fw::RenderableMeshComponent>("assets/models/heli.obj");
+	Entity* entity1 = m_scene->add_entity(entdef1);
+	RenderableMeshComponent* mesh1 = entity1->add_component<RenderableMeshComponent>("assets/models/heli.obj");
+	mesh1->load();
 
-	m_renderer->add_scene(m_scene.get());
+	Entity* entity2 = m_scene->add_entity(entdef2);
+	RenderableMeshComponent* mesh2 = entity2->add_component<RenderableMeshComponent>("assets/models/apple.obj");
+	mesh2->load();
+
+	Entity* entity3 = m_scene->add_entity(entdef3);
+	RenderableMeshComponent* mesh3 = entity3->add_component<RenderableMeshComponent>("assets/models/skull.obj");
+	mesh3->load();
+
+	m_camera = m_scene->add_entity(entdef4);
+	m_camera->add_component<CameraComponent>(90.f, 1600.f/1200.f);
+
+	m_renderer = std::make_unique<Renderer>(*m_context);
 }

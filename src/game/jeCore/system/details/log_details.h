@@ -41,6 +41,8 @@ public:
     log_manager(level verbosity);
 
     void add_message(message&& msg);
+
+    virtual void flush() = 0;
 protected:
     virtual void assign_message(message&& msg) = 0;
 private:

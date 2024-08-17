@@ -22,10 +22,10 @@ public:
     ~log_mt();
 
     void assign_message(message&& msg) override;
+
+    void flush() override;
 private:
     void worker_loop();
-
-    void flush();
 private:
     logger m_logger;
     mtl::queue_v<message> m_queue;
