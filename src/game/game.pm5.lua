@@ -10,13 +10,13 @@
   }
 
   -- Project names
-  prj_Core = "jeCore"
-  prj_Framework = "jeFramework"
-  prj_Graphics = "jeGraphics"
+  prj_Core = "core"
+  prj_Framework = "framework"
+  prj_Graphics = "graphics"
   
   prj_DataDrivenGen = "DataDrivenGen"
   prj_Sandbox = "Sandbox"
-  prj_Crawler = "Crawler"
+  prj_Crawler = "game"
 
   prj_ImGui = "DearImGui"
 
@@ -445,6 +445,7 @@
       {
       }
 
+group "Libraries"
   ----------------------------------------------------------------------
   -----------------------------DataDrivenGen----------------------------
   ----------------------------------------------------------------------
@@ -503,6 +504,7 @@
       {
       }
 
+group "3rdparty"
   ----------------------------------------------------------------------
   ----------------------------------ImGui-------------------------------
   ----------------------------------------------------------------------
