@@ -4,6 +4,14 @@ Scene::Scene() :
     m_randomSource()
 { }
 
+Scene::~Scene()
+{
+    for( Entity* entity : m_entities )
+    {
+        delete entity;
+    }
+}
+
 void Scene::pre_update()
 {
     for( EntityId id : m_deletedEntities )

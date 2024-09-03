@@ -35,7 +35,7 @@ struct RasterizationState
     VkBool32 enableDepthClamp{ VK_FALSE };
     VkBool32 enableRasterizerDiscard{ VK_FALSE };
     VkPolygonMode polygonMode{ VK_POLYGON_MODE_FILL };
-    VkCullModeFlags cullMode{ VK_CULL_MODE_NONE };
+    VkCullModeFlags cullMode{ VK_CULL_MODE_BACK_BIT };
     VkFrontFace frontFace{ VK_FRONT_FACE_COUNTER_CLOCKWISE };
     VkBool32 enableDepthBias{ VK_FALSE };
     float depthBiasConstantFactor{ 1.f };

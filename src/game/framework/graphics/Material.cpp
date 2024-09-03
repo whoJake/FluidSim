@@ -4,6 +4,7 @@
 #include "core/DescriptorSet.h"
 #include "rendering/RenderContext.h"
 #include "rendering/RenderFrame.h"
+#include "core/BufferView.h"
 
 namespace fw
 {
@@ -23,11 +24,10 @@ Material::Material(vk::RenderContext& context, Shader* shader, MaterialFlags fla
 
 	if( size != 0 )
 	{
-		m_buffer = std::make_unique<vk::Buffer>(
-			context.get_device(),
+		m_buffer = std::make_unique<UniformBuffer>(
+			context,
 			size,
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+			UniformBufferType::Dynamic
 		);
 	}
 }
@@ -72,14 +72,10 @@ const Shader& Material::get_shader() const
 
 std::vector<VkDescriptorBufferInfo> Material::get_descriptor_buffer_infos() const
 {
+	vk::BufferView view = m_buffer->get_buffer_view(m_context.get_frame_index());
+
 	std::vector<VkDescriptorBufferInfo> infos;
-
-	infos.emplace_back(VkDescriptorBufferInfo{
-		m_buffer->get_handle(),
-		0,
-		m_buffer->get_size()
-		});
-
+	infos.emplace_back(view.get_descriptor_info());
 	return infos;
 }
 

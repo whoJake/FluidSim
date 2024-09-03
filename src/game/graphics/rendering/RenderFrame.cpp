@@ -94,8 +94,8 @@ CommandBuffer& RenderFrame::request_command_buffer(const Queue&             queu
 
 const DescriptorSet& RenderFrame::request_descriptor_set(const DescriptorSetLayout&                 layout,
                                                          size_t                                     threadIndex,
-                                                         const std::vector<VkDescriptorBufferInfo>& buffers,
-                                                         const std::vector<VkDescriptorImageInfo>&  images)
+                                                         std::vector<VkDescriptorBufferInfo>        buffers,
+                                                         std::vector<VkDescriptorImageInfo>         images)
 {
     DescriptorPool& pool = request_resource(*m_descriptorPools[threadIndex], m_device, layout);
     return request_resource(*m_descriptorSets[threadIndex], m_device, pool, buffers, images);

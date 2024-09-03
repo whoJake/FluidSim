@@ -5,7 +5,6 @@
 #include "core/Buffer.h"
 #include "core/RenderPass.h"
 
-#include "scene/spatial/components/RenderableMesh.h"
 #include "scene/spatial/components/Camera.h"
 
 #include "graphics/Shader.h"
@@ -13,14 +12,39 @@
 
 Renderer::Renderer(vk::RenderContext& context) :
     m_context(context),
-    m_state()
+    m_state(),
+    m_streamer(context)
 {
     create_renderpass();
     restart();
 }
 
+Renderer::~Renderer()
+{
+    m_context.get_device().wait_idle();
+
+    m_frameData.reset();
+    m_cameraData.reset();
+    m_modelData.reset();
+
+    for( auto& [name, handle] : m_streaming )
+    {
+        m_streamer.discard(handle);
+    }
+
+    m_meshes.clear();
+
+    m_material.reset();
+    m_shader.reset();
+
+    m_renderPass.reset();
+}
+
 void Renderer::pre_render(Scene* scene, float deltaTime)
 {
+    m_streamer.resolve_requests();
+    // m_context.get_device().wait_idle();
+
     RenderFrameData data
     {
         deltaTime,
@@ -91,6 +115,7 @@ void Renderer::render()
     // always bind same material
     m_material->bind(buffer);
 
+    // SYSLOG_INFO("Frame Data");
     const vk::DescriptorSet& frameDataSet = m_context.get_active_frame().request_descriptor_set(
         m_material->get_shader().get_descriptor_set_layout(0),
         0,
@@ -102,6 +127,7 @@ void Renderer::render()
 
     for( u32 camIdx = 0; camIdx < m_state.activeCameras; camIdx++ )
     {
+        // SYSLOG_INFO("Camera Data {}", camIdx);
         const vk::DescriptorSet& cameraDataSet = m_context.get_active_frame().request_descriptor_set(
             m_material->get_shader().get_descriptor_set_layout(1),
             0,
@@ -113,19 +139,24 @@ void Renderer::render()
 
         for( u32 modelIdx = 0; modelIdx < m_state.models; modelIdx++ )
         {
-            Drawable& drawable = m_state.drawList[modelIdx];
+            fw::gfx::DrawData* drawable = m_state.drawList[modelIdx];
+            const std::vector<fw::gfx::DrawMesh>& meshes = drawable->get_meshes();
 
+            // SYSLOG_INFO("Model Data {}", modelIdx);
             const vk::DescriptorSet& modelDataSet = m_context.get_active_frame().request_descriptor_set(
                 m_material->get_shader().get_descriptor_set_layout(2),
                 0,
-                { drawable.modelBuffer.get_descriptor_info() }
+                { get_model_data_view(modelIdx).get_descriptor_info() }
             );
 
             modelDataSet.write_buffers(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, 1);
             buffer.bind_descriptor_set(modelDataSet, 2);
 
-            buffer.bind_vertex_buffers(drawable.vertexBuffer, 0);
-            buffer.draw(drawable.vertexCount);
+            u32 vertexCount = meshes.front().vertexCount;
+            vk::BufferView vertex(drawable->get_data(), 0, vertexCount * sizeof(glm::vec4) * 2);
+
+            buffer.bind_vertex_buffers(vertex, 0);
+            buffer.draw(vertexCount);
         }
     }
 
@@ -140,25 +171,24 @@ void Renderer::restart()
 
     // read settings?
     u32 imageCount = m_context.get_swapchain_properties().imageCount;
-    m_frameData = std::make_unique<vk::Buffer>(
-        m_context.get_device(),
-        sizeof(RenderFrameData) * imageCount,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+    m_frameData = std::make_unique<fw::gfx::UniformBuffer>(
+        m_context,
+        sizeof(RenderFrameData),
+        fw::gfx::UniformBufferType::Dynamic
     );
 
-    m_cameraData = std::make_unique<vk::Buffer>(
-        m_context.get_device(),
-        sizeof(RenderCameraData) * imageCount * max_cameras,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+    m_cameraData = std::make_unique<fw::gfx::UniformBuffer>(
+        m_context,
+        sizeof(RenderCameraData),
+        fw::gfx::UniformBufferType::Dynamic,
+        max_cameras
     );
 
-    m_modelData = std::make_unique<vk::Buffer>(
-        m_context.get_device(),
-        sizeof(RenderModelData) * imageCount * max_models,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+    m_modelData = std::make_unique<fw::gfx::UniformBuffer>(
+        m_context,
+        sizeof(RenderModelData),
+        fw::gfx::UniformBufferType::Dynamic,
+        max_models
     );
 
     m_frameData->map();
@@ -212,8 +242,37 @@ void Renderer::add_camera(Entity* entity)
 void Renderer::add_renderable(Entity* entity)
 {
     RenderableMeshComponent* mesh = entity->get_component<RenderableMeshComponent>();
-    u32 modelIdx = m_state.models++;
 
+    auto itMesh = m_meshes.find(mesh->get_hash_string());
+
+    if( itMesh == m_meshes.end() )
+    {
+        load_draw_data(mesh);
+        return;
+    }
+
+    fw::gfx::DrawData* drawData = itMesh->second.get();
+    if( drawData->get_state() == fw::gfx::DrawDataState::LOADING )
+    {
+        // check the handle
+        auto itHandle = m_streaming.find(mesh->get_hash_string());
+        fw::gfx::StreamHandle* handle = itHandle->second;
+        if( m_streamer.is_loaded(handle) )
+        {
+            std::unique_ptr<vk::Buffer> data = m_streamer.access(handle);
+            m_streaming.erase(itHandle);
+            drawData->set_data(std::move(data));
+            drawData->set_state(fw::gfx::DrawDataState::LOADED);
+        }
+    }
+
+    if( drawData->get_state() != fw::gfx::DrawDataState::LOADED )
+    {
+        return;
+    }
+
+    // Add to render list.
+    u32 modelIdx = m_state.models++;
     RenderModelData data
     {
         entity->transform().get_matrix()
@@ -223,88 +282,22 @@ void Renderer::add_renderable(Entity* entity)
     u8* pGpuData = modelBuffer.map();
     memcpy(pGpuData, &data, sizeof(RenderModelData));
 
-    for( u32 submeshIdx = 0; submeshIdx < mesh->get_mesh().get_submesh_count(); submeshIdx++ )
-    {
-        const mtl::submesh& submesh = mesh->get_mesh().get_submesh(submeshIdx);
-
-        Drawable drawData
-        {
-            submesh.get_material_name(),
-            u32_cast(submesh.get_channel(0).size()),
-            modelBuffer
-        };
-
-        mtl::hash_string name(mesh->get_hash_string().get_hash() + submeshIdx);
-        auto itBuffer = m_loadedMeshes.find(name);
-        if( itBuffer != m_loadedMeshes.end() )
-        {
-            drawData.vertexBuffer = vk::BufferView(itBuffer->second.get(), 0, itBuffer->second->get_size());
-        }
-        else
-        {
-            std::vector<glm::vec4> data;
-
-            const auto& vertices = submesh.get_channel(0);
-            const auto& normals = submesh.get_channel(1);
-
-            for( u64 i = 0; i < vertices.size(); i++ )
-            {
-                data.push_back(vertices[i]);
-                data.push_back(normals[i]);
-            }
-
-            std::unique_ptr<vk::Buffer> vertexBuffer = std::make_unique<vk::Buffer>(
-                m_context.get_device(),
-                data.size() * sizeof(glm::vec4),
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-            );
-            u8* pVertexData = vertexBuffer->map();
-            memcpy(pVertexData, data.data(), data.size() * sizeof(glm::vec4));
-
-            drawData.vertexBuffer = vk::BufferView(vertexBuffer.get(), 0, vertexBuffer->get_size());
-            m_loadedMeshes.emplace(
-                std::piecewise_construct,
-                std::tuple(name),
-                std::tuple(std::move(vertexBuffer))
-            );
-        }
-
-        m_state.drawList.push_back(drawData);
-    }
+    m_state.drawList.push_back(drawData);
 }
 
 vk::BufferView Renderer::get_frame_data_view() const
 {
-    return vk::BufferView(
-        m_frameData.get(),
-        sizeof(RenderFrameData) * m_context.get_frame_index(),
-        sizeof(RenderFrameData)
-    );
+    return m_frameData->get_buffer_view(m_context.get_frame_index());
 }
 
 vk::BufferView Renderer::get_camera_data_view(u32 idx) const
 {
-    u64 bufferSetOffset = sizeof(RenderCameraData) * m_context.get_swapchain_properties().imageCount * idx;
-    u64 bufferImageOffset = sizeof(RenderCameraData) * m_context.get_frame_index();
-
-    return vk::BufferView(
-        m_cameraData.get(),
-        bufferSetOffset + bufferImageOffset,
-        sizeof(RenderCameraData)
-    );
+    return m_cameraData->get_buffer_view(m_context.get_frame_index(), idx);
 }
 
 vk::BufferView Renderer::get_model_data_view(u32 idx) const
 {
-    u64 bufferSetOffset = sizeof(RenderModelData) * m_context.get_swapchain_properties().imageCount * idx;
-    u64 bufferImageOffset = sizeof(RenderModelData) * m_context.get_frame_index();
-
-    return vk::BufferView(
-        m_modelData.get(),
-        bufferSetOffset + bufferImageOffset,
-        sizeof(RenderModelData)
-    );
+    return m_modelData->get_buffer_view(m_context.get_frame_index(), idx);
 }
 
 void Renderer::create_renderpass()
@@ -340,5 +333,57 @@ void Renderer::create_renderpass()
         attachments,
         infos,
         subpassInfos
+    );
+}
+
+void Renderer::load_draw_data(RenderableMeshComponent* mesh)
+{
+    mesh->load();
+
+    const mtl::submesh& submesh = mesh->get_mesh().get_submesh(0);
+    std::vector<glm::vec4> data;
+
+    const auto& vertices = submesh.get_channel(0);
+    const auto& normals = submesh.get_channel(1);
+
+    for( u64 i = 0; i < vertices.size(); i++ )
+    {
+        data.push_back(vertices[i]);
+        data.push_back(normals[i]);
+    }
+
+    std::vector<fw::gfx::DrawMesh> meshes;
+    meshes.push_back(fw::gfx::DrawMesh{ 0, u32_cast(submesh.get_channel(0).size()), 0 });
+    std::vector<mtl::hash_string> matDeps;
+    matDeps.push_back(mtl::hash_string("material1"));
+    mtl::hash_string name = mesh->get_hash_string();
+
+    mesh->unload();
+
+    m_meshes.emplace(
+        std::piecewise_construct,
+        std::tuple(name),
+        std::tuple(std::make_unique<fw::gfx::DrawData>(meshes, matDeps))
+    );
+
+    fw::gfx::DrawData* drawData = m_meshes[name].get();
+
+    std::unique_ptr<vk::Buffer> cpuBuffer = std::make_unique<vk::Buffer>(
+        m_context.get_device(),
+        data.size() * sizeof(glm::vec4),
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+    );
+
+    u8* pCpuData = cpuBuffer->map();
+    memcpy(pCpuData, data.data(), data.size() * sizeof(glm::vec4));
+    cpuBuffer->unmap();
+
+    fw::gfx::StreamHandle* handle = m_streamer.request(std::move(cpuBuffer), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    drawData->set_state(fw::gfx::DrawDataState::LOADING);
+    m_streaming.emplace(
+        std::piecewise_construct,
+        std::tuple(name),
+        std::tuple(handle)
     );
 }

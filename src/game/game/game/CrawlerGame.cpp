@@ -6,25 +6,7 @@
 #include "scene/spatial/components/RenderableMesh.h"
 #include "scene/spatial/components/Camera.h"
 
-static Window::Properties default_window_properties
-{
-	"Crawler Game",
-	Window::Mode::Windowed,
-	true,
-	Window::VSync::Default,
-	Window::Position{ 0, 0 },
-	Window::Extent{ 1600, 1200 }
-};
-
-CrawlerGame::CrawlerGame() :
-	WindowedApplication("Crawler Game", default_window_properties),
-	m_beginFrame()
-{ }
-
-CrawlerGame::~CrawlerGame()
-{ }
-
-void CrawlerGame::on_app_startup()
+bool CrawlerGame::on_game_startup()
 {
 	// setup game logic/scene
 	// 
@@ -33,9 +15,8 @@ void CrawlerGame::on_app_startup()
 	//   create whatever renderer
 	//   create imgui context
 
-	m_beginFrame = sys::now();
-
 	debug_setup();
+	return true;
 }
 
 void CrawlerGame::update_impl(float dt)
@@ -64,11 +45,11 @@ void CrawlerGame::update_impl(float dt)
 
 	if( Input::get_mouse_button_pressed(1) )
 	{
-		Input::set_cursor_lock_state(get_window(), CursorLockState::LOCKED);
+		Input::set_cursor_lock_state(get_window(), fw::cursor_lock_state::locked);
 	}
 	else if( Input::get_mouse_button_released(1) )
 	{
-		Input::set_cursor_lock_state(get_window(), CursorLockState::NONE);
+		Input::set_cursor_lock_state(get_window(), fw::cursor_lock_state::none);
 	}
 
 	if( Input::get_mouse_button_down(1) )
@@ -90,28 +71,31 @@ void CrawlerGame::on_event(Event& e)
 	Input::register_event(e);
 }
 
-void CrawlerGame::on_app_shutdown()
-{ }
+void CrawlerGame::on_game_shutdown()
+{
+	m_scene.reset();
+	m_renderer.reset();
+}
 
-void CrawlerGame::update()
+bool CrawlerGame::update(f64 deltaTime)
 {
 	// Calculate delta time
-	sys::moment frameStart = sys::now();
-	float deltatime = std::chrono::duration_cast<std::chrono::nanoseconds>(frameStart - m_beginFrame).count() / 1e9f;
-	m_beginFrame = frameStart;
-
 	get_window().process_events();
 
 	m_scene->pre_update();
 
-	update_impl(deltatime);
+	update_impl(f32_cast(deltaTime));
 	Input::tick();
 
-	m_renderer->pre_render(m_scene.get(), deltatime);
+	// we need this to block on the new frame, otherwise we can overwrite data during pre_render
+	get_graphics_handles().context->begin_frame();
+
+	m_renderer->pre_render(m_scene.get(), f32_cast(deltaTime));
 	m_renderer->render();
 
 	glm::vec3 pos = m_camera->transform().get_position();
 	// SYSLOG_INFO("Camera location x:{} y:{} z:{}", pos.x, pos.y, pos.z);
+	return true;
 }
 
 bool CrawlerGame::on_window_resize(WindowResizeEvent& e)
@@ -123,27 +107,6 @@ bool CrawlerGame::on_window_resize(WindowResizeEvent& e)
 #include "loaders/obj_waveform.h"
 void CrawlerGame::debug_setup()
 {
-	m_scene = std::make_unique<Scene>();
-
-	{
-		// vk::RenderContext
-		std::vector<VkPresentModeKHR> presentModes =
-		{ VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
-
-		std::vector<VkSurfaceFormatKHR> surfaceFormats =
-		{ { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR } };
-
-		m_context = std::make_unique<vk::RenderContext>(
-			get_device(),
-			get_window().create_surface(get_instance()),
-			get_window(),
-			presentModes,
-			surfaceFormats,
-			vk::RenderTarget::default_create_function);
-	}
-
-	m_scene = std::make_unique<Scene>();
-
 	/*
 	m_renderer = std::make_unique<fw::SceneRenderer>(*m_context);
 
@@ -166,6 +129,8 @@ void CrawlerGame::debug_setup()
 
 	m_renderer->register_material(material);
 	*/
+
+	m_scene = std::make_unique<Scene>();
 
 	EntityDef entdef1
 	{
@@ -211,5 +176,35 @@ void CrawlerGame::debug_setup()
 	m_camera = m_scene->add_entity(entdef4);
 	m_camera->add_component<CameraComponent>(90.f, 1600.f/1200.f);
 
-	m_renderer = std::make_unique<Renderer>(*m_context);
+	m_renderer = std::make_unique<Renderer>(*get_graphics_handles().context);
+}
+
+fw::game::options CrawlerGame::get_startup_options()
+{
+	VkPhysicalDeviceFeatures features{ };
+	features.fillModeNonSolid = true;
+
+	return
+	{
+		"Crawler Game",
+		{ },
+		{ },
+		{ },
+		features,
+	};
+}
+
+fw::window::state CrawlerGame::get_window_startup_state()
+{
+	return
+	{
+		"Crawler Game Title",
+		fw::window::mode::windowed,
+		true,
+		false,
+		{ 0, 0 },
+		{ 1600, 1200 },
+		fw::cursor_lock_state::none,
+		std::bind(&CrawlerGame::on_event, this, std::placeholders::_1),
+	};
 }

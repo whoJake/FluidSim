@@ -10,14 +10,13 @@ namespace vk
 
 RenderContext::RenderContext(Device&                                device,
                              VkSurfaceKHR                           surface,
-                             const Window&                          window,
+                             VkExtent2D                             surfaceExtent,
                              const std::vector<VkPresentModeKHR>&   presentModePriorityList,
                              const std::vector<VkSurfaceFormatKHR>& surfaceFormatPriorityList,
                              RenderTarget::CreateFunc               renderTargetCreateFunc,
                              size_t                                 threadCount) :
     m_device(device),
-    m_window(window),
-    m_surfaceExtent({ window.get_extent().width, window.get_extent().height }),
+    m_surfaceExtent(surfaceExtent),
     m_threadCount(threadCount),
     m_renderTargetCreateFunc(renderTargetCreateFunc)
 {
@@ -63,7 +62,6 @@ RenderContext::RenderContext(Device&                                device,
 
 RenderContext::RenderContext(RenderContext&& other) :
     m_device(other.m_device),
-    m_window(other.m_window),
     m_surfaceExtent(other.m_surfaceExtent),
     m_threadCount(other.m_threadCount),
     m_renderTargetCreateFunc(other.m_renderTargetCreateFunc),

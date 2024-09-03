@@ -4,7 +4,7 @@
 #include "platform/events/KeyEvent.h"
 #include "platform/events/MouseEvent.h"
 
-#include "platform/Window.h"
+#include "../platform/window.h"
 
 enum class KeyState
 {
@@ -21,7 +21,7 @@ enum class KeyState
 class Input
 {
 public:
-    static void set_cursor_lock_state(Window& window, CursorLockState state);
+    static void set_cursor_lock_state(fw::window& window, fw::cursor_lock_state state);
 
     static bool get_key_pressed(KeyCode key);
     static bool get_key_down(KeyCode key);
@@ -34,7 +34,7 @@ public:
     static double get_mouse_move_horizontal();
     static double get_mouse_move_vertical();
 
-    static CursorLockState get_cursor_lock_state();
+    static fw::cursor_lock_state get_cursor_lock_state();
 
     static double get_mouse_scroll_horizontal();
     static double get_mouse_scroll_vertical();
@@ -63,7 +63,7 @@ private:
     std::array<KeyState, static_cast<size_t>(KeyCode::KEYCODE_COUNT)> m_keyStates{ };
     std::array<KeyState, INPUT_MAX_MOUSE_BUTTONS> m_mouseKeyStates{ };
 
-    CursorLockState m_primaryCursorLockState{ CursorLockState::NONE };
+    fw::cursor_lock_state m_primaryCursorLockState{ fw::cursor_lock_state::none };
 
     double m_currentMouseX{ 0.0 };
     double m_currentMouseY{ 0.0 };

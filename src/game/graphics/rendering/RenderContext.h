@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vkcommon.h"
-#include "platform/Window.h"
 #include "core/Swapchain.h"
 #include "RenderFrame.h"
 #include "core/Buffer.h"
@@ -17,7 +16,7 @@ class RenderContext
 public:
     RenderContext(Device&                                device,
                   VkSurfaceKHR                           surface,
-                  const Window&                          window,
+                  VkExtent2D                             surfaceExtent,
                   const std::vector<VkPresentModeKHR>&   presentModePriorityList,
                   const std::vector<VkSurfaceFormatKHR>& surfaceFormatPriorityList,
                   RenderTarget::CreateFunc               renderTargetCreateFunc = RenderTarget::default_create_function,
@@ -74,7 +73,6 @@ public:
 private:
     Device& m_device;
 
-    const Window& m_window;
     VkExtent2D m_surfaceExtent;
     size_t m_threadCount;
     RenderTarget::CreateFunc m_renderTargetCreateFunc;

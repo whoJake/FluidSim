@@ -44,7 +44,7 @@ Instance::Instance(const std::string&             applicationName,
     m_enabledExtensions(enabledExtensions)
 {
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
-    if( Param_vulkan_debug_utils.get() )
+    if( !enabledValidationLayers.empty() )
     {
         uint32_t validationLayerCount{ 0 };
         vkEnumerateInstanceLayerProperties(&validationLayerCount, nullptr);
@@ -132,7 +132,7 @@ Instance::Instance(const std::string&             applicationName,
     createInfo.enabledExtensionCount = to_u32(enabledExtensions.size());
     createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
-    if( Param_vulkan_debug_utils.get() )
+    if( !enabledValidationLayers.empty() )
     {
         createInfo.enabledLayerCount = to_u32(enabledValidationLayers.size());
         createInfo.ppEnabledLayerNames = enabledValidationLayers.data();
@@ -146,7 +146,7 @@ Instance::Instance(const std::string&             applicationName,
     VkResult result = vkCreateInstance(&createInfo, nullptr, &m_handle);
     VK_CHECK(result, "Failed to create VkInstance.");
 
-    if( Param_vulkan_debug_utils.get() )
+    if( !enabledValidationLayers.empty() )
     {
         VkResult debugResult = create_debug_utils_messenger(m_handle, &debugCreateInfo, nullptr, &m_debugUtilsMessenger);
         VK_CHECK(debugResult, "Failed to create debug utils messenger.");
@@ -157,7 +157,7 @@ Instance::Instance(const std::string&             applicationName,
 
 Instance::~Instance()
 {
-    if( Param_vulkan_debug_utils.get() )
+    if( m_debugUtilsMessenger != VK_NULL_HANDLE )
     {
         destroy_debug_utils_messenger(m_handle, m_debugUtilsMessenger, nullptr);
     }

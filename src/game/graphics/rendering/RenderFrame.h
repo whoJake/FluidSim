@@ -51,8 +51,8 @@ public:
 
     const DescriptorSet& request_descriptor_set(const DescriptorSetLayout&                 layout,
                                                 size_t                                     threadIndex = 0,
-                                                const std::vector<VkDescriptorBufferInfo>& buffers = { },
-                                                const std::vector<VkDescriptorImageInfo>&  images  = { });
+                                                std::vector<VkDescriptorBufferInfo> buffers = { },
+                                                std::vector<VkDescriptorImageInfo>  images  = { });
 
     void clear_descriptors();
 

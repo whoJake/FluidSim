@@ -1,4 +1,4 @@
-﻿#include "WindowGlfw.h"
+﻿#include "window_glfw.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -7,13 +7,13 @@
 #define GLFW_INCLUDE_VULKAN
 #include "glfw3.h"
 
-#include "platform/events/WindowEvent.h"
-#include "platform/events/MouseEvent.h"
-#include "platform/events/KeyEvent.h"
+#include "../events/WindowEvent.h"
+#include "../events/MouseEvent.h"
+#include "../events/KeyEvent.h"
 
 #include "core/Instance.h"
 
-inline KeyCode translate_key_code(int key) {
+static KeyCode translate_key_code(int key) {
     static const std::unordered_map<int, KeyCode> lookup = {
         {GLFW_KEY_SPACE, KeyCode::Space},
         {GLFW_KEY_APOSTROPHE, KeyCode::Apostrophe},
@@ -131,8 +131,11 @@ static void error_callback(int error, const char* msg)
     SYSLOG_ERROR("GLFW", "GLFW error code {}. {}", error, msg);
 }
 
-WindowGlfw::WindowGlfw(const Properties& properties):
-    Window(properties),
+namespace fw
+{
+
+window_glfw::window_glfw(const state& state) :
+    window(state),
     m_handle(nullptr)
 {
     if( !glfwInit() )
@@ -143,27 +146,27 @@ WindowGlfw::WindowGlfw(const Properties& properties):
 
     glfwSetErrorCallback(error_callback);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, properties.resizable);
+    glfwWindowHint(GLFW_RESIZABLE, m_state.resizable);
 
-    GLFWmonitor* monitor = m_properties.mode == Mode::Windowed ? nullptr : glfwGetPrimaryMonitor();
-    m_handle = glfwCreateWindow(m_properties.extent.width, m_properties.extent.height, m_properties.title.c_str(), monitor, nullptr);
-    set_mode(properties.mode);
+    GLFWmonitor* monitor = m_state.mode == mode::windowed ? nullptr : glfwGetPrimaryMonitor();
+    m_handle = glfwCreateWindow(m_state.extent.x, m_state.extent.y, m_state.title.c_str(), monitor, nullptr);
+    set_mode(m_state.mode);
 
-    glfwSetWindowUserPointer(m_handle, &m_properties);
+    glfwSetWindowUserPointer(m_handle, &m_state);
     setup_events();
 }
 
-WindowGlfw::~WindowGlfw()
+window_glfw::~window_glfw()
 {
     glfwTerminate();
 }
 
-void* WindowGlfw::get_native_handle() const
+void* window_glfw::get_native_handle() const
 {
     return m_handle;
 }
 
-VkSurfaceKHR WindowGlfw::create_surface(vk::Instance& instance)
+VkSurfaceKHR window_glfw::create_surface(vk::Instance& instance)
 {
     VkSurfaceKHR surface{ VK_NULL_HANDLE };
     VkResult result = glfwCreateWindowSurface(instance.get_handle(), m_handle, nullptr, &surface);
@@ -172,7 +175,7 @@ VkSurfaceKHR WindowGlfw::create_surface(vk::Instance& instance)
     return surface;
 }
 
-std::vector<const char*> WindowGlfw::get_required_surface_extensions() const
+std::vector<const char*> window_glfw::get_required_surface_extensions() const
 {
     const char** pExtensions;
     uint32_t extensionCount{ 0 };
@@ -182,195 +185,189 @@ std::vector<const char*> WindowGlfw::get_required_surface_extensions() const
     return extensions;
 }
 
-bool WindowGlfw::get_should_close() const
+bool window_glfw::get_should_close() const
 {
     return glfwWindowShouldClose(m_handle);
 }
 
-void WindowGlfw::close()
+void window_glfw::close()
 {
     glfwSetWindowShouldClose(m_handle, GLFW_TRUE);
 }
 
-void WindowGlfw::process_events()
+void window_glfw::process_events()
 {
     glfwPollEvents();
 }
 
-void WindowGlfw::set_title(const std::string& title)
+void window_glfw::set_title(const std::string& title)
 {
     glfwSetWindowTitle(m_handle, title.c_str());
 }
 
-Window::Position WindowGlfw::set_position(const Window::Position& position)
+const glm::ivec2& window_glfw::set_position(const glm::ivec2& position)
 {
     glfwSetWindowPos(m_handle, position.x, position.y);
+
     int* x = nullptr;
     int* y = nullptr;
     glfwGetWindowPos(m_handle, x, y);
 
     if( x && y )
     {
-        m_properties.position.x = *x;
-        m_properties.position.y = *y;
+        m_state.position.x = *x;
+        m_state.position.y = *y;
     }
 
-    return m_properties.position;
+    return m_state.position;
 }
 
-Window::Extent WindowGlfw::set_size(const Window::Extent& extent)
+const glm::ivec2& window_glfw::set_size(const glm::ivec2& extent)
 {
-    glfwSetWindowSize(m_handle, extent.width, extent.height);
+    glfwSetWindowSize(m_handle, extent.x, extent.y);
+
     int* x = nullptr;
     int* y = nullptr;
     glfwGetWindowSize(m_handle, x, y);
 
     if( x && y )
     {
-        m_properties.extent.width = *x;
-        m_properties.extent.height = *y;
+        m_state.extent.x = *x;
+        m_state.extent.y = *y;
     }
 
-    return m_properties.extent;
+    return m_state.extent;
 }
 
-void WindowGlfw::set_mode(const Window::Mode& mode)
+void window_glfw::set_mode(mode mode)
 {
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     int mX, mY, mWidth, mHeight;
     glfwGetMonitorWorkarea(monitor, &mX, &mY, &mWidth, &mHeight);
-    int tlCentreX = mX + ((mWidth - m_properties.extent.width) / 2);
-    int tlCentreY = mY + ((mHeight - m_properties.extent.height) / 2);
+    int tlCentreX = mX + ((mWidth - m_state.extent.x) / 2);
+    int tlCentreY = mY + ((mHeight - m_state.extent.y) / 2);
 
-    switch( mode ) {
-        case Mode::Windowed:
-        {
-            glfwSetWindowAttrib(m_handle, GLFW_DECORATED, GLFW_TRUE);
-            glfwSetWindowMonitor(m_handle, nullptr, tlCentreX, tlCentreY, m_properties.extent.width, m_properties.extent.height, GLFW_DONT_CARE);
-            break;
-        }
-        case Mode::Fullscreen:
-        {
-            glfwSetWindowMonitor(m_handle, monitor, 0, 0, mWidth, mHeight, GLFW_DONT_CARE);
-            break;
-        }
-        case Mode::FullscreenBorderless:
-        {
-            set_mode(Mode::Windowed);
-            glfwSetWindowAttrib(m_handle, GLFW_DECORATED, GLFW_FALSE);
+    switch( mode )
+    {
+    case mode::windowed:
+    {
+        glfwSetWindowAttrib(m_handle, GLFW_DECORATED, GLFW_TRUE);
+        glfwSetWindowMonitor(m_handle, nullptr, tlCentreX, tlCentreY, m_state.extent.x, m_state.extent.y, GLFW_DONT_CARE);
+        break;
+    }
+    case mode::fullscreen:
+    {
+        glfwSetWindowMonitor(m_handle, monitor, 0, 0, mWidth, mHeight, GLFW_DONT_CARE);
+        break;
+    }
+    case mode::fullscreen_borderless:
+    {
+        set_mode(mode::windowed);
+        glfwSetWindowAttrib(m_handle, GLFW_DECORATED, GLFW_FALSE);
 
-            const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
-            glfwSetWindowMonitor(m_handle, nullptr, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
-            break;
-        }
-        case Mode::FullscreenStretched:
-        {
-            glfwSetWindowMonitor(m_handle, monitor, 0, 0, m_properties.extent.width, m_properties.extent.height, GLFW_DONT_CARE);
-            break;
-        }
-        case Mode::Default:
-        {
-            set_mode(Mode::Windowed);
-            break;
-        }
+        const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
+        glfwSetWindowMonitor(m_handle, nullptr, 0, 0, vidmode->width, vidmode->height, vidmode->refreshRate);
+        break;
+    }
+    case mode::fullscreen_stretched:
+    {
+        glfwSetWindowMonitor(m_handle, monitor, 0, 0, m_state.extent.x, m_state.extent.y, GLFW_DONT_CARE);
+        break;
+    }
+    default:
+        set_mode(mode::windowed);
+        break;
     }
 }
 
-void WindowGlfw::set_cursor_lock_state(CursorLockState state)
+void window_glfw::set_cursor_lock_state(cursor_lock_state state)
 {
     switch( state )
     {
-    case CursorLockState::NONE:
+    case cursor_lock_state::none:
         glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         break;
-    case CursorLockState::LOCKED:
+    case cursor_lock_state::locked:
         glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         if( glfwRawMouseMotionSupported() )
         {
             glfwSetInputMode(m_handle, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         }
         break;
+    case cursor_lock_state::constrainted:
+        glfwSetInputMode(m_handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        break;
     }
+
+    m_state.cursor_state = state;
 }
 
-CursorLockState WindowGlfw::get_cursor_lock_state() const
+glm::f64vec2 window_glfw::poll_mouse_pos() const
 {
-    switch( glfwGetInputMode(m_handle, GLFW_CURSOR) )
-    {
-    case GLFW_CURSOR_NORMAL:
-        return CursorLockState::NONE;
-    case GLFW_CURSOR_DISABLED:
-        return CursorLockState::LOCKED;
-    default:
-        return CursorLockState::NONE;
-    }
+    glm::f64vec2 result{ };
+    glfwGetCursorPos(m_handle, &result.x, &result.y);
+    return result;
 }
 
-double WindowGlfw::poll_mouse_pos_x() const
-{
-    double x, y;
-    glfwGetCursorPos(m_handle, &x, &y);
-    return x;
-}
-
-double WindowGlfw::poll_mouse_pos_y() const
-{
-    double x, y;
-    glfwGetCursorPos(m_handle, &x, &y);
-    return y;
-}
-
-void WindowGlfw::setup_events() const
+void window_glfw::setup_events() const
 {
     // Window Events
     {
-        glfwSetWindowCloseCallback(m_handle, [](GLFWwindow* owner){
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
+        glfwSetWindowCloseCallback(m_handle, [](GLFWwindow* owner)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
 
-            WindowClosedEvent e;
-            data.eventfn(e);
-        });
-
-        glfwSetWindowPosCallback(m_handle, [](GLFWwindow* owner, int x, int y){ 
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
-
-            data.position.x = x;
-            data.position.y = y;
-
-            WindowMovedEvent e(x, y);
-            data.eventfn(e);
-        });
-
-        glfwSetFramebufferSizeCallback(m_handle, [](GLFWwindow* owner, int width, int height) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
-
-            data.extent.width = width;
-            data.extent.height = height;
-
-            WindowResizeEvent e(width, height);
-            data.eventfn(e);
-        });
-
-        glfwSetWindowFocusCallback(m_handle, [](GLFWwindow* owner, int focused) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
-
-            if( focused ) {
-                WindowFocusedEvent e;
+                WindowClosedEvent e;
                 data.eventfn(e);
-            }
-            else {
-                WindowUnFocusedEvent e;
+            });
+
+        glfwSetWindowPosCallback(m_handle, [](GLFWwindow* owner, i32 x, i32 y)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
+
+                data.position.x = x;
+                data.position.y = y;
+
+                WindowMovedEvent e(x, y);
                 data.eventfn(e);
-            }
-        });
+            });
+
+        glfwSetFramebufferSizeCallback(m_handle, [](GLFWwindow* owner, i32 width, i32 height)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
+
+                data.extent.x = width;
+                data.extent.y = height;
+
+                WindowResizeEvent e(width, height);
+                data.eventfn(e);
+            });
+
+        glfwSetWindowFocusCallback(m_handle, [](GLFWwindow* owner, i32 focused)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
+
+                if( focused )
+                {
+                    WindowFocusedEvent e;
+                    data.eventfn(e);
+                }
+                else
+                {
+                    WindowUnFocusedEvent e;
+                    data.eventfn(e);
+                }
+            });
     }
 
     // Key Events
     {
-        glfwSetKeyCallback(m_handle, [](GLFWwindow* owner, int key, int scancode, int action, int mods) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
+        glfwSetKeyCallback(m_handle, [](GLFWwindow* owner, i32 key, i32 scancode, i32 action, i32 mods)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
 
-            switch( action ) {
+                switch( action )
+                {
                 case GLFW_PRESS:
                 {
                     KeyPressedEvent e(translate_key_code(key), 0);
@@ -389,51 +386,72 @@ void WindowGlfw::setup_events() const
                     data.eventfn(e);
                     break;
                 }
-            }
-        });
+                }
+            });
 
-        glfwSetCharCallback(m_handle, [](GLFWwindow* owner, unsigned int key) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
+        glfwSetCharCallback(m_handle, [](GLFWwindow* owner, u32 key)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
 
-            KeyTypedEvent e(translate_key_code(key));
-            data.eventfn(e);
-        });
+                KeyTypedEvent e(translate_key_code(key));
+                data.eventfn(e);
+            });
     }
 
 
     // Mouse Events
     {
-        glfwSetMouseButtonCallback(m_handle, [](GLFWwindow* owner, int button, int action, int mods) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
-
-            switch( action ) {
-            case GLFW_PRESS:
+        glfwSetMouseButtonCallback(m_handle, [](GLFWwindow* owner, i32 button, i32 action, i32 mods)
             {
-                MousePressedEvent e(button, mods);
-                data.eventfn(e);
-                break;
-            }
-            case GLFW_RELEASE:
+                state data = *(state*)glfwGetWindowUserPointer(owner);
+
+                switch( action )
+                {
+                case GLFW_PRESS:
+                {
+                    MousePressedEvent e(button, mods);
+                    data.eventfn(e);
+                    break;
+                }
+                case GLFW_RELEASE:
+                {
+                    MouseReleasedEvent e(button);
+                    data.eventfn(e);
+                    break;
+                }
+                }
+            });
+
+        glfwSetScrollCallback(m_handle, [](GLFWwindow* owner, f64 xoffset, f64 yoffset)
             {
-                MouseReleasedEvent e(button);
+                state data = *(state*)glfwGetWindowUserPointer(owner);
+
+                MouseScrolledEvent e(xoffset, yoffset);
                 data.eventfn(e);
-                break;
-            }
-            }
-        });
+            });
 
-        glfwSetScrollCallback(m_handle, [](GLFWwindow* owner, double xoffset, double yoffset) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
+        glfwSetCursorPosCallback(m_handle, [](GLFWwindow* owner, f64 xpos, f64 ypos)
+            {
+                state data = *(state*)glfwGetWindowUserPointer(owner);
 
-            MouseScrolledEvent e(xoffset, yoffset);
-            data.eventfn(e);
-        });
+                if( data.cursor_state == cursor_lock_state::constrainted )
+                {
+                    if( xpos < 0.0 || xpos > f64_cast(data.extent.x)
+                     || ypos < 0.0 || ypos > f64_cast(data.extent.y) )
+                    {
+                        xpos = glm::clamp(xpos, 0.0, f64_cast(data.extent.x));
+                        ypos = glm::clamp(ypos, 0.0, f64_cast(data.extent.y));
 
-        glfwSetCursorPosCallback(m_handle, [](GLFWwindow* owner, double xpos, double ypos) {
-            Properties data = *(Properties*)glfwGetWindowUserPointer(owner);
+                        // This doesn't queue another SetCursorPos event (that'll incorrectly call the callback next frame process_events)
+                        // so its fine to manually set like this.
+                        glfwSetCursorPos(owner, xpos, ypos);
+                    }
+                }
 
-            MouseMovedEvent e(xpos, ypos);
-            data.eventfn(e);
-        });
+                MouseMovedEvent e(xpos, ypos);
+                data.eventfn(e);
+            });
     }
 }
+
+} // fw

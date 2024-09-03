@@ -27,6 +27,7 @@ public:
 
     DescriptorSetLayout& get_descriptor_set_layout(uint32_t setIndex) const;
 
+    u32 get_descriptor_set_count() const;
 private:
     std::vector<ShaderModule*> m_shaderModules;
 

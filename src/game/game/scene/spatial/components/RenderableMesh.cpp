@@ -31,9 +31,11 @@ void RenderableMeshComponent::load()
 	const auto& objects = source.get_objects();
 	const auto& vertices = source.get_vertices();
 	const auto& normals = source.get_normals();
+	u64 totalTriangles{ 0 };
 
 	for( const auto& obj : objects )
 	{
+		totalTriangles += obj.get_triangles().size();
 		for( const auto& tri : obj.get_triangles() )
 		{
 			glm::vec3 v0 = vertices[tri.vertices[0].position];
@@ -54,6 +56,8 @@ void RenderableMeshComponent::load()
 			submesh.get_channel(1).push_back(glm::vec4(n2, 1.f));
 		}
 	}
+
+	SYSLOG_DEBUG("Opened {} with {} triangles", m_source.c_str(), totalTriangles);
 }
 
 void RenderableMeshComponent::unload()

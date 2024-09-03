@@ -5,8 +5,8 @@
 JobDispatch* JobDispatch::m_instance = nullptr;
 
 #define DEFAULT_WORKER_THREADS 4
-PARAM(worker_threads);
-PARAM(detect_worker_thread_count);
+MAKEPARAM(worker_threads);
+MAKEPARAM(detect_worker_thread_count);
 
 void JobDispatch::initialize()
 {
@@ -17,7 +17,7 @@ void JobDispatch::initialize()
     m_instance = new JobDispatch();
 
     uint32_t workers{ 0 };
-    if( Param_detect_worker_thread_count.get() )
+    if( p_detect_worker_thread_count.get() )
     {
         uint32_t hardwareThreadsAvailable = std::thread::hardware_concurrency();
         workers = std::max(1u, hardwareThreadsAvailable - 1);
@@ -25,7 +25,8 @@ void JobDispatch::initialize()
     else
     {
         workers = DEFAULT_WORKER_THREADS;
-        Param_worker_threads.get_int((int*) &workers);
+        if( p_worker_threads.get() )
+            workers = p_worker_threads.as_i32();
         workers = std::max(1u, workers);
     }
 

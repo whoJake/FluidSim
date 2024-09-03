@@ -6,13 +6,18 @@ namespace sys
 {
 namespace log
 {
+namespace details
+{
+class log_manager;
+} // details
 
 enum channel
 {
     none = 1 << 0,
     system = 1 << 1,
-    vulkan = 1 << 2,
-    graphics = 1 << 3,
+    streaming = 1 << 2,
+    vulkan = 1 << 3,
+    graphics = 1 << 4,
 
     count = 3,
 };
@@ -31,7 +36,7 @@ enum class level
     disable,
 };
 
-int initialise();
+int initialise(details::log_manager* log);
 void shutdown();
 
 void message(std::string message, channel chnl = channel::none, level lvl = level::none);
@@ -138,6 +143,8 @@ inline constexpr const char* channel_to_string(channel chnl)
     {
     case channel::system:
         return "system";
+    case channel::streaming:
+        return "streaming";
     case channel::vulkan:
         return "vulkan";
     case channel::graphics:

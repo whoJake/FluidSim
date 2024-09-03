@@ -6,8 +6,13 @@
 
 #include "scene/spatial/Scene.h"
 #include "scene/spatial/Entity.h"
+#include "scene/spatial/components/RenderableMesh.h"
 
 #include "core/BufferView.h"
+#include "graphics/UniformBuffer.h"
+#include "graphics/streaming/Streamer.h"
+
+#include "graphics/DrawData.h"
 
 // Forward declares
 namespace vk
@@ -31,7 +36,7 @@ class Renderer
 {
 public:
     Renderer(vk::RenderContext& context);
-    ~Renderer() = default;
+    ~Renderer();
 
     void pre_render(Scene* scene, float deltaTime);
 
@@ -61,31 +66,27 @@ private:
     void add_renderable(Entity* entity);
 
     void create_renderpass();
-private:
-    struct Drawable
-    {
-        mtl::hash_string material;
-        u32 vertexCount;
-        vk::BufferView modelBuffer;
-        vk::BufferView vertexBuffer;
-    };
 
+    void load_draw_data(RenderableMeshComponent* mesh);
+private:
     struct State
     {
-        u32 frameIndex;
+        u32 frameIndex{ 0 };
 
-        u32 activeCameras;
-        u32 models;
-        std::vector<Drawable> drawList;
+        u32 activeCameras{ 0 };
+        u32 models{ 0 };
+        std::vector<fw::gfx::DrawData*> drawList;
     };
 private:
     vk::RenderContext& m_context;
+    fw::gfx::Streamer m_streamer;
 
-    std::unique_ptr<vk::Buffer> m_frameData;
-    std::unique_ptr<vk::Buffer> m_cameraData;
-    std::unique_ptr<vk::Buffer> m_modelData;
+    std::unique_ptr<fw::gfx::UniformBuffer> m_frameData;
+    std::unique_ptr<fw::gfx::UniformBuffer> m_cameraData;
+    std::unique_ptr<fw::gfx::UniformBuffer> m_modelData;
 
-    std::unordered_map<mtl::hash_string, std::unique_ptr<vk::Buffer>> m_loadedMeshes;
+    std::unordered_map<mtl::hash_string, std::unique_ptr<fw::gfx::DrawData>> m_meshes;
+    std::unordered_map<mtl::hash_string, fw::gfx::StreamHandle*> m_streaming;
 
     State m_state;
 

@@ -9,29 +9,11 @@ namespace sys
 namespace log
 {
 
-PARAM(no_log);
-PARAM(log_verbosity);
-PARAM(disable_file_logging);
-
 details::log_manager* s_log = nullptr;
 
-int log::initialise()
+int log::initialise(details::log_manager* log)
 {
-    if( Param_no_log.get() )
-    {
-        s_log = new details::basic_log(level::disable);
-        return 1;
-    }
-
-    details::logger logger;
-    logger.register_target(new details::console_target());
-    if( !Param_disable_file_logging.get() )
-    {
-        // register files
-    }
-
-    level verbosity = parse_level(Param_log_verbosity.value());
-    s_log = new details::log_mt(std::move(logger), verbosity, 8192, 1);
+    s_log = log;
     return 1;
 }
 

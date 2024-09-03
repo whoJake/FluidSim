@@ -145,4 +145,9 @@ DescriptorSetLayout& PipelineLayout::get_descriptor_set_layout(uint32_t setIndex
     QUITFMT("Pipeline layout doesn't contain set index {}.", setIndex);
 }
 
+u32 PipelineLayout::get_descriptor_set_count() const
+{
+    return u32_cast(m_descriptorSetLayouts.size());
+}
+
 } // vk

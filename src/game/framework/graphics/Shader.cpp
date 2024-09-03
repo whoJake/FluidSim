@@ -95,12 +95,12 @@ vk::Pipeline& Shader::get_pipeline() const
 
 u64 Shader::get_descriptor_set_layout_count() const
 {
-	return m_descriptorSetLayouts.size();
+	return m_layout->get_descriptor_set_count();
 }
 
 const vk::DescriptorSetLayout& Shader::get_descriptor_set_layout(u32 idx) const
 {
-	return *m_descriptorSetLayouts[idx];
+	return m_layout->get_descriptor_set_layout(idx);
 }
 
 void Shader::initialise_layout(const ShaderDefinition* definition)
@@ -156,13 +156,6 @@ void Shader::initialise_layout(const ShaderDefinition* definition)
 			maxSetIdx = std::max(maxSetIdx, resource.set);
 		}
 	}
-
-	m_descriptorSetLayouts.resize(maxSetIdx + 1);
-
-	for( auto& [set, resourceList] : resources )
-	{
-		m_descriptorSetLayouts[set] = &m_context.get_device().get_resource_cache().request_descriptor_set_layout(set, pModules, resourceList);
-	}
 }
 
 void Shader::initialise_pipeline(const char* metadataFile, vk::RenderPass* renderpass, u32 subpass)
@@ -178,6 +171,10 @@ void Shader::initialise_pipeline(const char* metadataFile, vk::RenderPass* rende
 	vk::ColorBlendState colorstate;
 	colorstate.attachments.push_back(vk::ColorBlendAttachmentState());
 	state.set_color_blend_state(colorstate);
+
+	vk::RasterizationState rasterizer{ };
+	// rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+	state.set_rasterization_state(rasterizer);
 
 	VkVertexInputBindingDescription posBindingDesc{ };
 	posBindingDesc.binding = 0;

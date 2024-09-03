@@ -69,8 +69,6 @@ private:
     std::unique_ptr<vk::PipelineLayout> m_layout;
     std::unique_ptr<vk::Pipeline> m_pipeline;
 
-    std::vector<vk::DescriptorSetLayout*> m_descriptorSetLayouts;
-
     std::unordered_map<mtl::hash_string, ResourceProxy> m_resourceOffsets;
 };
 

@@ -2,8 +2,6 @@
 
 #include "vkcommon.h"
 
-PARAM(vulkan_debug_utils);
-
 namespace vk
 {
 

@@ -58,13 +58,8 @@ uint8_t* Buffer::map()
         return m_mappedData;
     }
 
-    if( m_usage & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT )
-    {
-        QUITFMT("Attempted to map an image that can't be mapped.");
-    }
-
     VkResult result = vmaMapMemory(get_device().get_allocator(), m_allocation, (void**)&m_mappedData);
-    VK_CHECK(result, "Failed to map image memory.");
+    VK_CHECK(result, "Failed to map buffer memory.");
 
     m_mapped = true;
     return m_mappedData;
@@ -74,7 +69,7 @@ void Buffer::unmap()
 {
     if( !m_mapped )
     {
-        VULKAN_WARN("Trying to unmap memory that is not mapped.");
+        VULKAN_WARN("Trying to unmap buffer that is not mapped.");
         return;
     }
 

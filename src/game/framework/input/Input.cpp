@@ -1,6 +1,6 @@
 #include "Input.h"
 
-void Input::set_cursor_lock_state(Window& window, CursorLockState state)
+void Input::set_cursor_lock_state(fw::window& window, fw::cursor_lock_state state)
 {
     if( get_instance()->m_primaryCursorLockState == state )
     {
@@ -9,8 +9,8 @@ void Input::set_cursor_lock_state(Window& window, CursorLockState state)
     get_instance()->m_primaryCursorLockState = state;
     window.set_cursor_lock_state(state);
 
-    get_instance()->m_previousMouseX = window.poll_mouse_pos_x();
-    get_instance()->m_previousMouseY = window.poll_mouse_pos_y();
+    get_instance()->m_previousMouseX = window.poll_mouse_pos().x;
+    get_instance()->m_previousMouseY = window.poll_mouse_pos().y;
 }
 
 bool Input::get_key_pressed(KeyCode key)
@@ -68,7 +68,7 @@ double Input::get_mouse_move_vertical()
     return get_instance()->m_currentMouseY - get_instance()->m_previousMouseY;
 }
 
-CursorLockState Input::get_cursor_lock_state()
+fw::cursor_lock_state Input::get_cursor_lock_state()
 {
     return get_instance()->m_primaryCursorLockState;
 }

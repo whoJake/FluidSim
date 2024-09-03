@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Shader.h"
-#include "core/Buffer.h"
+#include "UniformBuffer.h"
 #include "core/CommandBuffer.h"
 
 namespace fw
@@ -49,8 +49,7 @@ private:
 	vk::RenderContext& m_context;
 	Shader* m_shader;
 
-	// todo, change this to contextbacked once thats fleshedout
-	std::unique_ptr<vk::Buffer> m_buffer;
+	std::unique_ptr<UniformBuffer> m_buffer;
 
 	MaterialFlags m_flags;
 };

@@ -15,7 +15,7 @@ static void check_vk_result(VkResult result)
         QUITFMT("ImGui vulkan error: ", u32_cast(result));
 }
 
-Context::Context(Window* window, vk::RenderContext* renderContext, vk::RenderPass* renderPass) :
+Context::Context(fw::window* window, vk::RenderContext* renderContext, vk::RenderPass* renderPass) :
     m_window(window),
     m_renderContext(renderContext)
 {
@@ -84,7 +84,7 @@ void Context::begin_frame()
 
     // ensure frame buffers are the right size
     ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(f32_cast(m_window->get_properties().extent.width), f32_cast(m_window->get_properties().extent.height));
+    io.DisplaySize = ImVec2(f32_cast(m_window->get_extent().x), f32_cast(m_window->get_extent().y));
 
     // delta time
     sys::moment now = sys::now();

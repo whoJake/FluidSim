@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "platform/Window.h"
+#include "platform/window.h"
 #include "rendering/RenderContext.h"
 #include "system/timer.h"
 
@@ -10,7 +10,7 @@ namespace mygui
 class Context
 {
 public:
-    Context(Window* glfwWindow, vk::RenderContext* renderContext, vk::RenderPass* renderPass);
+    Context(fw::window* glfwWindow, vk::RenderContext* renderContext, vk::RenderPass* renderPass);
     ~Context();
 
     void begin_frame();
@@ -19,7 +19,7 @@ public:
 
     void render(vk::CommandBuffer* commandBuffer);
 private:
-    Window* m_window;
+    fw::window* m_window;
     vk::RenderContext* m_renderContext;
 
     VkDescriptorPool m_pool;

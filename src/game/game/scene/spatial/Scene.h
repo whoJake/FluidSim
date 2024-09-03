@@ -7,7 +7,7 @@ class Scene
 {
 public:
     Scene();
-    ~Scene() = default;
+    ~Scene();
 
     void pre_update();
 
