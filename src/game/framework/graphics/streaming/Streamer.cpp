@@ -31,8 +31,8 @@ static u64 get_max_pending_requests()
 
 Streamer::Streamer(vk::RenderContext& context) :
     m_context(context),
-    m_state(get_max_active_streams()),
-    m_streams(get_max_active_streams()),
+    m_streams(u32_cast(get_max_active_streams())),
+    m_fences(get_max_active_streams()),
     m_pendingRequests(get_max_pending_requests()),
     m_bufferPool(m_context.get_device(),
                  m_context.get_device().get_queue_by_flags(VK_QUEUE_TRANSFER_BIT, 0).get_family_index(),
@@ -42,12 +42,13 @@ Streamer::Streamer(vk::RenderContext& context) :
 {
     // Initialise our fences, unsignalled. We will reset fences when a stream is accessed and the
     // request is destroyed.
-    for( Stream& stream : m_streams )
+    VkFenceCreateInfo info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+
+    for( u32 idx = 0; idx < get_max_active_streams(); idx++ )
     {
-        VkFenceCreateInfo createInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-        createInfo.flags = 0;
-        
-        vkCreateFence(m_context.get_device().get_handle(), &createInfo, nullptr, &stream.fence);
+        VkFence fence;
+        vkCreateFence(m_context.get_device().get_handle(), &info, nullptr, &fence);
+        m_fences.push_back(fence);
     }
 }
 
@@ -57,7 +58,7 @@ Streamer::~Streamer()
     {
         StreamHandle* request;
         m_pendingRequests.pop_front(&request);
-        if( request->m_index != StreamHandle::discard_index )
+        if( request->m_discard != true )
         {
             SYSLOG_ERROR("Stream request not properly disposed of.");
         }
@@ -65,17 +66,23 @@ Streamer::~Streamer()
         delete request;
     }
 
-    std::vector<VkFence> allFences(m_streams.size());
-    for( Stream& stream : m_streams )
-    {
-        allFences.push_back(stream.fence);
-    }
+    std::vector<VkFence> activeFences(m_streams.size());
+    m_streams.for_each([&](Stream* stream)
+        {
+            activeFences.push_back(stream->fence);
+        });
 
     // maybe dont endlessly wait for fences in destructor?
-    vkWaitForFences(m_context.get_device().get_handle(), u32_cast(allFences.size()), allFences.data(), VK_TRUE, u64_max);
+    vkWaitForFences(m_context.get_device().get_handle(), u32_cast(activeFences.size()), activeFences.data(), VK_TRUE, u64_max);
 
     // Fences can only be destroyed once operations that rely on them have completed, hence wiating.
-    for( VkFence fence : allFences )
+    for( VkFence fence : activeFences )
+    {
+        vkDestroyFence(m_context.get_device().get_handle(), fence, nullptr);
+    }
+
+    VkFence fence;
+    while( m_fences.pop_front(&fence) )
     {
         vkDestroyFence(m_context.get_device().get_handle(), fence, nullptr);
     }
@@ -85,26 +92,27 @@ StreamHandle* Streamer::request(std::unique_ptr<vk::Buffer>&& source, VkBufferUs
 {
     StreamHandle* request = new StreamHandle();
 
-    i32 next_slot = get_next_free();
-    if( next_slot == StreamHandle::invalid_index )
+    Stream* next_slot = get_next_free();
+    if( next_slot == nullptr )
     {
         m_pendingRequests.push_back(request);
         return request;
     }
 
-    request->m_index = next_slot;
-    begin_stream(request->m_index, std::move(source), usage);
+    request->m_stream = reinterpret_cast<void*>(next_slot);
+    begin_stream(next_slot, std::move(source), usage);
     return request;
 }
 
 bool Streamer::is_loaded(StreamHandle* request) const
 {
-    if( request->m_index == StreamHandle::invalid_index )
+    if( request->m_stream == nullptr )
     {
         return false;
     }
 
-    return vkGetFenceStatus(m_context.get_device().get_handle(), m_streams[request->m_index].fence) == VK_SUCCESS;
+    Stream* stream = reinterpret_cast<Stream*>(request->m_stream);
+    return vkGetFenceStatus(m_context.get_device().get_handle(), stream->fence) == VK_SUCCESS;
 }
 
 std::unique_ptr<vk::Buffer> Streamer::access(StreamHandle* request)
@@ -114,13 +122,13 @@ std::unique_ptr<vk::Buffer> Streamer::access(StreamHandle* request)
         return nullptr;
     }
 
-    Stream* stream = &m_streams[request->m_index];
+    Stream* stream = reinterpret_cast<Stream*>(request->m_stream);
 
     // return destination buffer
     // Keep this locally so we can free this stream as soon as possible.
     std::unique_ptr<vk::Buffer> retval = std::move(stream->destination);
 
-    free_stream(request->m_index);
+    free_stream(reinterpret_cast<Stream*>(request->m_stream));
     delete request;
 
 
@@ -129,7 +137,7 @@ std::unique_ptr<vk::Buffer> Streamer::access(StreamHandle* request)
 
 void Streamer::discard(StreamHandle* request)
 {
-    request->m_index = StreamHandle::discard_index;
+    request->m_discard = true;
 }
 
 void Streamer::resolve_requests()
@@ -141,8 +149,8 @@ void Streamer::resolve_requests()
     u32 resolveCount = 0;
     while( !m_pendingRequests.empty() && resolveCount < max_request_per_resolve )
     {
-        i32 nextFreeIdx = get_next_free();
-        if( nextFreeIdx == StreamHandle::invalid_index )
+        Stream* nextStream = get_next_free();
+        if( nextStream == nullptr )
         {
             // pool is full.
             return;
@@ -156,37 +164,31 @@ void Streamer::resolve_requests()
     return;
 }
 
-i32 Streamer::get_next_free()
+Streamer::Stream* Streamer::get_next_free()
 {
-    for( u64 idx = 0; idx < m_state.size(); idx++ )
-    {
-        if( !m_state[idx] )
-        {
-            m_state[idx] = true;
-            return i32_cast(idx);
-        }
-    }
-
-    return StreamHandle::invalid_index;
+    return m_streams.allocate();
 }
 
-void Streamer::free_stream(i32 idx)
+void Streamer::free_stream(Stream* stream)
 {
-    Stream* stream = &m_streams[idx];
-    CHANNEL_LOG_PROFILE(sys::log::channel::streaming, "Freeing stream of size {} at index {}", stream->source->get_size(), idx);
+    u64 freedStreamSize = stream->source->get_size();
     stream->source.reset();
 
     // Assume we've already retrieved the ptr so release just incase.
     stream->destination.release();
     vkResetFences(m_context.get_device().get_handle(), 1, &stream->fence);
-    m_state[idx] = false;
+    m_fences.push_back(std::move(stream->fence));
+    m_streams.free(stream);
+
+    CHANNEL_LOG_PROFILE(sys::log::channel::streaming, "Freed stream of size {}. Current streams: {}", freedStreamSize, m_streams.size());
 }
 
-void Streamer::begin_stream(i32 idx, std::unique_ptr<vk::Buffer>&& source, VkBufferUsageFlags usage)
+void Streamer::begin_stream(Stream* stream, std::unique_ptr<vk::Buffer>&& source, VkBufferUsageFlags usage)
 {
-    CHANNEL_LOG_PROFILE(sys::log::channel::streaming, "Beginning stream of size {} at index {}", source->get_size(), idx);
+    // claim our fence.
+    m_fences.pop_front(&stream->fence);
 
-    Stream* stream = &m_streams[u64_cast(idx)];
+    CHANNEL_LOG_PROFILE(sys::log::channel::streaming, "Beginning stream of size {}. Current streams: {}", source->get_size(), m_streams.size());
     stream->source = std::move(source);
 
     stream->destination = std::make_unique<vk::Buffer>(

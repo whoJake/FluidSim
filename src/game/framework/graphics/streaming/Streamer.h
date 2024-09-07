@@ -2,7 +2,7 @@
 
 #include "rendering/RenderContext.h"
 #include "core/CommandPool.h"
-#include "data/fixed_vector.h"
+#include "data/pool.h"
 #include "data/queue.h"
 #include <bitset>
 
@@ -23,10 +23,8 @@ private:
     ~StreamHandle() = default;
 
     friend class Streamer;
-    i32 m_index{ invalid_index };
-
-    static constexpr i32 invalid_index = -1;
-    static constexpr i32 discard_index = -2;
+    void* m_stream{ nullptr };
+    bool m_discard{ false };
 };
 
 class Streamer
@@ -54,16 +52,17 @@ private:
         VkFence fence{ VK_NULL_HANDLE };
     };
 private:
-    i32 get_next_free();
-    void free_stream(i32 idx);
+    Stream* get_next_free();
+    void free_stream(Stream* stream);
 
-    void begin_stream(i32 idx, std::unique_ptr<vk::Buffer>&& source, VkBufferUsageFlags usage);
+    void begin_stream(Stream* stream, std::unique_ptr<vk::Buffer>&& source, VkBufferUsageFlags usage);
     void reset_buffers();
 
     vk::RenderContext& m_context;
 
-    std::vector<bool> m_state;
-    mtl::fixed_vector<Stream> m_streams;
+    mtl::pool<Stream> m_streams;
+    mtl::queue_v<VkFence> m_fences;
+
     mtl::queue_v<StreamHandle*> m_pendingRequests;
 
     vk::CommandPool m_bufferPool;
