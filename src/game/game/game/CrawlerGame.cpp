@@ -6,6 +6,9 @@
 #include "scene/spatial/components/RenderableMesh.h"
 #include "scene/spatial/components/Camera.h"
 
+#include "imgui.h"
+#include "input/imgui/imgui_bindings.h"
+
 bool CrawlerGame::on_game_startup()
 {
 	// setup game logic/scene
@@ -64,11 +67,20 @@ void CrawlerGame::update_impl(float dt)
 	}
 
 	m_camera->transform().move((camRght * move.x) + (camFwd * move.z) + (glm::vec3(0.f, 1.f, 0.f) * move.y));
+
+	f32 rotSpeed = 90.f;
+	m_scene->for_each([=](Entity* entity)
+		{
+			if( entity->has_component<CameraComponent>() )
+				return;
+			entity->transform().rotate(glm::vec3(0.f, glm::radians(dt * rotSpeed), 0.f));
+		});
 }
 
 void CrawlerGame::on_event(Event& e)
 {
 	Input::register_event(e);
+	mygui::dispatch_event(e);
 }
 
 void CrawlerGame::on_game_shutdown()
@@ -87,14 +99,19 @@ bool CrawlerGame::update(f64 deltaTime)
 	update_impl(f32_cast(deltaTime));
 	Input::tick();
 
+	glm::vec3 pos = m_camera->transform().get_position();
+	ImGui::Begin("Camera");
+	ImGui::DragFloat3("Position", &pos.x);
+	ImGui::End();
+
+	m_scene->draw_debug_panel();
+
 	// we need this to block on the new frame, otherwise we can overwrite data during pre_render
 	get_graphics_handles().context->begin_frame();
 
 	m_renderer->pre_render(m_scene.get(), f32_cast(deltaTime));
 	m_renderer->render();
 
-	glm::vec3 pos = m_camera->transform().get_position();
-	// SYSLOG_INFO("Camera location x:{} y:{} z:{}", pos.x, pos.y, pos.z);
 	return true;
 }
 
@@ -107,76 +124,44 @@ bool CrawlerGame::on_window_resize(WindowResizeEvent& e)
 #include "loaders/obj_waveform.h"
 void CrawlerGame::debug_setup()
 {
-	/*
-	m_renderer = std::make_unique<fw::SceneRenderer>(*m_context);
-
-	fw::gfx::ShaderDefinition shader
-	{
-		mtl::hash_string("shader1"),
-		"assets/shaders/modules/vertex/basic_unknown.vert",
-		"assets/shaders/modules/fragment/basic_unknown.frag",
-		""
-	};
-
-	m_renderer->initialise_shaders({ shader });
-
-	fw::gfx::MaterialDefinition material
-	{
-		mtl::hash_string("material1"),
-		mtl::hash_string("shader1"),
-		0
-	};
-
-	m_renderer->register_material(material);
-	*/
-
 	m_scene = std::make_unique<Scene>();
 
-	EntityDef entdef1
+	f32 min = -25.f;
+	f32 max = 25.f;
+	i32 inc = 25;
+	f32 step = (max - min) / inc;
+	for( i32 idx = 0; idx < inc; idx++ )
 	{
-		glm::vec3(10.f, -5.f, 1.f),
-		glm::vec3(0.2f),
-		glm::vec3(0.f)
-	};
+		f32 x = min + (step * idx);
+		for( i32 idy = 0; idy < inc; idy++ )
+		{
+			f32 y = min + (step * idy);
+			f32 rot = (rand() / f32_cast(RAND_MAX)) * 180.f;
+			EntityDef def
+			{
+				glm::vec3(x, 0.f, y),
+				glm::vec3(1.f),
+				glm::vec3(0.f, glm::radians(rot), 0.f)
+			};
+			Entity* entity = m_scene->add_entity(def);
+			entity->add_component<RenderableMeshComponent>("assets/models/cube.obj");
+		}
+	}
 
-	EntityDef entdef2
-	{
-		glm::vec3(-10.f, 0.f, -15.f),
-		glm::vec3(0.8f),
-		glm::vec3(0.f, glm::radians(180.f), 0.f)
-	};
-
-	EntityDef entdef3
-	{
-		glm::vec3(-40.f, -10.f, -10.f),
-		glm::vec3(0.3f),
-		glm::vec3(glm::radians(270.f), glm::radians(45.f), 0.f)
-
-	};
-
-	EntityDef entdef4
+	EntityDef camera
 	{
 		glm::vec3(0.f, 0.f, 5.f),
 		glm::vec3(1.f),
 		glm::vec3(0.f)
 	};
 
-	Entity* entity1 = m_scene->add_entity(entdef1);
-	RenderableMeshComponent* mesh1 = entity1->add_component<RenderableMeshComponent>("assets/models/heli.obj");
-	mesh1->load();
-
-	Entity* entity2 = m_scene->add_entity(entdef2);
-	RenderableMeshComponent* mesh2 = entity2->add_component<RenderableMeshComponent>("assets/models/apple.obj");
-	mesh2->load();
-
-	Entity* entity3 = m_scene->add_entity(entdef3);
-	RenderableMeshComponent* mesh3 = entity3->add_component<RenderableMeshComponent>("assets/models/skull.obj");
-	mesh3->load();
-
-	m_camera = m_scene->add_entity(entdef4);
+	m_camera = m_scene->add_entity(camera);
 	m_camera->add_component<CameraComponent>(90.f, 1600.f/1200.f);
 
 	m_renderer = std::make_unique<Renderer>(*get_graphics_handles().context);
+#if CFG_ENABLE_IMGUI
+	m_renderer->init_debug_imgui(&get_window());
+#endif
 }
 
 fw::game::options CrawlerGame::get_startup_options()

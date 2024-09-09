@@ -72,7 +72,11 @@ constexpr void transform::rotate(const glm::quat& rotation)
 
 glm::mat4 transform::get_matrix() const
 {
-	return glm::translate(glm::scale(glm::mat4(1.f), m_scale) * glm::toMat4(m_rotation), m_position);
+	glm::mat4 ret(1.f);
+	ret = glm::translate(ret, m_position);
+	ret *= glm::toMat4(m_rotation);
+	ret = glm::scale(ret, m_scale);
+	return ret;
 }
 
 glm::mat4 transform::get_matrix_as_view() const

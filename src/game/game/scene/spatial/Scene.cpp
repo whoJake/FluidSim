@@ -1,5 +1,7 @@
 #include "Scene.h"
 
+#include "imgui.h"
+
 Scene::Scene() :
     m_randomSource()
 { }
@@ -46,4 +48,23 @@ void Scene::remove_entity(EntityId id)
 const std::vector<Entity*>& Scene::get_all_entities() const
 {
     return m_entities;
+}
+
+void Scene::draw_debug_panel()
+{
+    ImGui::Begin("Scene");
+    for( Entity* entity : m_entities )
+    {
+        glm::vec3 pos = entity->transform().get_position();
+        ImGui::DragFloat3("Position", &pos.x);
+    }
+    ImGui::End();
+}
+
+void Scene::for_each(std::function<void(Entity*)> func)
+{
+    for( Entity* entity : m_entities )
+    {
+        func(entity);
+    }
 }

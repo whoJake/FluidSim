@@ -40,5 +40,6 @@ private:
 	// testing
 	std::unique_ptr<Scene> m_scene;
 	std::unique_ptr<Renderer> m_renderer;
+	std::unique_ptr<mygui::Context> m_imGui;
 	Entity* m_camera;
 };

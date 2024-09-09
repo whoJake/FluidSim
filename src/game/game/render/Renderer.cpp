@@ -10,6 +10,10 @@
 #include "graphics/Shader.h"
 #include "graphics/Material.h"
 
+#if CFG_ENABLE_IMGUI
+#include "platform/window.h"
+#endif
+
 Renderer::Renderer(vk::RenderContext& context) :
     m_context(context),
     m_state(),
@@ -39,6 +43,14 @@ Renderer::~Renderer()
 
     m_renderPass.reset();
 }
+
+#if CFG_ENABLE_IMGUI
+void Renderer::init_debug_imgui(fw::window* window)
+{
+    m_imgui = std::make_unique<mygui::Context>(window, &m_context, m_renderPass.get());
+    m_imgui->begin_frame();
+}
+#endif
 
 void Renderer::pre_render(Scene* scene, float deltaTime)
 {
@@ -76,6 +88,10 @@ void Renderer::pre_render(Scene* scene, float deltaTime)
 
 void Renderer::render()
 {
+#if CFG_ENABLE_IMGUI
+    m_imgui->end_frame();
+#endif
+
     vk::CommandBuffer& buffer = m_context.begin(vk::CommandBuffer::ResetMode::AlwaysAllocate);
 
     // start simple, just render directly onto the swapchain images.
@@ -159,6 +175,11 @@ void Renderer::render()
             buffer.draw(vertexCount);
         }
     }
+
+#if CFG_ENABLE_IMGUI
+    m_imgui->render(&buffer);
+    m_imgui->begin_frame();
+#endif
 
     buffer.end_render_pass();
     buffer.end();

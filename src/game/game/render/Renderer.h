@@ -13,6 +13,9 @@
 #include "graphics/streaming/Streamer.h"
 
 #include "graphics/DrawData.h"
+#include "implementations/ImGuiContext.h"
+
+#define CFG_ENABLE_IMGUI 1
 
 // Forward declares
 namespace vk
@@ -25,6 +28,8 @@ class RenderPass;
 
 namespace fw
 {
+class window;
+
 namespace gfx
 {
 class Shader;
@@ -38,6 +43,10 @@ public:
     Renderer(vk::RenderContext& context);
     ~Renderer();
 
+#if CFG_ENABLE_IMGUI
+    void init_debug_imgui(fw::window* window);
+#endif
+
     void pre_render(Scene* scene, float deltaTime);
 
     void render();
@@ -45,7 +54,7 @@ public:
     void restart();
 public:
     static constexpr u32 max_cameras = 8;
-    static constexpr u32 max_models = 32;
+    static constexpr u32 max_models = 5000;
 private:
     /// <summary>
     /// Return a buffer view of the current frames FrameData.
@@ -94,4 +103,7 @@ private:
     std::unique_ptr<vk::RenderPass> m_renderPass;
     std::unique_ptr<fw::gfx::Shader> m_shader;
     std::unique_ptr<fw::gfx::Material> m_material;
+#if CFG_ENABLE_IMGUI
+    std::unique_ptr<mygui::Context> m_imgui;
+#endif
 };

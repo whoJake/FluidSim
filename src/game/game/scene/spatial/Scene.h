@@ -16,6 +16,10 @@ public:
     void remove_entity(EntityId id);
 
     const std::vector<Entity*>& get_all_entities() const;
+
+    void draw_debug_panel();
+
+    void for_each(std::function<void(Entity*)> func);
 private:
     std::mt19937_64 m_randomSource;
 

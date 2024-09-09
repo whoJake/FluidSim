@@ -32,10 +32,16 @@ layout (location=1) in vec4 in_normal;
 
 
 layout (location=0) out vec3 out_normal;
+layout (location=1) out vec3 out_position;
 
 void main()
 {
-	out_normal = in_normal.xyz;
 	mat4 mvp = g_camera.proj_view * u_model.model;
+	mat4 nmat = u_model.model;
+	nmat = inverse(nmat);
+	nmat = transpose(nmat);
+	
+	out_normal = normalize((nmat * vec4(in_normal.xyz, 0.0)).xyz);
+	out_position = (u_model.model * in_position).xyz;
 	gl_Position = mvp * in_position;
 }
