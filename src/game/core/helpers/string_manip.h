@@ -31,3 +31,16 @@ inline std::vector<std::string> split_string(const std::string& string, std::str
         retval.push_back(ss.str());
     return retval;
 }
+
+inline u64 occurances(const std::string& string, char c)
+{
+    u64 ret = 0;
+
+    for( auto it = string.begin(); it != string.end(); ++it )
+    {
+        if( *it == c )
+            ret++;
+    }
+
+    return ret;
+}
