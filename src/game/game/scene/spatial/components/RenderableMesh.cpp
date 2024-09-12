@@ -1,4 +1,6 @@
 #include "RenderableMesh.h"
+
+#include "system/device.h"
 #include "loaders/obj_waveform.h"
 
 RenderableMeshComponent::RenderableMeshComponent(std::string source) :
@@ -13,7 +15,7 @@ void RenderableMeshComponent::load()
         return;
     }
 
-	fiDevice file;
+	sys::fi_device file;
 	file.open(m_source.c_str());
 
 	obj::file source;

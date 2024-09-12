@@ -73,7 +73,7 @@ inline static void read_resource_struct_members(const spirv_cross::Compiler& com
         ShaderStructMember member{ };
         member.name = memberName;
         member.offset = compiler.type_struct_member_offset(compiler.get_type(resource.base_type_id), index);
-        member.size = compiler.get_declared_struct_member_size(compiler.get_type(resource.base_type_id), index);
+        member.size = u32_cast(compiler.get_declared_struct_member_size(compiler.get_type(resource.base_type_id), index));
 
         shaderResource->structMembers.push_back(member);
         index++;

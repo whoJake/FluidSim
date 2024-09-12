@@ -1,6 +1,6 @@
 #include "Shader.h"
 
-#include "device/fiDevice.h"
+#include "system/device.h"
 
 #include "core/Device.h"
 #include "core/Pipeline.h"
@@ -105,7 +105,7 @@ const vk::DescriptorSetLayout& Shader::get_descriptor_set_layout(u32 idx) const
 
 void Shader::initialise_layout(const ShaderDefinition* definition)
 {
-	fiDevice device;
+	sys::fi_device device;
 	std::vector<vk::ShaderModule*> pModules;
 
 	// require atleast a vertex and fragment shader
@@ -123,7 +123,9 @@ void Shader::initialise_layout(const ShaderDefinition* definition)
 
 	// vertex
 	{
-		std::vector<u8> src = device.read(device.get_size());
+		std::vector<u8> src(device.size());
+		device.read(src.data(), src.size());
+
 		vk::ShaderModule& shader = m_context.get_device().get_resource_cache().request_shader_module(VK_SHADER_STAGE_VERTEX_BIT, src, "main");
 		pModules.push_back(&shader);
 	}
@@ -136,7 +138,9 @@ void Shader::initialise_layout(const ShaderDefinition* definition)
 
 	// fragment
 	{
-		std::vector<u8> src = device.read(device.get_size());
+		std::vector<u8> src(device.size());
+		device.read(src.data(), src.size());
+
 		vk::ShaderModule& shader = m_context.get_device().get_resource_cache().request_shader_module(VK_SHADER_STAGE_FRAGMENT_BIT, src, "main");
 		pModules.push_back(&shader);
 	}

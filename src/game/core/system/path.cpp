@@ -186,6 +186,11 @@ std::string_view path::get_segment(u64 idx) const
     return std::string_view(m_data.begin() + start, m_data.begin() + end);
 }
 
+const char* path::c_str() const
+{
+    return m_data.c_str();
+}
+
 path::operator std::string() const
 {
     return m_data;

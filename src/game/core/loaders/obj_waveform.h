@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device/fiDevice.h"
+#include "system/device.h"
 #include "data/fixed_vector.h"
 #include "obj_waveform/obj_object.h"
 
@@ -13,7 +13,7 @@ public:
     file();
     ~file();
 
-    bool parse(fiDevice& device);
+    bool parse(sys::fi_device& device);
 
     const mtl::fixed_vector<glm::vec3>& get_vertices() const;
 
@@ -21,7 +21,7 @@ public:
 
     const mtl::fixed_vector<object>& get_objects() const;
 private:
-    void calculate_buffer_sizes(fiDevice& device);
+    void calculate_buffer_sizes(sys::fi_device& device);
 
     void parse_vertex(size_t context, const std::string& line);
 

@@ -12,7 +12,7 @@ file::file() :
 file::~file()
 { }
 
-bool file::parse(fiDevice& device)
+bool file::parse(sys::fi_device& device)
 {
     if( !device.is_open() )
     {
@@ -20,16 +20,18 @@ bool file::parse(fiDevice& device)
     }
 
     calculate_buffer_sizes(device);
+    device.seek_to(0);
 
-    device.seek_to_start();
     std::vector<uint8_t> buffer;
 
     size_t vertexIndex{ 0 };
     size_t normalIndex{ 0 };
     size_t objectContext{ 0 };
 
-    while( device.read_line(&buffer) )
+    while( !device.eof() )
     {
+        buffer = device.read_line();
+
         if( buffer.size() < 2 )
         {
             // blank line
@@ -75,7 +77,7 @@ bool file::parse(fiDevice& device)
     return true;
 }
 
-void file::calculate_buffer_sizes(fiDevice& device)
+void file::calculate_buffer_sizes(sys::fi_device& device)
 {
     size_t vertexCount{ 0 };
     size_t normalCount{ 0 };
@@ -83,8 +85,9 @@ void file::calculate_buffer_sizes(fiDevice& device)
     std::vector<std::string> objectNames;
 
     std::vector<uint8_t> buffer;
-    while( device.read_line(&buffer) )
+    while( !device.eof() )
     {
+        buffer = device.read_line();
         std::string line(buffer.begin(), buffer.end());
 
         if( line.starts_with('#') )

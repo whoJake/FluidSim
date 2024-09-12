@@ -1,7 +1,7 @@
 ﻿#include "Blas.h"
 
 #include <cstdlib>
-#include "device/fiDevice.h"
+#include "system/device.h"
 #include "loaders/obj_waveform.h"
 #include "system/timer.h"
 
@@ -16,7 +16,7 @@ Blas::Blas(uint32_t test_spheres) :
         { 10.f, 10.f, 10.f }
     };
 
-    fiDevice device;
+    sys::fi_device device;
     // device.open("assets/obj/12140_Skull_v3_L2.obj");
     device.open("assets/obj/apple.obj");
 

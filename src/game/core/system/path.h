@@ -57,6 +57,8 @@ public:
     u64 get_segment_count() const;
     std::string_view get_segment(u64 idx) const;
 
+    const char* c_str() const;
+
     operator std::string() const;
     operator const char*() const;
 private:
