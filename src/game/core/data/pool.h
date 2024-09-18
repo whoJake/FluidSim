@@ -77,10 +77,9 @@ public:
         }
 
         // build a sorted free list
-        u32 addedFrees = 1;
         std::vector<u8*> freed;
         freed.push_back(m_firstFree);
-        while( addedFrees != m_freeCount )
+        while( u32_cast(freed.size()) != m_freeCount )
         {
             u8* lastFree = freed.back();
             u8* nextFree = *reinterpret_cast<u8**>(lastFree);
