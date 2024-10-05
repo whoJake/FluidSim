@@ -11,7 +11,7 @@ enum class hash_string_pools
     pool_count,
 };
 
-#define SYS_HASH_STRING_32_BIT 1
+// #define SYS_HASH_STRING_32_BIT
 
 #ifdef SYS_HASH_STRING_32_BIT
 using hash_string_value = u32;
