@@ -72,8 +72,11 @@ Streamer::~Streamer()
             activeFences.push_back(stream->fence);
         });
 
-    // maybe dont endlessly wait for fences in destructor?
-    vkWaitForFences(m_context.get_device().get_handle(), u32_cast(activeFences.size()), activeFences.data(), VK_TRUE, u64_max);
+    if( !activeFences.empty() )
+    {
+        // maybe dont endlessly wait for fences in destructor?
+        vkWaitForFences(m_context.get_device().get_handle(), u32_cast(activeFences.size()), activeFences.data(), VK_TRUE, u64_max);
+    }
 
     // Fences can only be destroyed once operations that rely on them have completed, hence wiating.
     for( VkFence fence : activeFences )
