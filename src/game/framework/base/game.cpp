@@ -86,6 +86,7 @@ bool game::initialise_graphics_handles(const options& options)
     {
         instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         validationLayers.push_back("VK_LAYER_KHRONOS_validation");
+        validationLayers.push_back("VK_LAYER_KHRONOS_synchronization2");
     }
 
     for( const char* windowRequiredExtension : m_window->get_required_surface_extensions() )

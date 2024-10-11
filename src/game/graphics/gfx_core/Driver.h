@@ -27,12 +27,9 @@ public:
     static void shutdown();
 
     static device* get_device();
-
-    static allocation allocate_memory();
-    static texture create_texture(allocation* allocation);
-    static buffer create_buffer();
 private:
     static device* sm_device;
+    static std::function<u32(const std::vector<gpu>&)> sm_gpuSelector;
 };
 
 } // gfx
