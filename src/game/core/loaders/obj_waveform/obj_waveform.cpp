@@ -159,7 +159,8 @@ void file::parse_vertex(size_t context, const std::string& line)
         {
             float value = std::stof(part);
 
-            m_vertices[context][vecPart] = value;
+            float* front = &m_vertices[context].x;
+            *(front + vecPart) = value;
             vecPart++;
         }
     }
@@ -186,7 +187,8 @@ void file::parse_normal(size_t context, const std::string& line)
         {
             float value = std::stof(part);
 
-            m_normals[context][vecPart] = value;
+            float* front = &m_normals[context].x;
+            *(front + vecPart) = value;
             vecPart++;
         }
     }
@@ -216,8 +218,8 @@ void file::parse_face(size_t context, const std::string& line)
             vertex v
             {
                 // waveform is 1 index'd for some horrible reason.
-                std::stoi(components[0]) - 1,
-                std::stoi(components[2]) - 1
+                u32_cast(std::stoi(components[0])) - 1,
+                u32_cast(std::stoi(components[2])) - 1
             };
 
             defines.push_back(v);
