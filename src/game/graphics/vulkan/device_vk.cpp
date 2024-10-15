@@ -24,22 +24,163 @@ device_vk::device_vk()
 
 device_vk::~device_vk()
 {
-    VkDebugUtilsMessengerEXT* dbgMessenger = (VkDebugUtilsMessengerEXT*)m_debugger.get_impl_ptr();
+    VkDebugUtilsMessengerEXT dbgMessenger = (VkDebugUtilsMessengerEXT)m_debugger.get_impl_ptr();
     if( dbgMessenger )
     {
-        destroy_debug_utils_messenger(m_instance, *dbgMessenger, nullptr);
+        destroy_debug_utils_messenger(m_instance, dbgMessenger, nullptr);
     }
 
     vkDestroyInstance(m_instance, nullptr);
 }
 
+u32 device_vk::initialise(u32 gpuIdx, void* surface)
+{
+    GFX_ASSERT(m_instance, "Cannot initialise device, there is no instance.");
+    m_gpu = enumerate_gpus()[gpuIdx];
+
+    VkPhysicalDevice physicalDevice = (VkPhysicalDevice)m_gpu.get_impl_ptr();
+    VkSurfaceKHR surfaceKHR = (VkSurfaceKHR)surface;
+
+    // Setup all our queues.
+    u32 familyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> familyProperties(familyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familyCount, familyProperties.data());
+
+    std::vector<VkDeviceQueueCreateInfo> queueInfos(familyCount, { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO });
+    std::vector<std::vector<float>> queuePriorities(familyCount);
+    m_queueFamilies = std::vector<queue_family>(familyCount);
+
+    for( u32 familyIdx = 0; familyIdx < familyCount; familyIdx++ )
+    {
+        queue_family& family = m_queueFamilies[familyIdx];
+        family.properties = familyProperties[familyIdx];
+        family.index = familyIdx;
+        family.queues = std::vector<VkQueue>(family.properties.queueCount);
+        family.flags = 0;
+
+        if( surfaceKHR )
+        {
+            VkBool32 supportsPresent = VK_FALSE;
+            VkResult presentResult = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIdx, surfaceKHR, &supportsPresent);
+            GFX_ASSERT(presentResult, "Failed to get surface support for physical device.");
+
+            if( supportsPresent )
+            {
+                family.flags |= queue_family_flag_bit::supports_present;
+            }
+        }
+
+        queuePriorities[familyIdx] = std::vector<float>(familyProperties[familyIdx].queueCount, 0.5f);
+
+        VkDeviceQueueCreateInfo& createInfo = queueInfos[familyIdx];
+        createInfo.queueFamilyIndex = familyIdx;
+        createInfo.queueCount = familyProperties[familyIdx].queueCount;
+        createInfo.pQueuePriorities = queuePriorities[familyIdx].data();
+    }
+
+    // Setup extensions.
+    u32 extCount = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
+    std::vector<VkExtensionProperties> extensions(extCount);
+    m_availableDeviceExtensions.resize(extCount);
+
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, extensions.data());
+
+    for( u64 i = 0; i < extensions.size(); i++ )
+    {
+        m_availableDeviceExtensions[i] = extensions[i].extensionName;
+    }
+
+    for( const char* reqExt : get_device_extensions() )
+    {
+        bool enabled = false;
+        for( std::string& ext : m_availableDeviceExtensions )
+        {
+            if( !strcmp(reqExt, ext.c_str()) )
+            {
+                m_enabledDeviceExtensions.push_back(reqExt);
+                enabled = true;
+                break;
+            }
+        }
+
+        GFX_ASSERT(enabled, "Device extension is not available.");
+    }
+
+    // Create device
+    VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    createInfo.queueCreateInfoCount = u32_cast(queueInfos.size());
+    createInfo.pQueueCreateInfos = queueInfos.data();
+    createInfo.enabledExtensionCount = u32_cast(m_enabledDeviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = m_enabledDeviceExtensions.data();
+    createInfo.pEnabledFeatures = 0; // TODO
+
+    VkResult deviceResult = vkCreateDevice(physicalDevice, &createInfo, nullptr, &m_device);
+    switch( deviceResult )
+    {
+        case VK_SUCCESS:
+            break;
+        default:
+            GFX_FATAL("Failed to create vulkan device.");
+            return 1;
+    }
+
+    m_surface = surface;
+
+    // Create the queues.
+    for( queue_family& family : m_queueFamilies )
+    {
+        for( u32 idx = 0; idx < u32_cast(family.queues.size()); idx++ )
+        {
+            vkGetDeviceQueue(m_device, family.index, idx, &family.queues[idx]);
+        }
+    }
+
+    // Create allocator
+#ifdef GFX_VK_VMA_ALLOCATOR
+    VmaAllocatorCreateInfo vmaCreateInfo{ };
+    vmaCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+    vmaCreateInfo.physicalDevice = physicalDevice;
+    vmaCreateInfo.device = m_device;
+    vmaCreateInfo.instance = m_instance;
+
+    VmaAllocator allocator;
+    VkResult vmaResult = vmaCreateAllocator(&vmaCreateInfo, &allocator);
+
+    switch( vmaResult )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_FATAL("Failed to create VMA allocator.");
+        return 1;
+    }
+
+    m_allocator.set_impl_ptr(allocator);
+#endif
+
+    return 0;
+}
+
 u32 device_vk::initialise(u32 gpuIdx)
 {
-    return 0;
+    return initialise(gpuIdx, nullptr);
 }
 
 void device_vk::shutdown()
 {
+#ifdef GFX_VK_VMA_ALLOCATOR
+    vmaDestroyAllocator((VmaAllocator)m_allocator.get_impl_ptr());
+#endif
+
+    if( m_surface )
+    {
+        vkDestroySurfaceKHR(m_instance, (VkSurfaceKHR)m_surface, nullptr);
+    }
+
+    vkDestroyDevice(m_device, nullptr);
+
     return;
 }
 
@@ -75,13 +216,174 @@ std::vector<gpu> device_vk::enumerate_gpus() const
                          i,
                          totalSize,
                          properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
+
+        out[i].set_impl_ptr(device);
     }
     return out;
+}
+
+buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant)
+{
+    VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    bufferInfo.size = size;
+    bufferInfo.usage = static_cast<VkBufferUsageFlags>(usage);
+
+    VkResult result;
+    VkBuffer buf;
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    VmaAllocationCreateInfo allocInfo{ };
+    switch( mem_type )
+    {
+        case memory_type::cpu_accessible:
+            allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+            break;
+        case memory_type::gpu_only:
+            allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+            break;
+    }
+
+    VmaAllocation allocation;
+    result = vmaCreateBuffer((VmaAllocator)m_allocator.get_impl_ptr(), &bufferInfo, &allocInfo, &buf, &allocation, nullptr);
+#endif
+    
+    switch( result )
+    {
+        case VK_SUCCESS:
+            break;
+        default:
+            GFX_ASSERT(false, "Allocation failed.");
+    }
+
+    allocation_info memoryInfo{ };
+    memoryInfo.size = size;
+    memoryInfo.offset = 0;
+    memoryInfo.type = static_cast<u32>(mem_type);
+    memoryInfo.persistant = static_cast<u32>(persistant);
+#ifdef GFX_VK_VMA_ALLOCATOR
+    memoryInfo.backing_memory = allocation;
+#endif
+
+    if( persistant )
+    {
+    #ifdef GFX_VK_VMA_ALLOCATOR
+        vmaMapMemory((VmaAllocator)m_allocator.get_impl_ptr(), allocation, (void**)&memoryInfo.mapped);
+    #endif
+    }
+
+    return buffer(memoryInfo, usage, buf);
+}
+
+void device_vk::map(buffer* buf)
+{
+    GFX_ASSERT(!buf->get_allocation().persistant, "Persistant buffer cannot be manually mapped.");
+    GFX_ASSERT(static_cast<memory_type>(buf->get_allocation().type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
+    
+    VkResult result;
+#ifdef GFX_VK_VMA_ALLOCATOR
+    result = vmaMapMemory((VmaAllocator)m_allocator.get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory, (void**)&buf->get_allocation().mapped);
+#endif
+
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to allocate memory for mapping.");
+    }
+}
+
+void device_vk::unmap(buffer* buf)
+{
+    GFX_ASSERT(!buf->get_allocation().persistant, "Persistant buffer cannot be manually unmapped.");
+    GFX_ASSERT(!buf->get_allocation().mapped, "Persistant buffer cannot be manually unmapped.");
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    vmaUnmapMemory((VmaAllocator)m_allocator.get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory);
+#endif
+}
+
+void device_vk::free_buffer(buffer* buf)
+{
+    GFX_ASSERT(buf->get_allocation().persistant || !buf->get_allocation().mapped, "Buffer should be unmapped before freeing.");
+
+    if( buf->get_allocation().persistant )
+    {
+        // manually unmap
+    #ifdef GFX_VK_VMA_ALLOCATOR
+        vmaUnmapMemory((VmaAllocator)m_allocator.get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory);
+    #endif
+    }
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    vmaDestroyBuffer((VmaAllocator)m_allocator.get_impl_ptr(), (VkBuffer)buf->get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory);
+#endif
 }
 
 void device_vk::wait_idle()
 {
     vkDeviceWaitIdle(m_device);
+}
+
+VkQueue device_vk::get_queue(u32 familyIdx, u32 idx) const
+{
+    GFX_ASSERT(u32_cast(m_queueFamilies.size()) > familyIdx, "Family index is invalid.");
+
+    const queue_family& family = m_queueFamilies[familyIdx];
+    GFX_ASSERT(u32_cast(family.queues.size()) > idx, "Queue index is invalid.");
+
+    return family.queues[idx];
+}
+
+VkQueue device_vk::get_queue_by_flags(VkQueueFlags flags, u32 idx) const
+{
+    for( const queue_family& family : m_queueFamilies )
+    {
+        if( (family.properties.queueFlags & flags) == flags )
+        {
+            GFX_ASSERT(u32_cast(family.queues.size() > idx), "Queue index is invalid.");
+            return family.queues[idx];
+        }
+    }
+
+    GFX_ASSERT(false, "Queue family flags are not valid.");
+    return VK_NULL_HANDLE;
+}
+
+VkQueue device_vk::get_queue_by_present(u32 idx) const
+{
+    for( const queue_family& family : m_queueFamilies )
+    {
+        if( family.flags & queue_family_flag_bit::supports_present )
+        {
+            GFX_ASSERT(u32_cast(family.queues.size() > idx), "Queue index is invalid.");
+            return family.queues[idx];
+        }
+    }
+
+    GFX_ASSERT(false, "Unable to find queue with present support.");
+    return VK_NULL_HANDLE;
+}
+
+u32 device_vk::get_family_index_by_flags(VkQueueFlags flags) const
+{
+    for( u64 i = 0; i < m_queueFamilies.size(); i++ )
+    {
+        const queue_family& family = m_queueFamilies[i];
+        if( (family.properties.queueFlags & flags) == flags )
+        {
+            return u32_cast(i);
+        }
+    }
+
+    return u32_max;
+}
+
+bool device_vk::queue_family_supports_present(u32 familyIdx) const
+{
+    GFX_ASSERT(u32_cast(m_queueFamilies.size()) < familyIdx, "Family index is invalid.");
+    return m_queueFamilies[familyIdx].flags & queue_family_flag_bit::supports_present;
 }
 
 void device_vk::create_instance()
@@ -114,23 +416,22 @@ void device_vk::create_instance()
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
     std::vector<VkLayerProperties> layers(layerCount);
+    m_availableInstanceLayers.resize(layerCount);
+
     vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
 
-    GFX_VERBOSE("Available Instance Layers:");
-    int count2 = 0;
-    for( VkLayerProperties& lyr : layers )
+    for( u64 i = 0; i < layers.size(); i++ )
     {
-        GFX_VERBOSE("\t{}", lyr.layerName);
-        count2++;
+        m_availableInstanceLayers[i] = layers[i].layerName;
     }
 
     std::vector<const char*> enabledLayers;
     for( const char* reqLayer : get_instance_layers() )
     {
         bool enabled = false;
-        for( VkLayerProperties& lyr : layers )
+        for( std::string& lyr : m_availableInstanceLayers )
         {
-            if( !strcmp(reqLayer, lyr.layerName) )
+            if( !strcmp(reqLayer, lyr.c_str()) )
             {
                 enabledLayers.push_back(reqLayer);
                 enabled = true;
@@ -146,23 +447,22 @@ void device_vk::create_instance()
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
 
     std::vector<VkExtensionProperties> extensions(extCount);
+    m_availableInstanceExtensions.resize(extCount);
+
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, extensions.data());
 
-    GFX_VERBOSE("Available Instance Extensions:");
-    int count = 0;
-    for( VkExtensionProperties& ext : extensions )
+    for( u64 i = 0; i < extensions.size(); i++ )
     {
-        GFX_VERBOSE("\t{}", ext.extensionName);
-        count++;
+        m_availableInstanceExtensions[i] = extensions[i].extensionName;
     }
 
     std::vector<const char*> enableExtensions;
     for( const char* reqExt : get_instance_extensions() )
     {
         bool enabled = false;
-        for( VkExtensionProperties& ext : extensions )
+        for( std::string& ext : m_availableInstanceExtensions )
         {
-            if( !strcmp(reqExt, ext.extensionName) )
+            if( !strcmp(reqExt, ext.c_str()) )
             {
                 enableExtensions.push_back(reqExt);
                 enabled = true;
@@ -218,8 +518,8 @@ void device_vk::create_instance()
     m_enabledInstanceExtensions = std::move(enableExtensions);
     m_enabledInstanceLayers = std::move(enabledLayers);
 
-    VkDebugUtilsMessengerEXT* dbgMessenger = new VkDebugUtilsMessengerEXT();
-    VkResult dbgResult = create_debug_utils_messenger(m_instance, &dbgCreateInfo, nullptr, dbgMessenger);
+    VkDebugUtilsMessengerEXT dbgMessenger{ };
+    VkResult dbgResult = create_debug_utils_messenger(m_instance, &dbgCreateInfo, nullptr, &dbgMessenger);
     switch( dbgResult )
     {
         case VK_SUCCESS:
@@ -229,7 +529,6 @@ void device_vk::create_instance()
     }
 
     m_debugger.set_impl_ptr(dbgMessenger);
-    // Set debug messenger.
 }
 
 std::vector<const char*> device_vk::get_instance_extensions() const
@@ -240,6 +539,85 @@ std::vector<const char*> device_vk::get_instance_extensions() const
 std::vector<const char*> device_vk::get_instance_layers() const
 {
     return { "VK_LAYER_KHRONOS_validation", "VK_LAYER_KHRONOS_synchronization2" };
+}
+
+std::vector<const char*> device_vk::get_device_extensions() const
+{
+    return { };
+}
+
+void device_vk::dump_info() const
+{
+    GFX_VERBOSE("Instance extensions:");
+    for( const char* ext : m_enabledInstanceExtensions )
+    {
+        GFX_VERBOSE("\t*{}", ext);
+    }
+    for( const std::string& ext : m_availableInstanceExtensions )
+    {
+        bool output = true;
+        for( const char* ext2 : m_enabledInstanceExtensions )
+        {
+            if( !strcmp(ext.c_str(), ext2) )
+            {
+                output = false;
+                break;
+            }
+        }
+
+        if( output )
+        {
+            GFX_VERBOSE("\t{}", ext);
+        }
+    }
+
+
+    GFX_VERBOSE("Instance layers:");
+    for( const char* lyr : m_enabledInstanceLayers )
+    {
+        GFX_VERBOSE("\t*{}", lyr);
+    }
+    for( const std::string& lyr : m_availableInstanceLayers )
+    {
+        bool output = true;
+        for( const char* lyr2 : m_enabledInstanceLayers )
+        {
+            if( !strcmp(lyr.c_str(), lyr2) )
+            {
+                output = false;
+                break;
+            }
+        }
+
+        if( output )
+        {
+            GFX_VERBOSE("\t{}", lyr);
+        }
+    }
+
+
+    GFX_VERBOSE("Device extensions:");
+    for( const char* ext : m_enabledDeviceExtensions )
+    {
+        GFX_VERBOSE("\t*{}", ext);
+    }
+    for( const std::string& ext : m_availableDeviceExtensions )
+    {
+        bool output = true;
+        for( const char* ext2 : m_enabledDeviceExtensions )
+        {
+            if( !strcmp(ext.c_str(), ext2) )
+            {
+                output = false;
+                break;
+            }
+        }
+
+        if( output )
+        {
+            GFX_VERBOSE("\t{}", ext);
+        }
+    }
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,

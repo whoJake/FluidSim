@@ -8,7 +8,6 @@
 #if GFX_SUPPORTED
 
 #include "device.h"
-#include "memory.h"
 
 namespace gfx
 {

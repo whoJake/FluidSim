@@ -23,4 +23,14 @@ u64 gpu::get_total_memory() const
     return m_memory;
 }
 
+void* gpu::get_impl_ptr() const
+{
+    return m_impl;
+}
+
+void gpu::set_impl_ptr(void* ptr)
+{
+    m_impl = ptr;
+}
+
 } // gfx

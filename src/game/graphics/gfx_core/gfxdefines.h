@@ -22,7 +22,7 @@
 #define GFX_ERROR(fmt, ...) CHANNEL_LOG_ERROR(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 #define GFX_FATAL(fmt, ...) CHANNEL_LOG_FATAL(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 
-#define GFX_ASSERT(val, fmt, ...) if(!(!!val)){ QUITFMT(fmt, __VA_ARGS__); }
+#define GFX_ASSERT(val, fmt, ...) if(!(!!(val))){ QUITFMT(fmt, __VA_ARGS__); }
 
 #define GFX_NUM_FRAMES_AHEAD 1
 #define GFX_NUM_ACTIVE_FRAMES GFX_NUM_FRAMES_AHEAD + 1

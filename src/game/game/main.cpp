@@ -12,6 +12,14 @@ int main(int argc, const char* argv[])
 	sys::log::initialise(new sys::log::details::basic_log(std::move(logger), sys::log::level::none));
 
 	u32 result = gfx::Driver::initialise(gfx::DriverMode::vulkan);
+	gfx::device* device = gfx::Driver::get_device();
+
+	gfx::Driver::get_device()->dump_info();
+
+	gfx::buffer buffer = device->create_buffer(128, gfx::buffer_usage_bits::transfer_src, gfx::memory_type::cpu_accessible, true);
+	device->free_buffer(&buffer);
+
+	gfx::Driver::shutdown();
 
 	AppStartup app;
 	return app.run(argc, argv);

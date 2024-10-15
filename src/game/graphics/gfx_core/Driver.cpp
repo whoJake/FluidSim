@@ -38,6 +38,11 @@ void Driver::shutdown()
     delete sm_device;
 }
 
+device* Driver::get_device()
+{
+    return sm_device;
+}
+
 u32 default_choose_gpu(const std::vector<gpu>& options)
 {
     u64 maxMemory = 0;
