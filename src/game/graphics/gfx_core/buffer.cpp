@@ -3,13 +3,13 @@
 namespace gfx
 {
 
-buffer::buffer(allocation_info allocation, buffer_usage usage, void* pImpl) :
+buffer::buffer(memory_info allocation, buffer_usage usage, void* pImpl) :
     m_allocation(allocation),
     m_impl(pImpl),
     m_usage(usage)
 { }
 
-allocation_info& buffer::get_allocation()
+memory_info& buffer::get_allocation()
 {
     return m_allocation;
 }

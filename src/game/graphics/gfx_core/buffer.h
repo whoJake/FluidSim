@@ -1,6 +1,6 @@
 #pragma once
 
-#include "allocator.h"
+#include "memory.h"
 
 namespace gfx
 {
@@ -22,19 +22,19 @@ using buffer_usage = std::underlying_type_t<buffer_usage_bits>;
 class buffer
 {
 public:
-    buffer(allocation_info allocation, buffer_usage usage, void* pImpl);
+    buffer(memory_info allocation, buffer_usage usage, void* pImpl);
     ~buffer() = default;
 
     DEFAULT_MOVE(buffer);
     DEFAULT_COPY(buffer);
 
-    allocation_info& get_allocation();
+    memory_info& get_allocation();
 
     buffer_usage get_usage() const;
 
     void* get_impl_ptr();
 private:
-    allocation_info m_allocation;
+    memory_info m_allocation;
     void* m_impl;
     buffer_usage m_usage;
 };

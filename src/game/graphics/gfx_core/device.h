@@ -3,7 +3,6 @@
 #include "gfxdefines.h"
 #include "gpu.h"
 #include "debugger.h"
-#include "allocator.h"
 #include "buffer.h"
 
 namespace gfx
@@ -31,11 +30,6 @@ public:
 
     virtual void wait_idle() = 0;
 
-    inline allocator& get_allocator()
-    {
-        return m_allocator;
-    }
-
     inline debugger& get_debugger()
     {
         return m_debugger;
@@ -44,7 +38,6 @@ public:
     virtual void dump_info() const = 0;
 protected:
     debugger m_debugger{ };
-    allocator m_allocator{ };
     void* m_surface{ };
 };
 

@@ -139,25 +139,7 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
 
     // Create allocator
 #ifdef GFX_VK_VMA_ALLOCATOR
-    VmaAllocatorCreateInfo vmaCreateInfo{ };
-    vmaCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-    vmaCreateInfo.physicalDevice = physicalDevice;
-    vmaCreateInfo.device = m_device;
-    vmaCreateInfo.instance = m_instance;
-
-    VmaAllocator allocator;
-    VkResult vmaResult = vmaCreateAllocator(&vmaCreateInfo, &allocator);
-
-    switch( vmaResult )
-    {
-    case VK_SUCCESS:
-        break;
-    default:
-        GFX_FATAL("Failed to create VMA allocator.");
-        return 1;
-    }
-
-    m_allocator.set_impl_ptr(allocator);
+    m_allocator.initialise(m_instance, (VkPhysicalDevice)m_gpu.get_impl_ptr(), m_device);
 #endif
 
     return 0;
@@ -170,9 +152,7 @@ u32 device_vk::initialise(u32 gpuIdx)
 
 void device_vk::shutdown()
 {
-#ifdef GFX_VK_VMA_ALLOCATOR
-    vmaDestroyAllocator((VmaAllocator)m_allocator.get_impl_ptr());
-#endif
+    m_allocator.shutdown();
 
     if( m_surface )
     {
@@ -224,55 +204,27 @@ std::vector<gpu> device_vk::enumerate_gpus() const
 
 buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant)
 {
-    VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-    bufferInfo.size = size;
-    bufferInfo.usage = static_cast<VkBufferUsageFlags>(usage);
-
-    VkResult result;
-    VkBuffer buf;
-
-#ifdef GFX_VK_VMA_ALLOCATOR
-    VmaAllocationCreateInfo allocInfo{ };
-    switch( mem_type )
-    {
-        case memory_type::cpu_accessible:
-            allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-            allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-            break;
-        case memory_type::gpu_only:
-            allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-            break;
-    }
-
-    VmaAllocation allocation;
-    result = vmaCreateBuffer((VmaAllocator)m_allocator.get_impl_ptr(), &bufferInfo, &allocInfo, &buf, &allocation, nullptr);
-#endif
-    
-    switch( result )
-    {
-        case VK_SUCCESS:
-            break;
-        default:
-            GFX_ASSERT(false, "Allocation failed.");
-    }
-
-    allocation_info memoryInfo{ };
+    memory_info memoryInfo{ };
     memoryInfo.size = size;
     memoryInfo.offset = 0;
     memoryInfo.type = static_cast<u32>(mem_type);
     memoryInfo.persistant = static_cast<u32>(persistant);
+
+    void* pImpl = nullptr;
 #ifdef GFX_VK_VMA_ALLOCATOR
-    memoryInfo.backing_memory = allocation;
+    vma_allocation<VkBuffer> allocation = m_allocator.allocate_buffer(size, usage, mem_type);
+    memoryInfo.backing_memory = allocation.allocation;
+    pImpl = allocation.resource;
 #endif
 
     if( persistant )
     {
     #ifdef GFX_VK_VMA_ALLOCATOR
-        vmaMapMemory((VmaAllocator)m_allocator.get_impl_ptr(), allocation, (void**)&memoryInfo.mapped);
+        memoryInfo.mapped = m_allocator.map((VmaAllocation)memoryInfo.backing_memory);
     #endif
     }
 
-    return buffer(memoryInfo, usage, buf);
+    return buffer(memoryInfo, usage, pImpl);
 }
 
 void device_vk::map(buffer* buf)
@@ -280,18 +232,9 @@ void device_vk::map(buffer* buf)
     GFX_ASSERT(!buf->get_allocation().persistant, "Persistant buffer cannot be manually mapped.");
     GFX_ASSERT(static_cast<memory_type>(buf->get_allocation().type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
     
-    VkResult result;
 #ifdef GFX_VK_VMA_ALLOCATOR
-    result = vmaMapMemory((VmaAllocator)m_allocator.get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory, (void**)&buf->get_allocation().mapped);
+    buf->get_allocation().mapped = m_allocator.map((VmaAllocation)buf->get_allocation().backing_memory);
 #endif
-
-    switch( result )
-    {
-    case VK_SUCCESS:
-        break;
-    default:
-        GFX_ASSERT(false, "Failed to allocate memory for mapping.");
-    }
 }
 
 void device_vk::unmap(buffer* buf)
@@ -300,7 +243,7 @@ void device_vk::unmap(buffer* buf)
     GFX_ASSERT(!buf->get_allocation().mapped, "Persistant buffer cannot be manually unmapped.");
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    vmaUnmapMemory((VmaAllocator)m_allocator.get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory);
+    m_allocator.unmap((VmaAllocation)buf->get_allocation().backing_memory);
 #endif
 }
 
@@ -310,14 +253,13 @@ void device_vk::free_buffer(buffer* buf)
 
     if( buf->get_allocation().persistant )
     {
-        // manually unmap
     #ifdef GFX_VK_VMA_ALLOCATOR
-        vmaUnmapMemory((VmaAllocator)m_allocator.get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory);
+        m_allocator.unmap((VmaAllocation)buf->get_allocation().backing_memory);
     #endif
     }
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    vmaDestroyBuffer((VmaAllocator)m_allocator.get_impl_ptr(), (VkBuffer)buf->get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory);
+    m_allocator.free_buffer({ (VkBuffer)buf->get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory });
 #endif
 }
 

@@ -3,6 +3,7 @@
 #include "gfx_core/device.h"
 #include "gfx_core/gpu.h"
 #include "gfx_core/buffer.h"
+#include "vma_allocator.h"
 
 namespace gfx
 {
@@ -71,6 +72,10 @@ private:
     std::vector<const char*> m_enabledDeviceExtensions;
 
     std::vector<queue_family> m_queueFamilies;
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    vma_allocator m_allocator;
+#endif
 };
 
 } // gfx
