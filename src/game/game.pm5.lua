@@ -35,6 +35,7 @@
   {
     "%{prj.name}/**.inl",
     "%{prj.name}/**.h",
+    "%{prj.name}/**.c",
     "%{prj.name}/**.cpp",
     "%{prj.name}/**.hpp",
 
@@ -118,6 +119,9 @@
     
       "%{g_Vendordir}/pugixml-1.14/src", --used by core
       "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+
+      -- stb
+      "%{g_Vendordir}/stb",
     }
     
     buildoptions
