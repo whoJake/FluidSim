@@ -2,7 +2,9 @@
 
 #include "gfx_core/gfxdefines.h"
 #include "vkdefines.h"
+
 #include "gfx_core/buffer.h"
+#include "gfx_core/texture.h"
 
 namespace gfx
 {
@@ -31,6 +33,9 @@ public:
 
     vma_allocation<VkBuffer> allocate_buffer(u64 size, buffer_usage usage, memory_type mem_type);
     void free_buffer(vma_allocation<VkBuffer> allocation);
+
+    vma_allocation<VkImage> allocate_image(texture_info info, resource_view_type type, memory_type mem_type);
+    void free_image(vma_allocation<VkImage> allocation);
 private:
     VmaAllocator m_handle;
 };

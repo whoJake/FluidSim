@@ -3,7 +3,9 @@
 #include "gfxdefines.h"
 #include "gpu.h"
 #include "debugger.h"
+
 #include "buffer.h"
+#include "texture.h"
 
 namespace gfx
 {
@@ -24,9 +26,15 @@ public:
     virtual std::vector<gpu> enumerate_gpus() const = 0;
 
     virtual buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant) = 0;
-    virtual void map(buffer* buf) = 0;
-    virtual void unmap(buffer* buf) = 0;
     virtual void free_buffer(buffer* buf) = 0;
+
+    virtual texture create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant) = 0;
+    virtual void free_texture(texture* tex) = 0;
+
+    virtual void map(buffer* buf) = 0;
+    virtual void map(texture* tex) = 0;
+    virtual void unmap(texture* tex) = 0;
+    virtual void unmap(buffer* buf) = 0;
 
     virtual void wait_idle() = 0;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "resource.h"
 #include "memory.h"
 
 namespace gfx
@@ -8,8 +9,8 @@ namespace gfx
 // Ordered to match VkBufferUsageFlagBits
 enum buffer_usage_bits : u32
 {
-    transfer_src = 1 << 0,
-    transfer_dst = 1 << 1,
+    buffer_transfer_src = 1 << 0,
+    buffer_transfer_dst = 1 << 1,
     uniform_texel = 1 << 2,
     storage_texel = 1 << 3,
     index_buffer = 1 << 4,
@@ -19,7 +20,7 @@ enum buffer_usage_bits : u32
 
 using buffer_usage = std::underlying_type_t<buffer_usage_bits>;
 
-class buffer
+class buffer : public resource
 {
 public:
     buffer(memory_info allocation, buffer_usage usage, void* pImpl);
@@ -28,15 +29,17 @@ public:
     DEFAULT_MOVE(buffer);
     DEFAULT_COPY(buffer);
 
-    memory_info& get_allocation();
-
     buffer_usage get_usage() const;
 
-    void* get_impl_ptr();
+    template<typename T>
+    T get_impl()
+    {
+        return static_cast<T>(m_impl);
+    }
 private:
-    memory_info m_allocation;
     void* m_impl;
     buffer_usage m_usage;
+    u32 m_pad;
 };
 
 } // gfx

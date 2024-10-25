@@ -37,9 +37,15 @@ public:
     std::vector<gpu> enumerate_gpus() const override;
 
     buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant) override;
-    void map(buffer* buf) override;
-    void unmap(buffer* buf) override;
     void free_buffer(buffer* buf) override;
+
+    texture create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant) override;
+    void free_texture(texture* tex) override;
+
+    void map(buffer* buf) override;
+    void map(texture* tex) override;
+    void unmap(buffer* buf) override;
+    void unmap(texture* tex) override;
 
     void wait_idle() override;
 
@@ -56,6 +62,9 @@ private:
     std::vector<const char*> get_instance_extensions() const;
     std::vector<const char*> get_instance_layers() const;
     std::vector<const char*> get_device_extensions() const;
+
+    void map_impl(memory_info* memInfo);
+    void unmap_impl(memory_info* memInfo);
 private:
     VkInstance m_instance;
 

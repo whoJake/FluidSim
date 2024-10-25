@@ -1,4 +1,5 @@
 #include "device_vk.h"
+#include "vkconverts.h"
 
 namespace gfx
 {
@@ -206,9 +207,9 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
 {
     memory_info memoryInfo{ };
     memoryInfo.size = size;
-    memoryInfo.offset = 0;
-    memoryInfo.type = static_cast<u32>(mem_type);
-    memoryInfo.persistant = static_cast<u32>(persistant);
+    memoryInfo.type = u32_cast(mem_type);
+    memoryInfo.persistant = u32_cast(persistant);
+    memoryInfo.viewType = u32_cast(resource_view_type::buffer);
 
     void* pImpl = nullptr;
 #ifdef GFX_VK_VMA_ALLOCATOR
@@ -227,39 +228,131 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
     return buffer(memoryInfo, usage, pImpl);
 }
 
-void device_vk::map(buffer* buf)
-{
-    GFX_ASSERT(!buf->get_allocation().persistant, "Persistant buffer cannot be manually mapped.");
-    GFX_ASSERT(static_cast<memory_type>(buf->get_allocation().type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
-    
-#ifdef GFX_VK_VMA_ALLOCATOR
-    buf->get_allocation().mapped = m_allocator.map((VmaAllocation)buf->get_allocation().backing_memory);
-#endif
-}
-
-void device_vk::unmap(buffer* buf)
-{
-    GFX_ASSERT(!buf->get_allocation().persistant, "Persistant buffer cannot be manually unmapped.");
-    GFX_ASSERT(!buf->get_allocation().mapped, "Persistant buffer cannot be manually unmapped.");
-
-#ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.unmap((VmaAllocation)buf->get_allocation().backing_memory);
-#endif
-}
-
 void device_vk::free_buffer(buffer* buf)
 {
-    GFX_ASSERT(buf->get_allocation().persistant || !buf->get_allocation().mapped, "Buffer should be unmapped before freeing.");
+    GFX_ASSERT(buf->is_persistant() || !buf->is_mapped(), "Buffer should be unmapped before freeing.");
 
-    if( buf->get_allocation().persistant )
+    if( buf->is_persistant() )
     {
     #ifdef GFX_VK_VMA_ALLOCATOR
-        m_allocator.unmap((VmaAllocation)buf->get_allocation().backing_memory);
+        m_allocator.unmap(buf->get_backing_memory<VmaAllocation>());
     #endif
     }
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.free_buffer({ (VkBuffer)buf->get_impl_ptr(), (VmaAllocation)buf->get_allocation().backing_memory });
+    m_allocator.free_buffer({ buf->get_impl<VkBuffer>(), buf->get_backing_memory<VmaAllocation>() });
+#endif
+}
+
+texture device_vk::create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant)
+{
+    memory_info memoryInfo{ };
+    memoryInfo.size = info.get_size();
+    memoryInfo.type = u32_cast(mem_type);
+    memoryInfo.persistant = u32_cast(persistant);
+    memoryInfo.viewType = u32_cast(view_type);
+
+    void* pImpl = nullptr;
+#ifdef GFX_VK_VMA_ALLOCATOR
+    vma_allocation<VkImage> allocation = m_allocator.allocate_image(info, view_type, mem_type);
+    memoryInfo.backing_memory = allocation.allocation;
+    pImpl = allocation.resource;
+#endif
+
+    if( persistant )
+    {
+    #ifdef GFX_VK_VMA_ALLOCATOR
+        memoryInfo.mapped = m_allocator.map((VmaAllocation)memoryInfo.backing_memory);
+    #endif
+    }
+
+    // Make a full view for now?
+    VkImageView pViewImpl{ VK_NULL_HANDLE };
+
+    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    viewInfo.image = static_cast<VkImage>(pImpl);
+    viewInfo.format = converters::get_format_vk(info.get_format());
+    viewInfo.viewType = converters::get_view_type_vk(view_type);
+    
+    VkImageSubresourceRange range{ };
+    if( cdt::is_depth_format(info.get_format()) )
+        range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    else
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    range.baseMipLevel = 0;
+    range.baseArrayLayer = 0;
+    range.levelCount = 1;
+    range.layerCount = 1;
+
+    viewInfo.subresourceRange = range;
+
+    VkResult result = vkCreateImageView(m_device, &viewInfo, nullptr, &pViewImpl);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Image view creation failed.");
+    }
+
+    return texture(memoryInfo, info, pImpl, pViewImpl);
+}
+
+void device_vk::free_texture(texture* tex)
+{
+    GFX_ASSERT(tex->is_persistant() || !tex->is_mapped(), "Image should be unmapped before freeing.");
+
+    if( tex->is_persistant() )
+    {
+    #ifdef GFX_VK_VMA_ALLOCATOR
+        m_allocator.unmap(tex->get_backing_memory<VmaAllocation>());
+    #endif
+    }
+
+    vkDestroyImageView(m_device, tex->get_view_impl<VkImageView>(), nullptr);
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    m_allocator.free_image({ tex->get_impl<VkImage>(), tex->get_backing_memory<VmaAllocation>() });
+#endif
+}
+
+void device_vk::map(buffer* buf)
+{
+    map_impl(&buf->get_memory_info());
+}
+
+void device_vk::map(texture* tex)
+{
+    map_impl(&tex->get_memory_info());
+}
+
+void device_vk::unmap(buffer* buf)
+{
+    unmap_impl(&buf->get_memory_info());
+}
+
+void device_vk::unmap(texture* tex)
+{
+    unmap_impl(&tex->get_memory_info());
+}
+
+void device_vk::map_impl(memory_info* memInfo)
+{
+    GFX_ASSERT(!memInfo->persistant, "Persistant memory cannot be manually mapped.");
+    GFX_ASSERT(static_cast<memory_type>(memInfo->type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
+    
+#ifdef GFX_VK_VMA_ALLOCATOR
+    memInfo->mapped = m_allocator.map((VmaAllocation)memInfo->backing_memory);
+#endif
+}
+
+void device_vk::unmap_impl(memory_info* memInfo)
+{
+    GFX_ASSERT(!memInfo->persistant, "Persistant memory cannot be manually unmapped.");
+    GFX_ASSERT(!memInfo->mapped, "Buffer that isn't mapped cannot be unmapped.");
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    m_allocator.unmap((VmaAllocation)memInfo->backing_memory);
 #endif
 }
 

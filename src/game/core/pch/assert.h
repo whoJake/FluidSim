@@ -5,7 +5,7 @@
 
 template<typename ...Args>
 [[noreturn]]
-inline void QuitFmt_Internal(const std::source_location& loc, const char* fmt, Args&&... args) noexcept
+__forceinline void QuitFmt_Internal(const std::source_location& loc, const char* fmt, Args&&... args) noexcept
 {
     // stringstream but we're quitting anyway so fuck it
     std::stringstream ss{ };
