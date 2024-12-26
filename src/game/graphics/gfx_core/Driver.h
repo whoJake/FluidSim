@@ -4,13 +4,14 @@
 #define GFX_SUPPORTED 1
 #define GFX_SUPPORTS_VULKAN
 
-
 #if GFX_SUPPORTED
 
 #include "device.h"
 
 namespace gfx
 {
+
+#define GFX_CALL(func, ...) gfx::Driver::get_device()->func(__VA_ARGS__)
 
 enum class DriverMode
 {

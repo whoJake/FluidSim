@@ -7,11 +7,13 @@ texture::texture(memory_info allocation,
                  texture_info info,
                  void* pImpl,
                  void* pImplView) :
-    resource(allocation),
+    resource(),
     texture_info(info),
     m_impl(pImpl),
     m_implView(pImplView)
-{ }
+{
+    init(allocation);
+}
 
 void texture::set_resource_view_type(resource_view_type type, void* pImplView)
 {

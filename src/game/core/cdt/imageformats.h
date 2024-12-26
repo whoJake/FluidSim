@@ -77,8 +77,12 @@ constexpr bool is_hdr_format(image_format format)
 
 constexpr bool is_depth_format(image_format format)
 {
-    // TODO
-    return false;
+    switch( format )
+    {
+    case image_format::R8_UNORM:
+    default:
+        return false;
+    }
 }
 
 constexpr u32 get_bits_per_pixel(image_format format)

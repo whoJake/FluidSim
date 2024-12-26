@@ -27,4 +27,16 @@
 #define GFX_NUM_FRAMES_AHEAD 1
 #define GFX_NUM_ACTIVE_FRAMES GFX_NUM_FRAMES_AHEAD + 1
 
+#define GFX_MAX_VERTEX_INPUT_CHANNELS 4
+#define GFX_MAX_VERTEX_ATTRIBUTES_PER_CHANNEL 4
+#define GFX_MAX_OUTPUT_ATTACHMENTS 8
+
+#define GFX_HAS_IMPL(impl_name) \
+template<typename T>\
+T get_impl()\
+{ return static_cast<T>(impl_name); }\
+template<typename T>\
+T get_impl() const\
+{ return static_cast<T>(impl_name); }
+
 #include "vulkan/vkdefines.h"

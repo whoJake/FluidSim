@@ -225,7 +225,9 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
     #endif
     }
 
-    return buffer(memoryInfo, usage, pImpl);
+    buffer retval{ };
+    retval.init(memoryInfo, usage, pImpl);
+    return retval;
 }
 
 void device_vk::free_buffer(buffer* buf)
@@ -316,6 +318,30 @@ void device_vk::free_texture(texture* tex)
 #endif
 }
 
+fence device_vk::create_fence(bool signaled)
+{
+    VkFence impl{ VK_NULL_HANDLE };
+    VkFenceCreateInfo createInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    createInfo.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
+
+    VkResult result = vkCreateFence(m_device, &createInfo, nullptr, &impl);
+
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Fence creation failed.");
+    }
+
+    return fence(impl);
+}
+
+void device_vk::free_fence(fence* fence)
+{
+    vkDestroyFence(m_device, fence->get_impl<VkFence>(), nullptr);
+}
+
 void device_vk::map(buffer* buf)
 {
     map_impl(&buf->get_memory_info());
@@ -359,6 +385,179 @@ void device_vk::unmap_impl(memory_info* memInfo)
 void device_vk::wait_idle()
 {
     vkDeviceWaitIdle(m_device);
+}
+
+u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout)
+{
+    VkFence waitFence{ VK_NULL_HANDLE };
+    if( fence )
+    {
+        waitFence = fence->get_impl<VkFence>();
+    }
+
+    u32 retval{ 0 };
+    VkResult result = vkAcquireNextImageKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), timeout, VK_NULL_HANDLE, waitFence, &retval);
+
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to acquire next swapchain image.");
+    }
+
+    return retval;
+}
+
+bool device_vk::wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const
+{
+    VkFence* fences = new VkFence[count];
+    for( u32 i = 0; i < count; i++ )
+    {
+        fences[i] = pFences[i].get_impl<VkFence>();
+    }
+
+    VkResult result = vkWaitForFences(m_device, count, fences, wait_for_all, timeout);
+    delete[] fences;
+
+    return result == VK_SUCCESS;
+}
+
+bool device_vk::reset_fences(fence* pFences, u32 count)
+{
+    VkFence* fences = new VkFence[count];
+    for( u32 i = 0; i < count; i++ )
+    {
+        fences[i] = pFences[i].get_impl<VkFence>();
+    }
+
+    VkResult result = vkResetFences(m_device, count, fences);
+    delete[] fences;
+
+    return result == VK_SUCCESS;
+}
+
+bool device_vk::check_fence(const fence* fence) const
+{
+    VkResult result = vkGetFenceStatus(m_device, fence->get_impl<VkFence>());
+    return result == VK_SUCCESS;
+}
+
+void device_vk::reset(command_list* list)
+{
+    VkCommandBufferResetFlags flags{ };
+    // flags |= VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT;
+
+    vkResetCommandBuffer(list->get_impl<VkCommandBuffer>(), flags);
+}
+
+void device_vk::begin(command_list* list)
+{
+    VkCommandBufferBeginInfo begin{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    // FLAGS?
+
+    vkBeginCommandBuffer(list->get_impl<VkCommandBuffer>(), &begin);
+}
+
+void device_vk::end(command_list* list)
+{
+    vkEndCommandBuffer(list->get_impl<VkCommandBuffer>());
+}
+
+void device_vk::submit(const std::vector<command_list*>& lists)
+{
+    // TODO Do something smarter here
+    std::unordered_map<VkQueue, std::vector<command_list*>> queueMap;
+
+    for( command_list* list : lists )
+    {
+        VkQueue queue;
+        if( list->get_operation_flags() & cmd_op_present )
+        {
+            queue = get_queue_by_present();
+        }
+        else
+        {
+            VkQueueFlags flags{ };
+            if( list->get_operation_flags() & cmd_op_graphics )
+                flags |= VK_QUEUE_GRAPHICS_BIT;
+            if( list->get_operation_flags() & cmd_op_compute )
+                flags |= VK_QUEUE_COMPUTE_BIT;
+
+            queue = get_queue_by_flags(flags);
+        }
+
+        if( queueMap.find(queue) == queueMap.end() )
+        {
+            queueMap.insert(std::pair<VkQueue, std::vector<command_list*>>(queue, { }));
+        }
+
+        queueMap[queue].push_back(list);
+    }
+
+    for( auto& pair : queueMap )
+    {
+        VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        std::vector<VkCommandBuffer> buffers;
+        buffers.reserve(pair.second.size());
+
+        for( command_list* list : pair.second )
+        {
+            buffers.push_back(list->get_impl<VkCommandBuffer>());
+        }
+
+        submitInfo.commandBufferCount = u32_cast(buffers.size());
+        submitInfo.pCommandBuffers = buffers.data();
+
+        vkQueueSubmit(pair.first, 1, &submitInfo, VK_NULL_HANDLE);
+    }
+}
+
+void device_vk::draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
+{
+    vkCmdDraw(list->get_impl<VkCommandBuffer>(), vertex_count, instance_count, first_vertex, first_instance);
+}
+
+void device_vk::draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance)
+{
+    vkCmdDrawIndexed(list->get_impl<VkCommandBuffer>(), index_count, instance_count, first_index, vertex_offset, first_instance);
+}
+
+void device_vk::bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index)
+{
+    VkBuffer* buffers = new VkBuffer[buffer_count];
+    VkDeviceSize* offsets = new VkDeviceSize[buffer_count];
+
+    for( u32 i = 0; i < buffer_count; i++ )
+    {
+        buffers[i] = pBuffers->get_impl<VkBuffer>();
+        // TODO offset
+        offsets[i] = 0;
+    }
+
+    vkCmdBindVertexBuffers(list->get_impl<VkCommandBuffer>(), first_vertex_index, buffer_count, buffers, offsets);
+    delete[] buffers;
+    delete[] offsets;
+}
+
+void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type index_type)
+{
+    VkIndexType type;
+    switch( index_type )
+    {
+        case index_buffer_type::u16_type:
+            type = VK_INDEX_TYPE_UINT16;
+            break;
+        case index_buffer_type::u32_type:
+            type = VK_INDEX_TYPE_UINT32;
+            break;
+        default:
+            GFX_ASSERT(false, "Invalid index type size when binding index buffer.");
+    }
+
+    // TODO offset
+    VkDeviceSize offset = 0;
+    vkCmdBindIndexBuffer(list->get_impl<VkCommandBuffer>(), buffer->get_impl<VkBuffer>(), offset, type);
 }
 
 VkQueue device_vk::get_queue(u32 familyIdx, u32 idx) const

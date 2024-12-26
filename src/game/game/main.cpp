@@ -19,7 +19,6 @@ int main(int argc, const char* argv[])
 
 	gfx::Driver::get_device()->dump_info();
 
-
 	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("assets/images/test.png");
 
 	gfx::buffer buffer = device->create_buffer(img->get_size(), gfx::buffer_usage_bits::buffer_transfer_src, gfx::memory_type::cpu_accessible, true);

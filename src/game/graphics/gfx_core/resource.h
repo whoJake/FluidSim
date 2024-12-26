@@ -8,13 +8,16 @@ namespace gfx
 class resource
 {
 public:
-    resource(memory_info info) :
-        m_memoryInfo(info)
-    { }
+    resource() = default;
     ~resource() = default;
 
     DEFAULT_MOVE(resource);
     DEFAULT_COPY(resource);
+
+    inline void init(memory_info info)
+    {
+        m_memoryInfo = info;
+    }
 
     template<typename T>
     T get_backing_memory()
