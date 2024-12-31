@@ -66,7 +66,7 @@ void log_mt::worker_loop()
 
 void log_mt::flush()
 {
-    std::unique_lock<std::mutex> lock(m_mutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
     message work;
     while( !m_queue.empty() )
     {
