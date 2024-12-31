@@ -3,10 +3,15 @@
 namespace gfx
 {
 
-void buffer::init(memory_info allocation, buffer_usage usage, void* pImpl)
+void buffer::initialise(buffer&& other)
 {
-    static_cast<resource*>(this)->init(allocation);
-    m_impl = pImpl;
+    *this = std::move(other);
+}
+
+void buffer::initialise(memory_info allocation, buffer_usage usage, void* pImpl)
+{
+    resource::initialise(allocation);
+    m_pImpl = pImpl;
     m_usage = usage;
     m_extFlags = 0;
 }
@@ -16,9 +21,9 @@ buffer_usage buffer::get_usage() const
     return m_usage;
 }
 
-void index_buffer::init(buffer&& buf, index_buffer_type type)
+void index_buffer::initialise(buffer&& buf, index_buffer_type type)
 {
-    *static_cast<buffer*>(this) = std::move(buf);
+    buffer::initialise(std::move(buf));
     set_index_buffer_type(type);
 }
 
@@ -73,9 +78,9 @@ void vertex_buffer_input_state::set_channel_count(u32 count)
     m_channelCount = u16_cast(count);
 }
 
-void vertex_buffer::init(buffer&& buf, vertex_buffer_input_state input_state)
+void vertex_buffer::initialise(buffer&& buf, vertex_buffer_input_state input_state)
 {
-    *static_cast<buffer*>(this) = std::move(buf);
+    buffer::initialise(std::move(buf));
     m_inputState = input_state;
 }
 

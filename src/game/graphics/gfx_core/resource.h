@@ -14,7 +14,7 @@ public:
     DEFAULT_MOVE(resource);
     DEFAULT_COPY(resource);
 
-    inline void init(memory_info info)
+    inline void initialise(memory_info info)
     {
         m_memoryInfo = info;
     }

@@ -2,6 +2,10 @@
 #include <functional>
 #include "events/Event.h"
 
+// This also brings in vulkan headers.
+// Probably don't actually want it like this.
+#include "gfx_core/gfxdefines.h"
+
 namespace vk
 {
     class Instance;
@@ -72,6 +76,10 @@ public:
 
     virtual VkSurfaceKHR create_surface(vk::Instance& instance);
     virtual std::vector<const char*> get_required_surface_extensions() const;
+
+#ifdef GFX_SUPPORTS_VULKAN
+    virtual bool create_vulkan_surface(VkInstance instance, VkSurfaceKHR* surface);
+#endif // GFX_SUPPORTS_VULKAN
 protected:
     state m_state;
 };

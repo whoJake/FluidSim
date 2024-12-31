@@ -4,7 +4,9 @@
 #include "gfx_core/gpu.h"
 #include "gfx_core/buffer.h"
 #include "gfx_core/command_list.h"
+
 #include "vma_allocator.h"
+#include "command_pool_vk.h"
 
 namespace gfx
 {
@@ -35,6 +37,15 @@ public:
     u32 initialise(u32 gpuIdx) override;
     void shutdown() override;
 
+#ifdef GFX_EXT_SWAPCHAIN
+    surface_capabilities get_surface_capabilities() const override;
+
+    swapchain create_swapchain(swapchain* previous, texture_info info, present_mode present_mode) override;
+    void free_swapchain(swapchain* swapchain) override;
+
+    u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) override;
+#endif // GFX_EXT_SWAPCHAIN
+
     std::vector<gpu> enumerate_gpus() const override;
 
     buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant) override;
@@ -46,13 +57,15 @@ public:
     fence create_fence(bool signaled = false) override;
     void free_fence(fence* fence) override;
 
+    graphics_command_list allocate_graphics_command_list() override;
+    void free_command_list(command_list* list) override;
+
     void map(buffer* buf) override;
     void map(texture* tex) override;
     void unmap(buffer* buf) override;
     void unmap(texture* tex) override;
 
     void wait_idle() override;
-    u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) override;
 
     bool wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const override;
     bool reset_fences(fence* pFences, u32 count) override;
@@ -68,7 +81,9 @@ public:
     // Same with pipeline stages (on the Vulkan side atleast). How do I handle this.
     // The fence should probably be per batch submit, but these lists can be split up over multiple
     // vkQueueSubmit, depending on what queue family they go to.
-    void submit(const std::vector<command_list*>& lists) override;
+    void submit(const std::vector<graphics_command_list*>& lists, fence* fence) override;
+    void submit(const std::vector<compute_command_list*>& lists, fence* fence) override;
+    void submit(const std::vector<present_command_list*>& lists, fence* fence) override;
 
     // Graphics calls
     void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance) override;
@@ -81,8 +96,15 @@ public:
     VkQueue get_queue(u32 familyIdx, u32 idx = 0) const;
     VkQueue get_queue_by_flags(VkQueueFlags flags, u32 idx = 0) const;
     VkQueue get_queue_by_present(u32 idx = 0) const;
+    u32 get_queue_family_count() const;
     u32 get_family_index_by_flags(VkQueueFlags flags) const;
     bool queue_family_supports_present(u32 familyIdx) const;
+
+    bool has_instance_extension(const char* name);
+    bool has_device_extension(const char* name);
+
+    VkInstance get_impl_instance() const;
+    VkDevice get_impl_device() const;
 
     void dump_info() const override;
 private:
@@ -94,6 +116,9 @@ private:
 
     void map_impl(memory_info* memInfo);
     void unmap_impl(memory_info* memInfo);
+
+    // TODO fence?
+    void submit_impl(VkQueue queue, const std::vector<command_list*>& lists, fence* fence);
 private:
     VkInstance m_instance;
 
@@ -111,6 +136,7 @@ private:
 
     std::vector<queue_family> m_queueFamilies;
 
+    command_pool_vk m_commandPool;
 #ifdef GFX_VK_VMA_ALLOCATOR
     vma_allocator m_allocator;
 #endif

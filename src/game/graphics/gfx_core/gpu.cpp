@@ -3,15 +3,18 @@
 namespace gfx
 {
 
-gpu::gpu(const char* name,
-         u32 index,
-         u64 availableMemory,
-         bool isDedicated) :
-    m_name(name),
-    m_memory(availableMemory),
-    m_index(index),
-    m_dedicated(isDedicated)
-{ }
+void gpu::initialise(const char* name,
+                     u32 index,
+                     u64 availableMemory,
+                     bool isDedicated,
+                     void* pImpl)
+{
+    m_name = name;
+    m_pImpl = pImpl;
+    m_memory = availableMemory;
+    m_index = index;
+    m_dedicated = isDedicated;
+}
 
 bool gpu::is_dedicated() const
 {
@@ -21,16 +24,6 @@ bool gpu::is_dedicated() const
 u64 gpu::get_total_memory() const
 {
     return m_memory;
-}
-
-void* gpu::get_impl_ptr() const
-{
-    return m_impl;
-}
-
-void gpu::set_impl_ptr(void* ptr)
-{
-    m_impl = ptr;
 }
 
 } // gfx

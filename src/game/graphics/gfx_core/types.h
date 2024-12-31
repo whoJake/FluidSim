@@ -71,9 +71,11 @@ enum buffer_usage_bits : u32
     buffer_transfer_dst = 1 << 1,
     uniform_texel = 1 << 2,
     storage_texel = 1 << 3,
-    index_buffer = 1 << 4,
-    vertex_buffer = 1 << 5,
-    indirect_buffer = 1 << 6,
+    uniform_buffer = 1 << 4,
+    storage_buffer = 1 << 5,
+    index_buffer = 1 << 6,
+    vertex_buffer = 1 << 7,
+    indirect_buffer = 1 << 8,
 };
 
 using buffer_usage = std::underlying_type_t<buffer_usage_bits>;
@@ -93,6 +95,46 @@ enum class vertex_type : u32
     tex2,
     tex3,
 
+    count,
+};
+
+// Ordered to match VkImageUsageFlagBits
+enum texture_usage_flag_bits : u32
+{
+    texture_transfer_src = 1 << 0,
+    texture_transfer_dst = 1 << 1,
+    texture_sampled = 1 << 2,
+    texture_storage = 1 << 3,
+    texture_color = 1 << 4,
+    texture_depth_stencil = 1 << 5,
+};
+
+using texture_usage_flags = std::underlying_type_t<texture_usage_flag_bits>;
+
+// Ordered to match VkImageLayout
+enum class texture_layout : u32
+{
+    undefined = 0,
+    general,
+    color_attachment,
+    depth_stencil_attachment,
+    depth_stencil_readonly,
+    shader_readonly,
+    transfer_src,
+    transfer_dst,
+    preinitialized,
+
+    count,
+};
+
+// Ordered to match VkPresentModeKHR
+enum class present_mode
+{
+    immediate = 0,
+    mailbox,
+    fifo,
+    fifo_relaxed,
+    
     count,
 };
 

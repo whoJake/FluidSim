@@ -59,6 +59,58 @@ constexpr VkFormat get_format_vk(cdt::image_format format)
     }
 }
 
+constexpr cdt::image_format get_format_vk_cdt(VkFormat format)
+{
+    switch( format )
+    {
+    case VK_FORMAT_R8_UNORM:
+        return cdt::image_format::R8_UNORM;
+    case VK_FORMAT_R8_SNORM:
+        return cdt::image_format::R8_SNORM;
+    case VK_FORMAT_R8_UINT:
+        return cdt::image_format::R8_UINT;
+    case VK_FORMAT_R8_SINT:
+        return cdt::image_format::R8_SINT;
+    case VK_FORMAT_R8_SRGB:
+        return cdt::image_format::R8_SRGB;
+    case VK_FORMAT_R8G8_UNORM:
+        return cdt::image_format::R8G8_UNORM;
+    case VK_FORMAT_R8G8_SNORM:
+        return cdt::image_format::R8G8_SNORM;
+    case VK_FORMAT_R8G8_UINT:
+        return cdt::image_format::R8G8_UINT;
+    case VK_FORMAT_R8G8_SINT:
+        return cdt::image_format::R8G8_SINT;
+    case VK_FORMAT_R8G8_SRGB:
+        return cdt::image_format::R8G8_SRGB;
+    case VK_FORMAT_R8G8B8_UNORM:
+        return cdt::image_format::R8G8B8_SNORM;
+    case VK_FORMAT_R8G8B8_SNORM:
+        return cdt::image_format::R8G8B8_UNORM;
+    case VK_FORMAT_R8G8B8_UINT:
+        return cdt::image_format::R8G8B8_UINT;
+    case VK_FORMAT_R8G8B8_SINT:
+        return cdt::image_format::R8G8B8_SINT;
+    case VK_FORMAT_R8G8B8_SRGB:
+        return cdt::image_format::R8G8B8_SRGB;
+    case VK_FORMAT_R8G8B8A8_UNORM:
+        return cdt::image_format::R8G8B8A8_UNORM;
+    case VK_FORMAT_R8G8B8A8_SNORM:
+        return cdt::image_format::R8G8B8A8_SNORM;
+    case VK_FORMAT_R8G8B8A8_UINT:
+        return cdt::image_format::R8G8B8A8_UINT;
+    case VK_FORMAT_R8G8B8A8_SINT:
+        return cdt::image_format::R8G8B8A8_SINT;
+    case VK_FORMAT_R8G8B8A8_SRGB:
+        return cdt::image_format::R8G8B8A8_SRGB;
+    case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+        return cdt::image_format::A2B10G10R10_UNORM;
+    case VK_FORMAT_UNDEFINED:
+    default:
+        return cdt::image_format::UNDEFINED;
+    }
+}
+
 constexpr VkImageViewType get_view_type_vk(resource_view_type type, bool isArray = false)
 {
     switch( type )

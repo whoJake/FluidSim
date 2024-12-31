@@ -5,6 +5,7 @@
 
 #ifdef PLATFORM_WINDOWS
     #define GFX_SUPPORTS_GFX
+    #define GFX_EXT_SWAPCHAIN
 #endif
 
 #ifdef GFX_OPTIMIZE
@@ -22,7 +23,11 @@
 #define GFX_ERROR(fmt, ...) CHANNEL_LOG_ERROR(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 #define GFX_FATAL(fmt, ...) CHANNEL_LOG_FATAL(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 
-#define GFX_ASSERT(val, fmt, ...) if(!(!!(val))){ QUITFMT(fmt, __VA_ARGS__); }
+#ifdef CFG_DEBUG
+    #define GFX_ASSERT(val, fmt, ...) if(!(!!(val))){ QUITFMT(fmt, __VA_ARGS__); }
+#else
+    #define GFX_ASSERT(val, fmt, ...)
+#endif // CFG_DEBUG
 
 #define GFX_NUM_FRAMES_AHEAD 1
 #define GFX_NUM_ACTIVE_FRAMES GFX_NUM_FRAMES_AHEAD + 1
@@ -40,3 +45,6 @@ T get_impl() const\
 { return static_cast<T>(impl_name); }
 
 #include "vulkan/vkdefines.h"
+
+// This is fucked.
+using surface_create_func = std::function<bool(VkInstance, VkSurfaceKHR*)>;

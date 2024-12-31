@@ -175,6 +175,14 @@ VkSurfaceKHR window_glfw::create_surface(vk::Instance& instance)
     return surface;
 }
 
+#ifdef GFX_SUPPORTS_VULKAN
+bool window_glfw::create_vulkan_surface(VkInstance instance, VkSurfaceKHR* surface)
+{
+    VkResult result = glfwCreateWindowSurface(instance, m_handle, nullptr, surface);
+    return result == VK_SUCCESS;
+}
+#endif // GFX_SUPPORTS_VULKAN
+
 std::vector<const char*> window_glfw::get_required_surface_extensions() const
 {
     const char** pExtensions;

@@ -1,6 +1,7 @@
 #include "vma_allocator.h"
 #include "vkconverts.h"
 
+#ifdef GFX_SUPPORTS_VULKAN
 namespace gfx
 {
 
@@ -153,3 +154,4 @@ void vma_allocator::free_image(vma_allocation<VkImage> image)
 }
 
 } // gfx
+#endif // GFX_SUPPORTS_VULKAN

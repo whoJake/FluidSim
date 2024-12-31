@@ -85,4 +85,12 @@ std::vector<const char*> window::get_required_surface_extensions() const
     return { };
 }
 
+#ifdef GFX_SUPPORTS_VULKAN
+bool window::create_vulkan_surface(VkInstance instance, VkSurfaceKHR* surface)
+{
+    *surface = VK_NULL_HANDLE;
+    return false;
+}
+#endif // GFX_SUPPORTS_VULKAN
+
 } // fw

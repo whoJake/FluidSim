@@ -1,12 +1,15 @@
 #include "swapchain.h"
+#include "gfx_core/gfxdefines.h"
 
+#ifdef GFX_EXT_SWAPCHAIN
 namespace gfx
 {
 
-swapchain::swapchain(std::vector<texture>&& textures, void* pImpl) :
-    m_images(std::move(textures)),
-    m_impl(pImpl)
-{ }
+void swapchain::initialise(std::vector<texture>&& textures, void* pImpl)
+{
+    m_images = std::move(textures);
+    m_impl = pImpl;
+}
 
 u32 swapchain::get_image_count() const
 {
@@ -24,3 +27,4 @@ texture* swapchain::get_image(u32 index)
 }
 
 } // gfx
+#endif // GFX_EXT_SWAPCHAIN

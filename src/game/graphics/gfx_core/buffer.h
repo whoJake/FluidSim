@@ -3,6 +3,7 @@
 #include "resource.h"
 #include "memory.h"
 #include "types.h"
+#include "gfxdefines.h"
 
 namespace gfx
 {
@@ -16,17 +17,14 @@ public:
     DEFAULT_MOVE(buffer);
     DEFAULT_COPY(buffer);
 
-    void init(memory_info allocation, buffer_usage usage, void* pImpl);
+    void initialise(buffer&& other);
+    void initialise(memory_info allocation, buffer_usage usage, void* pImpl);
 
     buffer_usage get_usage() const;
 
-    template<typename T>
-    T get_impl()
-    {
-        return static_cast<T>(m_impl);
-    }
+    GFX_HAS_IMPL(m_pImpl);
 private:
-    void* m_impl;
+    void* m_pImpl;
     buffer_usage m_usage;
 protected:
     u32 m_extFlags;
@@ -41,7 +39,7 @@ public:
     DEFAULT_MOVE(index_buffer);
     DEFAULT_COPY(index_buffer);
 
-    void init(buffer&& buffer, index_buffer_type type);
+    void initialise(buffer&& buffer, index_buffer_type type);
 
     index_buffer_type get_index_buffer_type() const;
     void set_index_buffer_type(index_buffer_type type);
@@ -89,7 +87,7 @@ public:
     DEFAULT_MOVE(vertex_buffer);
     DEFAULT_COPY(vertex_buffer);
 
-    void init(buffer&& buffer, vertex_buffer_input_state input_state = { });
+    void initialise(buffer&& buffer, vertex_buffer_input_state input_state = { });
 
     u32 get_vertex_stride() const;
 

@@ -4,18 +4,21 @@
 namespace gfx
 {
 
-void command_list::init()
+command_list::command_list(command_list_type type) :
+    m_type(type)
+{ }
+
+void command_list::init(void* pImpl)
 {
     m_pso.reset();
-    m_operationFlags = 0;
     m_isActive = false;
+    m_pImpl = pImpl;
 }
 
 void command_list::reset()
 {
     GFX_ASSERT(!m_isActive, "Command list should not be reset whilst it is active.");
     m_pso.reset();
-    m_operationFlags = 0;
     GFX_CALL(reset, this);
 }
 
@@ -33,44 +36,87 @@ void command_list::end()
     m_isActive = false;
 }
 
-void command_list::submit()
+void command_list::submit(fence* fence)
 {
     GFX_ASSERT(!m_isActive, "Command list cannot be submitted whilst it's still active.");
-    std::vector<command_list*> lists
+
+    switch( m_type )
     {
-        this
-    };
-
-    GFX_CALL(submit, lists);
+    case command_list_type::graphics:
+    {
+        std::vector<graphics_command_list*> list
+        {
+            reinterpret_cast<graphics_command_list*>(this)
+        };
+        GFX_CALL(submit, list, fence);
+        break;
+    }
+    case command_list_type::compute:
+    {
+        std::vector<compute_command_list*> list
+        {
+            reinterpret_cast<compute_command_list*>(this)
+        };
+        GFX_CALL(submit, list, fence);
+        break;
+    }
+    case command_list_type::present:
+    {
+        std::vector<present_command_list*> list
+        {
+            reinterpret_cast<present_command_list*>(this)
+        };
+        GFX_CALL(submit, list, fence);
+        break;
+    }
+    default:
+        GFX_ASSERT(false, "Submit has been called with an invalid/uninitialised command_list.");
+    }
 }
 
-const command_operation_flags& command_list::get_operation_flags() const
+transfer_command_list::transfer_command_list() :
+    command_list(command_list_type::transfer)
+{ }
+
+transfer_command_list::transfer_command_list(command_list_type override_type) :
+    command_list(override_type)
+{ }
+
+const command_list_type& command_list::get_type() const
 {
-    return m_operationFlags;
+    return m_type;
 }
 
-void command_list::draw(u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
+graphics_command_list::graphics_command_list() :
+    transfer_command_list(command_list_type::graphics)
+{ }
+
+void graphics_command_list::draw(u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
 {
-    m_operationFlags |= cmd_op_graphics;
-    GFX_CALL(draw, this, vertex_count, instance_count, first_vertex, first_instance);
+    GFX_CALL(draw, reinterpret_cast<command_list*>(this), vertex_count, instance_count, first_vertex, first_instance);
 }
 
-void command_list::draw_indexed(u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance)
+void graphics_command_list::draw_indexed(u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance)
 {
-    m_operationFlags |= cmd_op_graphics;
-    GFX_CALL(draw_indexed, this, index_count, instance_count, first_index, vertex_offset, first_instance);
+    GFX_CALL(draw_indexed, reinterpret_cast<command_list*>(this), index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
-void command_list::bind_vertex_buffers(buffer* pBuffers, u32 buffer_count, u32 first_vertex_index)
+void graphics_command_list::bind_vertex_buffers(buffer* pBuffers, u32 buffer_count, u32 first_vertex_index)
 {
-    m_operationFlags |= cmd_op_graphics;
-    GFX_CALL(bind_vertex_buffers, this, pBuffers, buffer_count, first_vertex_index);
+    GFX_CALL(bind_vertex_buffers, reinterpret_cast<command_list*>(this), pBuffers, buffer_count, first_vertex_index);
 }
 
-void command_list::bind_index_buffer(buffer* buffer, index_buffer_type index_type)
+void graphics_command_list::bind_index_buffer(buffer* buffer, index_buffer_type index_type)
 {
-    m_operationFlags |= cmd_op_graphics;
-    GFX_CALL(bind_index_buffer, this, buffer, index_type);
+    GFX_CALL(bind_index_buffer, reinterpret_cast<command_list*>(this), buffer, index_type);
 }
+
+compute_command_list::compute_command_list() :
+    transfer_command_list(command_list_type::compute)
+{ }
+
+present_command_list::present_command_list() :
+    command_list(command_list_type::present)
+{ }
 
 } // gfx

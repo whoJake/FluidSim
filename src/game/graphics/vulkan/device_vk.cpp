@@ -1,6 +1,7 @@
 #include "device_vk.h"
 #include "vkconverts.h"
 
+#ifdef GFX_SUPPORTS_VULKAN
 namespace gfx
 {
 
@@ -39,7 +40,7 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
     GFX_ASSERT(m_instance, "Cannot initialise device, there is no instance.");
     m_gpu = enumerate_gpus()[gpuIdx];
 
-    VkPhysicalDevice physicalDevice = (VkPhysicalDevice)m_gpu.get_impl_ptr();
+    VkPhysicalDevice physicalDevice = m_gpu.get_impl<VkPhysicalDevice>();
     VkSurfaceKHR surfaceKHR = (VkSurfaceKHR)surface;
 
     // Setup all our queues.
@@ -64,7 +65,7 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
         {
             VkBool32 supportsPresent = VK_FALSE;
             VkResult presentResult = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIdx, surfaceKHR, &supportsPresent);
-            GFX_ASSERT(presentResult, "Failed to get surface support for physical device.");
+            GFX_ASSERT(presentResult == VK_SUCCESS, "Failed to get surface support for physical device.");
 
             if( supportsPresent )
             {
@@ -127,7 +128,7 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
             return 1;
     }
 
-    m_surface = surface;
+    m_surface = surfaceKHR;
 
     // Create the queues.
     for( queue_family& family : m_queueFamilies )
@@ -140,8 +141,11 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
 
     // Create allocator
 #ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.initialise(m_instance, (VkPhysicalDevice)m_gpu.get_impl_ptr(), m_device);
+    m_allocator.initialise(m_instance, m_gpu.get_impl<VkPhysicalDevice>(), m_device);
 #endif
+
+    // Create command pools
+    m_commandPool.initialise();
 
     return 0;
 }
@@ -154,6 +158,7 @@ u32 device_vk::initialise(u32 gpuIdx)
 void device_vk::shutdown()
 {
     m_allocator.shutdown();
+    m_commandPool.shutdown();
 
     if( m_surface )
     {
@@ -163,6 +168,108 @@ void device_vk::shutdown()
     vkDestroyDevice(m_device, nullptr);
 
     return;
+}
+
+surface_capabilities device_vk::get_surface_capabilities() const
+{
+    GFX_ASSERT(m_surface, "Surface was not provided when creating graphics device.");
+
+    VkSurfaceKHR surface = (VkSurfaceKHR)m_surface;
+
+    VkSurfaceCapabilitiesKHR surfaceCapabilities{ };
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_gpu.get_impl<VkPhysicalDevice>(), surface, &surfaceCapabilities);
+
+    u32 formatCount{ 0 };
+    VkResult formatResult = vkGetPhysicalDeviceSurfaceFormatsKHR(m_gpu.get_impl<VkPhysicalDevice>(), surface, &formatCount, nullptr);
+    GFX_ASSERT(formatResult == VK_SUCCESS, "Failed to find supported surface formats.");
+
+    std::vector<VkSurfaceFormatKHR> formats;
+    formats.resize(formatCount);
+    formatResult = vkGetPhysicalDeviceSurfaceFormatsKHR(m_gpu.get_impl<VkPhysicalDevice>(), surface, &formatCount, formats.data());
+    GFX_ASSERT(formatResult == VK_SUCCESS, "Failed to find supported surface formats.");
+
+    u32 presentModeCount{ 0 };
+    VkResult presentResult = vkGetPhysicalDeviceSurfacePresentModesKHR(m_gpu.get_impl<VkPhysicalDevice>(), surface, &presentModeCount, nullptr);
+    GFX_ASSERT(presentResult == VK_SUCCESS, "Failed to find supported surface present modes.");
+
+    std::vector<VkPresentModeKHR> presentModes;
+    presentModes.resize(presentModeCount);
+    presentResult = vkGetPhysicalDeviceSurfacePresentModesKHR(m_gpu.get_impl<VkPhysicalDevice>(), surface, &presentModeCount, presentModes.data());
+    GFX_ASSERT(presentResult == VK_SUCCESS, "Failed to find supported surface present modes.");
+
+    std::vector<cdt::image_format> retFormats;
+    retFormats.reserve(formats.size());
+    for( VkSurfaceFormatKHR sf : formats )
+        retFormats.push_back(converters::get_format_vk_cdt(sf.format));
+
+    std::vector<present_mode> retPresentModes;
+    retPresentModes.reserve(presentModes.size());
+    for( VkPresentModeKHR pm : presentModes )
+        retPresentModes.push_back((present_mode)pm);
+
+    return surface_capabilities
+    {
+        retFormats,
+        retPresentModes,
+        (texture_usage_flags)surfaceCapabilities.supportedUsageFlags,
+        surfaceCapabilities.minImageCount,
+        surfaceCapabilities.maxImageCount
+    };
+}
+
+swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, present_mode present)
+{
+    VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+    createInfo.oldSwapchain = previous
+        ? previous->get_impl<VkSwapchainKHR>()
+        : VK_NULL_HANDLE;
+    createInfo.minImageCount = 2;
+    createInfo.imageExtent = { info.get_width(), info.get_height() };
+
+    // TODO
+    createInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+    createInfo.imageFormat = converters::get_format_vk(info.get_format());
+    createInfo.imageArrayLayers = info.get_depth();
+    createInfo.imageUsage = info.get_usage();
+
+    //TODO
+    createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    
+    createInfo.presentMode = (VkPresentModeKHR)present;
+    createInfo.surface = (VkSurfaceKHR)m_surface;
+    
+    VkSwapchainKHR retSwapchain{ VK_NULL_HANDLE };
+
+    VkResult result = vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &retSwapchain);
+    GFX_ASSERT(result == VK_SUCCESS, "Failed to create graphics swapchain.");
+
+    u32 imageCount{ 0 };
+    vkGetSwapchainImagesKHR(m_device, retSwapchain, &imageCount, nullptr);
+
+    std::vector<VkImage> images;
+    images.resize(imageCount);
+    vkGetSwapchainImagesKHR(m_device, retSwapchain, &imageCount, images.data());
+
+    std::vector<texture> textures;
+    textures.reserve(imageCount);
+
+    for( VkImage image : images )
+    {
+        textures.emplace_back();
+
+        memory_info blankInfo{ };
+        textures.back().initialise(blankInfo, info, image, nullptr);
+    }
+
+    swapchain retval;
+    retval.initialise(std::move(textures), retSwapchain);
+    return retval;
+}
+
+void device_vk::free_swapchain(swapchain* swapchain)
+{
+    vkDestroySwapchainKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), nullptr);
 }
 
 std::vector<gpu> device_vk::enumerate_gpus() const
@@ -193,12 +300,12 @@ std::vector<gpu> device_vk::enumerate_gpus() const
             totalSize += memProperties.memoryHeaps[heapIdx].size;
         }
 
-        out.emplace_back(properties.deviceName,
-                         i,
-                         totalSize,
-                         properties.deviceType == VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU);
-
-        out[i].set_impl_ptr(device);
+        out.push_back({ });
+        out.back().initialise(properties.deviceName,
+                              i,
+                              totalSize,
+                              properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,
+                              device);
     }
     return out;
 }
@@ -225,8 +332,8 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
     #endif
     }
 
-    buffer retval{ };
-    retval.init(memoryInfo, usage, pImpl);
+    buffer retval;
+    retval.initialise(memoryInfo, usage, pImpl);
     return retval;
 }
 
@@ -297,7 +404,9 @@ texture device_vk::create_texture(texture_info info, resource_view_type view_typ
         GFX_ASSERT(false, "Image view creation failed.");
     }
 
-    return texture(memoryInfo, info, pImpl, pViewImpl);
+    texture retval;
+    retval.initialise(memoryInfo, info, pImpl, pViewImpl);
+    return retval;
 }
 
 void device_vk::free_texture(texture* tex)
@@ -340,6 +449,29 @@ fence device_vk::create_fence(bool signaled)
 void device_vk::free_fence(fence* fence)
 {
     vkDestroyFence(m_device, fence->get_impl<VkFence>(), nullptr);
+}
+
+graphics_command_list device_vk::allocate_graphics_command_list()
+{
+    VkCommandBuffer buffer = m_commandPool.allocate_buffer_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    graphics_command_list retval{ };
+    retval.init(buffer);
+    return retval;
+}
+
+void device_vk::free_command_list(command_list* list)
+{
+    VkQueueFlags flags{ };
+    switch( list->get_type() )
+    {
+    case command_list_type::graphics:
+        flags = VK_QUEUE_GRAPHICS_BIT;
+        break;
+    default:
+        break;
+    }
+
+    m_commandPool.free_buffer_by_flags(list->get_impl<VkCommandBuffer>(), flags);
 }
 
 void device_vk::map(buffer* buf)
@@ -464,53 +596,66 @@ void device_vk::end(command_list* list)
     vkEndCommandBuffer(list->get_impl<VkCommandBuffer>());
 }
 
-void device_vk::submit(const std::vector<command_list*>& lists)
+void device_vk::submit(const std::vector<graphics_command_list*>& lists, fence* fence)
 {
-    // TODO Do something smarter here
-    std::unordered_map<VkQueue, std::vector<command_list*>> queueMap;
+    VkQueue queue = get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    std::vector<command_list*> castLists;
+    castLists.reserve(lists.size());
+
+    for( graphics_command_list* list : lists )
+    {
+        castLists.push_back(reinterpret_cast<command_list*>(list));
+    }
+
+    submit_impl(queue, castLists, fence);
+}
+
+void device_vk::submit(const std::vector<compute_command_list*>& lists, fence* fence)
+{
+    VkQueue queue = get_queue_by_flags(VK_QUEUE_COMPUTE_BIT);
+    std::vector<command_list*> castLists;
+    castLists.reserve(lists.size());
+
+    for( compute_command_list* list : lists )
+    {
+        castLists.push_back(reinterpret_cast<command_list*>(list));
+    }
+
+    submit_impl(queue, castLists, fence);
+}
+
+void device_vk::submit(const std::vector<present_command_list*>& lists, fence* fence)
+{
+    VkQueue queue = get_queue_by_present();
+    std::vector<command_list*> castLists;
+    castLists.reserve(lists.size());
+
+    for( present_command_list* list : lists )
+    {
+        castLists.push_back(reinterpret_cast<command_list*>(list));
+    }
+
+    submit_impl(queue, castLists, fence);
+}
+
+void device_vk::submit_impl(VkQueue queue, const std::vector<command_list*>& lists, fence* fence)
+{
+    VkSubmitInfo info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    info.commandBufferCount = u32_cast(lists.size());
+    std::vector<VkCommandBuffer> buffers;
+    buffers.reserve(lists.size());
 
     for( command_list* list : lists )
     {
-        VkQueue queue;
-        if( list->get_operation_flags() & cmd_op_present )
-        {
-            queue = get_queue_by_present();
-        }
-        else
-        {
-            VkQueueFlags flags{ };
-            if( list->get_operation_flags() & cmd_op_graphics )
-                flags |= VK_QUEUE_GRAPHICS_BIT;
-            if( list->get_operation_flags() & cmd_op_compute )
-                flags |= VK_QUEUE_COMPUTE_BIT;
-
-            queue = get_queue_by_flags(flags);
-        }
-
-        if( queueMap.find(queue) == queueMap.end() )
-        {
-            queueMap.insert(std::pair<VkQueue, std::vector<command_list*>>(queue, { }));
-        }
-
-        queueMap[queue].push_back(list);
+        buffers.push_back(list->get_impl<VkCommandBuffer>());
     }
 
-    for( auto& pair : queueMap )
-    {
-        VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
-        std::vector<VkCommandBuffer> buffers;
-        buffers.reserve(pair.second.size());
+    info.pCommandBuffers = buffers.data();
 
-        for( command_list* list : pair.second )
-        {
-            buffers.push_back(list->get_impl<VkCommandBuffer>());
-        }
-
-        submitInfo.commandBufferCount = u32_cast(buffers.size());
-        submitInfo.pCommandBuffers = buffers.data();
-
-        vkQueueSubmit(pair.first, 1, &submitInfo, VK_NULL_HANDLE);
-    }
+    VkFence submitFence = fence
+        ? fence->get_impl<VkFence>()
+        : VK_NULL_HANDLE;
+    vkQueueSubmit(queue, 1, &info, submitFence);
 }
 
 void device_vk::draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
@@ -600,6 +745,11 @@ VkQueue device_vk::get_queue_by_present(u32 idx) const
     return VK_NULL_HANDLE;
 }
 
+u32 device_vk::get_queue_family_count() const
+{
+    return u32_cast(m_queueFamilies.size());
+}
+
 u32 device_vk::get_family_index_by_flags(VkQueueFlags flags) const
 {
     for( u64 i = 0; i < m_queueFamilies.size(); i++ )
@@ -618,6 +768,16 @@ bool device_vk::queue_family_supports_present(u32 familyIdx) const
 {
     GFX_ASSERT(u32_cast(m_queueFamilies.size()) < familyIdx, "Family index is invalid.");
     return m_queueFamilies[familyIdx].flags & queue_family_flag_bit::supports_present;
+}
+
+VkDevice device_vk::get_impl_device() const
+{
+    return m_device;
+}
+
+VkInstance device_vk::get_impl_instance() const
+{
+    return m_instance;
 }
 
 void device_vk::create_instance()
@@ -767,7 +927,7 @@ void device_vk::create_instance()
 
 std::vector<const char*> device_vk::get_instance_extensions() const
 {
-    return { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+    return { VK_EXT_DEBUG_UTILS_EXTENSION_NAME, "VK_KHR_surface", "VK_KHR_win32_surface" };
 }
 
 std::vector<const char*> device_vk::get_instance_layers() const
@@ -777,7 +937,7 @@ std::vector<const char*> device_vk::get_instance_layers() const
 
 std::vector<const char*> device_vk::get_device_extensions() const
 {
-    return { };
+    return { "VK_KHR_swapchain" };
 }
 
 void device_vk::dump_info() const
@@ -906,3 +1066,4 @@ void destroy_debug_utils_messenger(VkInstance instance,
 
 
 } // gfx
+#endif // GFX_SUPPORTS_VULKAN

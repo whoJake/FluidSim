@@ -24,6 +24,7 @@ class Driver
 {
 public:
     static u32 initialise(DriverMode mode);
+    static u32 initialise(DriverMode mode, surface_create_func surface_func);
     static void shutdown();
 
     static device* get_device();

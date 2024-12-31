@@ -2,31 +2,23 @@
 
 #include "resource.h"
 #include "cdt/imageformats.h"
+#include "types.h"
+#include "gfxdefines.h"
 
 namespace gfx
 {
 
-// Ordered to match VkImageUsageFlagBits
-enum texture_usage_flag_bits : u32
-{
-    texture_transfer_src = 1 << 0,
-    texture_transfer_dst = 1 << 1,
-    sampled = 1 << 2,
-    storage = 1 << 3,
-    color = 1 << 4,
-    depth_stencil = 1 << 5,
-};
-
-using texture_usage_flags = std::underlying_type_t<texture_usage_flag_bits>;
-
 class texture_info
 {
 public:
-    texture_info(cdt::image_format format, texture_usage_flags usage, u32 width, u32 height, u32 depthOrLayers);
+    texture_info() = default;
     ~texture_info() = default;
 
     DEFAULT_MOVE(texture_info);
     DEFAULT_COPY(texture_info);
+
+    void initialise(const texture_info& other);
+    void initialise(cdt::image_format format, texture_usage_flags usage, u32 width, u32 height, u32 depthOrLayers);
 
     cdt::image_format get_format() const;
     u32 get_width() const;
@@ -48,31 +40,26 @@ class texture :
     public texture_info
 {
 public:
-    texture(memory_info allocation,
-            texture_info info,
-            void* pImpl,
-            void* pImplView = nullptr);
+    texture() = default;
     ~texture() = default;
 
     DEFAULT_MOVE(texture);
     DEFAULT_COPY(texture);
 
+    void initialise(memory_info allocation, texture_info info, void* pImpl, void* pImplView = nullptr);
+
     void set_resource_view_type(resource_view_type type, void* pImplView = nullptr);
 
-    template<typename T>
-    T get_impl()
-    {
-        return static_cast<T>(m_impl);
-    }
+    GFX_HAS_IMPL(m_pImpl);
 
     template<typename T>
     T get_view_impl()
     {
-        return static_cast<T>(m_implView);
+        return static_cast<T>(m_pImplView);
     }
 private:
-    void* m_impl;
-    void* m_implView;
+    void* m_pImpl;
+    void* m_pImplView;
 };
 
 } // gfx

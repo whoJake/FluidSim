@@ -27,6 +27,15 @@ public:
     virtual u32 initialise(u32 gpuIdx) = 0;
     virtual void shutdown() = 0;
 
+#ifdef GFX_EXT_SWAPCHAIN
+    virtual surface_capabilities get_surface_capabilities() const = 0;
+
+    virtual swapchain create_swapchain(swapchain* previous, texture_info info, present_mode present_mode) = 0;
+    virtual void free_swapchain(swapchain* swapchain) = 0;
+
+    virtual u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) = 0;
+#endif // GFX_EXT_SWAPCHAIN
+
     virtual std::vector<gpu> enumerate_gpus() const = 0;
 
     virtual buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant) = 0;
@@ -38,13 +47,15 @@ public:
     virtual fence create_fence(bool signaled = false) = 0;
     virtual void free_fence(fence* fence) = 0;
 
+    virtual graphics_command_list allocate_graphics_command_list() = 0;
+    virtual void free_command_list(command_list* list) = 0;
+
     virtual void map(buffer* buf) = 0;
     virtual void map(texture* tex) = 0;
     virtual void unmap(texture* tex) = 0;
     virtual void unmap(buffer* buf) = 0;
 
     virtual void wait_idle() = 0;
-    virtual u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) = 0;
 
     virtual bool wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const = 0;
     virtual bool reset_fences(fence* pFences, u32 count) = 0;
@@ -54,7 +65,10 @@ public:
     virtual void reset(command_list* list) = 0;
     virtual void begin(command_list* list) = 0;
     virtual void end(command_list* list) = 0;
-    virtual void submit(const std::vector<command_list*>& lists) = 0;
+
+    virtual void submit(const std::vector<graphics_command_list*>& lists, fence* fence = nullptr) = 0;
+    virtual void submit(const std::vector<compute_command_list*>& lists, fence* fence = nullptr) = 0;
+    virtual void submit(const std::vector<present_command_list*>& lists, fence* fence = nullptr) = 0;
 
     // Commands
     virtual void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance) = 0;
