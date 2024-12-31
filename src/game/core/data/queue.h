@@ -73,7 +73,7 @@ public:
         if( m_tail != m_head )
         {
             u64 n = (m_tail + 1) % m_data.size();
-            *item = m_data[n];
+            *item = m_data[m_tail];
             m_tail = n;
             return true;
         }
@@ -89,7 +89,7 @@ public:
         if( m_tail != m_head )
         {
             u64 n = (m_tail + 1) % m_data.size();
-            *item = &m_data[n];
+            *item = &m_data[m_tail];
             m_tail = n;
             return true;
         }
