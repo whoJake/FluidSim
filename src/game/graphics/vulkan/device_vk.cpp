@@ -242,6 +242,7 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
     VkSwapchainKHR retSwapchain{ VK_NULL_HANDLE };
 
     VkResult result = vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &retSwapchain);
+    GFX_ASSERT(result != VK_ERROR_INITIALIZATION_FAILED, "Failed to create graphics swapchain. Ensure that '{}' device extension is enabled.", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     GFX_ASSERT(result == VK_SUCCESS, "Failed to create graphics swapchain.");
 
     u32 imageCount{ 0 };
