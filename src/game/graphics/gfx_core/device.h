@@ -34,6 +34,9 @@ public:
     virtual void free_swapchain(swapchain* swapchain) = 0;
 
     virtual u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) = 0;
+
+    // semaphores? :(
+    virtual void present(swapchain* swapchain, u32 image_index) = 0;
 #endif // GFX_EXT_SWAPCHAIN
 
     virtual std::vector<gpu> enumerate_gpus() const = 0;
@@ -76,6 +79,11 @@ public:
 
     virtual void bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index) = 0;
     virtual void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) = 0;
+
+    // virtual void copy_texture(texture* src, texture_layout src_layout, texture* dst, texture_layout dst_layout, texture_region? region);
+    virtual void copy_texture_to_texture(command_list* list, texture* src, texture* dst) = 0;
+    virtual void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) = 0;
+    virtual void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) = 0;
 
     // virtual void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index = 0, void* pAux = nullptr) = 0;
 

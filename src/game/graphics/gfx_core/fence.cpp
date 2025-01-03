@@ -5,7 +5,7 @@ namespace gfx
 {
 
 fence::fence(void* pImpl) :
-    m_impl(pImpl)
+    m_pImpl(pImpl)
 { }
 
 fence::~fence()

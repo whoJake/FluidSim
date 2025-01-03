@@ -74,6 +74,17 @@ void command_list::submit(fence* fence)
     }
 }
 
+void command_list::texture_memory_barrier(texture* texture, texture_layout dst_layout)
+{
+    GFX_CALL(texture_barrier, this, texture, dst_layout);
+    texture->set_layout(dst_layout);
+}
+
+const command_list_type& command_list::get_type() const
+{
+    return m_type;
+}
+
 transfer_command_list::transfer_command_list() :
     command_list(command_list_type::transfer)
 { }
@@ -82,9 +93,14 @@ transfer_command_list::transfer_command_list(command_list_type override_type) :
     command_list(override_type)
 { }
 
-const command_list_type& command_list::get_type() const
+void transfer_command_list::copy_to_texture(texture* src, texture* dst)
 {
-    return m_type;
+    GFX_CALL(copy_texture_to_texture, reinterpret_cast<command_list*>(this), src, dst);
+}
+
+void transfer_command_list::copy_to_texture(buffer* src, texture* dst)
+{
+    GFX_CALL(copy_buffer_to_texture, reinterpret_cast<command_list*>(this), src, dst);
 }
 
 graphics_command_list::graphics_command_list() :

@@ -170,6 +170,7 @@ void device_vk::shutdown()
     return;
 }
 
+#ifdef GFX_EXT_SWAPCHAIN
 surface_capabilities device_vk::get_surface_capabilities() const
 {
     GFX_ASSERT(m_surface, "Surface was not provided when creating graphics device.");
@@ -272,6 +273,7 @@ void device_vk::free_swapchain(swapchain* swapchain)
 {
     vkDestroySwapchainKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), nullptr);
 }
+#endif // GFX_EXT_SWAPCHAIN
 
 std::vector<gpu> device_vk::enumerate_gpus() const
 {
@@ -520,16 +522,17 @@ void device_vk::wait_idle()
     vkDeviceWaitIdle(m_device);
 }
 
+#ifdef GFX_EXT_SWAPCHAIN
 u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout)
 {
-    VkFence waitFence{ VK_NULL_HANDLE };
+    VkFence signalFence{ VK_NULL_HANDLE };
     if( fence )
     {
-        waitFence = fence->get_impl<VkFence>();
+        signalFence = fence->get_impl<VkFence>();
     }
 
     u32 retval{ 0 };
-    VkResult result = vkAcquireNextImageKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), timeout, VK_NULL_HANDLE, waitFence, &retval);
+    VkResult result = vkAcquireNextImageKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), timeout, VK_NULL_HANDLE, signalFence, &retval);
 
     switch( result )
     {
@@ -541,6 +544,29 @@ u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeou
 
     return retval;
 }
+
+void device_vk::present(swapchain* swapchain, u32 image_index)
+{
+    VkSwapchainKHR sc = swapchain->get_impl<VkSwapchainKHR>();
+    VkResult result;
+
+    VkPresentInfoKHR presentInfo{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &sc;
+    presentInfo.pImageIndices = &image_index;
+    presentInfo.pResults = &result;
+
+    vkQueuePresentKHR(get_queue_by_present(), &presentInfo);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Error presenting swapchain image index {}", image_index);
+        break;
+    }
+}
+#endif // GFX_EXT_SWAPCHAIN
 
 bool device_vk::wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const
 {
@@ -704,6 +730,99 @@ void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buff
     // TODO offset
     VkDeviceSize offset = 0;
     vkCmdBindIndexBuffer(list->get_impl<VkCommandBuffer>(), buffer->get_impl<VkBuffer>(), offset, type);
+}
+
+void device_vk::copy_texture_to_texture(command_list* list, texture* src, texture* dst)
+{
+    VkImageSubresourceLayers srcSubresource{ };
+    srcSubresource.aspectMask = cdt::is_depth_format(src->get_format())
+        ? VK_IMAGE_ASPECT_DEPTH_BIT
+        : VK_IMAGE_ASPECT_COLOR_BIT;
+    srcSubresource.mipLevel = 0;
+    srcSubresource.baseArrayLayer = 0;
+    srcSubresource.layerCount = 1;
+
+    VkImageSubresourceLayers dstSubresource{ };
+    dstSubresource.aspectMask = cdt::is_depth_format(dst->get_format())
+        ? VK_IMAGE_ASPECT_DEPTH_BIT
+        : VK_IMAGE_ASPECT_COLOR_BIT;
+    dstSubresource.mipLevel = 0;
+    dstSubresource.baseArrayLayer = 0;
+    dstSubresource.layerCount = 1;
+
+    VkImageCopy defaultRegion{ };
+    defaultRegion.srcOffset = { 0, 0, 0 };
+    defaultRegion.srcSubresource = srcSubresource;
+    defaultRegion.dstOffset = { 0, 0, 0 };
+    defaultRegion.dstSubresource = dstSubresource;
+    defaultRegion.extent = { src->get_width(), src->get_height(), src->get_depth() };
+
+    vkCmdCopyImage(
+        list->get_impl<VkCommandBuffer>(),
+        src->get_impl<VkImage>(),
+        converters::get_layout_vk(src->get_layout()),
+        dst->get_impl<VkImage>(),
+        converters::get_layout_vk(dst->get_layout()),
+        1,
+        &defaultRegion);
+}
+
+void device_vk::copy_buffer_to_texture(command_list* list, buffer* src, texture* dst)
+{
+    VkImageSubresourceLayers dstSubresource{ };
+    dstSubresource.aspectMask = cdt::is_depth_format(dst->get_format())
+        ? VK_IMAGE_ASPECT_DEPTH_BIT
+        : VK_IMAGE_ASPECT_COLOR_BIT;
+    dstSubresource.mipLevel = 0;
+    dstSubresource.baseArrayLayer = 0;
+    dstSubresource.layerCount = 1;
+
+    VkBufferImageCopy copy{ };
+    copy.bufferOffset = 0;
+    copy.bufferRowLength = 0;
+    copy.bufferImageHeight = 0;
+    copy.imageSubresource = dstSubresource;
+    copy.imageOffset = { 0, 0 };
+    copy.imageExtent = { dst->get_width(), dst->get_height(), dst->get_depth() };
+
+    vkCmdCopyBufferToImage(
+        list->get_impl<VkCommandBuffer>(),
+        src->get_impl<VkBuffer>(),
+        dst->get_impl<VkImage>(),
+        converters::get_layout_vk(dst->get_layout()),
+        1,
+        &copy);
+}
+
+void device_vk::texture_barrier(command_list* list, texture* texture, texture_layout dst_layout)
+{
+    VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    // Aspect masks?
+    barrier.oldLayout = converters::get_layout_vk(texture->get_layout());
+    barrier.newLayout = converters::get_layout_vk(dst_layout);
+    barrier.image = texture->get_impl<VkImage>();
+    barrier.subresourceRange =
+    {
+        // Aspect mask needs an abstraction
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+    };
+
+    // Pipeline stage? Comes into synchronization problem.
+    vkCmdPipelineBarrier(
+        list->get_impl<VkCommandBuffer>(),
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier);
 }
 
 VkQueue device_vk::get_queue(u32 familyIdx, u32 idx) const

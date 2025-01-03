@@ -1,6 +1,8 @@
 #pragma once
 
 #include "memory.h"
+#include "gfxdefines.h"
+#include "types.h"
 
 namespace gfx
 {
@@ -73,6 +75,20 @@ public:
     inline bool is_persistant() const
     {
         return m_memoryInfo.persistant;
+    }
+
+    inline texture_layout get_layout() const
+    {
+        return static_cast<texture_layout>(m_memoryInfo.layout);
+    }
+
+    // Should not be done outside of command lists
+    // TODO how can this be clearer
+    inline void set_layout(texture_layout dst_layout)
+    {
+        GFX_ASSERT(is_texture(), "Setting a texture layout for memory that is not a texture.");
+
+        m_memoryInfo.layout = u32_cast(dst_layout);
     }
 protected:
     memory_info m_memoryInfo;

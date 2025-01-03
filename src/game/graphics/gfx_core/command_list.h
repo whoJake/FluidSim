@@ -3,6 +3,7 @@
 #include "pipeline_state.h"
 #include "buffer.h"
 #include "fence.h"
+#include "texture.h"
 
 namespace gfx
 {
@@ -31,7 +32,11 @@ public:
     void submit(fence* fence = nullptr);
     const command_list_type& get_type() const;
     
-    // commands
+    // Commands
+    // void texture_memory_barrier(texture* texture, texture_layout dst_layout, memory_access_mask dst_access);
+    void texture_memory_barrier(texture* texture, texture_layout dst_layout);
+    // Pipeline barriers here !
+
     GFX_HAS_IMPL(m_pImpl);
 protected:
     command_list(command_list_type type);
@@ -51,9 +56,9 @@ public:
     transfer_command_list();
     ~transfer_command_list() = default;
 
-
     // Commands
-
+    void copy_to_texture(texture* src, texture* dst);
+    void copy_to_texture(buffer* src, texture* dst);
 protected:
     transfer_command_list(command_list_type override_type);
 };

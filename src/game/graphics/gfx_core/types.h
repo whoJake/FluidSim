@@ -111,9 +111,9 @@ enum texture_usage_flag_bits : u32
 
 using texture_usage_flags = std::underlying_type_t<texture_usage_flag_bits>;
 
-// Ordered to match VkImageLayout
 enum class texture_layout : u32
 {
+    // Matches VkImageLayout
     undefined = 0,
     general,
     color_attachment,
@@ -123,6 +123,9 @@ enum class texture_layout : u32
     transfer_src,
     transfer_dst,
     preinitialized,
+
+    // Does not match VkImageLayout
+    present,
 
     count,
 };

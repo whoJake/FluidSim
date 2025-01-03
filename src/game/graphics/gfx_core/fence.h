@@ -1,4 +1,5 @@
 #pragma once
+#include "gfxdefines.h"
 
 namespace gfx
 {
@@ -13,13 +14,9 @@ public:
     bool check() const;
     bool reset();
 
-    template<typename T>
-    T get_impl() const
-    {
-        return static_cast<T>(m_impl);
-    }
+    GFX_HAS_IMPL(m_pImpl);
 private:
-    void* m_impl;
+    void* m_pImpl;
 };
 
 } // gfx

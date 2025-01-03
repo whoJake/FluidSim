@@ -1,5 +1,6 @@
 #include "vma_allocator.h"
 #include "vkconverts.h"
+#include "gfx_core/resource.h"
 
 #ifdef GFX_SUPPORTS_VULKAN
 namespace gfx
@@ -105,6 +106,7 @@ vma_allocation<VkImage> vma_allocator::allocate_image(texture_info info, resourc
     imageInfo.queueFamilyIndexCount = 0;
     imageInfo.pQueueFamilyIndices = 0;
     imageInfo.arrayLayers = 1;
+    // imageInfo.initialLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
     switch( type )
     {

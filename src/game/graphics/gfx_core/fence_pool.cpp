@@ -4,24 +4,28 @@
 namespace gfx
 {
 
-fence_pool::fence_pool(u32 count) :
-    m_fences(new fence[count]),
-    m_activeFences(0),
-    m_capacity(count)
+void fence_pool::shutdown()
 {
-    for( u32 i = 0; i < count; i++ )
-    {
-        m_fences[i] = GFX_CALL(create_fence, false);
-    }
-}
-
-fence_pool::~fence_pool()
-{
-    // TODO assert active_fences = 0
+    GFX_ASSERT(m_fences, "Fence pool hasn't been initialised.");
+    GFX_ASSERT(m_activeFences == 0, "Fence pool has not been fully reset.");
 
     for( u32 i = 0; i < m_capacity; i++ )
     {
         GFX_CALL(free_fence, &m_fences[i]);
+    }
+}
+
+void fence_pool::initialise(u32 count)
+{
+    GFX_ASSERT(!m_fences, "Fence pool is already initialised.");
+
+    m_fences = new fence[count];
+    m_activeFences = 0;
+    m_capacity = 0;
+
+    for( u32 i = 0; i < count; i++ )
+    {
+        m_fences[i] = GFX_CALL(create_fence, false);
     }
 }
 

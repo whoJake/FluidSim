@@ -10,9 +10,10 @@ class fence_pool
 {
 public:
     fence_pool() = default;
-    fence_pool(u32 count);
+    ~fence_pool() = default;
 
-    ~fence_pool();
+    void initialise(u32 count);
+    void shutdown();
 
     fence* request_fence();
     bool wait(u64 timeout = u64_max);

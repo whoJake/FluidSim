@@ -128,5 +128,27 @@ constexpr VkImageViewType get_view_type_vk(resource_view_type type, bool isArray
     }
 }
 
+constexpr VkImageLayout get_layout_vk(texture_layout layout)
+{
+    switch( layout )
+    {
+    case texture_layout::present:
+        return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    default:
+        return (VkImageLayout)layout;
+    }
+}
+
+constexpr texture_layout get_layout_vk(VkImageLayout layout)
+{
+    switch( layout )
+    {
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+        return texture_layout::present;
+    default:
+        return (texture_layout)layout;
+    }
+}
+
 } // converters
 } // gfx

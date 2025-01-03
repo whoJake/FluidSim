@@ -28,7 +28,8 @@ struct memory_info
     u32 type : 2; // 2
     u32 persistant : 1; // 3
     u32 viewType : 3; // 6
-    u32 unused : 26; // 32
+    u32 layout : 4; // 10
+    u32 unused : 22; // 32
 };
 
 } // gfx

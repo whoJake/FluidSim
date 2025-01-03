@@ -1,5 +1,7 @@
+
 #pragma once
 
+#include "gfx_core/fence.h"
 #include "gfx_core/types.h"
 #include "gfx_core/texture.h"
 #include "cdt/imageformats.h"
@@ -23,20 +25,24 @@ public:
     ~swapchain() = default;
 
     void initialise(std::vector<texture>&& textures, void* pImpl);
+    u32 aquire_next_image(u64 timeout = u64_max);
+    void wait_for_index(u32 index, u64 timeout = u64_max);
+
+    void present(u32 index);
 
     u32 get_image_count() const;
 
     const texture* get_image(u32 index) const;
     texture* get_image(u32 index);
 
-    template<typename T>
-    T get_impl()
-    {
-        return static_cast<T>(m_impl);
-    }
+    GFX_HAS_IMPL(m_pImpl);
 private:
     std::vector<texture> m_images;
-    void* m_impl;
+    std::vector<fence> m_aquireFences;
+
+    // Lots of unused bits for stuff here.
+    u64 m_fenceIndex;
+    void* m_pImpl;
 };
 
 } // gfx
