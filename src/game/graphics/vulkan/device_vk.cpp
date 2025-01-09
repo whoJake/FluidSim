@@ -1,7 +1,9 @@
 #include "device_vk.h"
-#include "vkconverts.h"
 
 #ifdef GFX_SUPPORTS_VULKAN
+#include "vkconverts.h"
+#include "shader_vk.h"
+
 namespace gfx
 {
 
@@ -454,6 +456,30 @@ void device_vk::free_fence(fence* fence)
     vkDestroyFence(m_device, fence->get_impl<VkFence>(), nullptr);
 }
 
+dependency device_vk::create_dependency(const char* debug_name)
+{
+    dependency retval{ };
+    VkSemaphore retSemaphore{ VK_NULL_HANDLE };
+
+    VkSemaphoreCreateInfo createInfo{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    VkResult result = vkCreateSemaphore(m_device, &createInfo, nullptr, &retSemaphore);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create Semaphore.");
+    }
+
+    retval.initialise(retSemaphore, debug_name);
+    return retval;
+}
+
+void device_vk::free_dependency(dependency* dep)
+{
+    vkDestroySemaphore(m_device, dep->get_impl<VkSemaphore>(), nullptr);
+}
+
 graphics_command_list device_vk::allocate_graphics_command_list()
 {
     VkCommandBuffer buffer = m_commandPool.allocate_buffer_by_flags(VK_QUEUE_GRAPHICS_BIT);
@@ -475,6 +501,34 @@ void device_vk::free_command_list(command_list* list)
     }
 
     m_commandPool.free_buffer_by_flags(list->get_impl<VkCommandBuffer>(), flags);
+}
+
+shader device_vk::create_shader(std::vector<shader_stage>&& stages, const std::vector<void*>& stages_data, const std::vector<u64>& stages_data_size)
+{
+    GFX_ASSERT(stages.size() == stages_data.size(), "A stages data must be provided for each shader stage.");
+    GFX_ASSERT(stages.size() == stages_data_size.size(), "A stages data size must be provided for each shader stage.");
+
+    shader_vk* pImpl = new shader_vk();
+    pImpl->stages.reserve(stages.size());
+
+    for( u64 i = 0; i < stages.size(); i++ )
+    {
+        shader_stage_vk stage{ };
+
+        VkShaderModuleCreateInfo moduleCreateInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+        moduleCreateInfo.codeSize = stages_data_size[i];
+        moduleCreateInfo.pCode = (u32*)stages_data[i];
+
+        VkResult moduleResult = vkCreateShaderModule(m_device, &moduleCreateInfo, nullptr, &stage.shader_module);
+        GFX_ASSERT(moduleResult == VK_SUCCESS, "Failed to create shader module.");
+
+        // Descriptor set layouts?
+    }
+}
+
+void device_vk::free_shader(shader* shader)
+{
+
 }
 
 void device_vk::map(buffer* buf)
@@ -545,7 +599,7 @@ u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeou
     return retval;
 }
 
-void device_vk::present(swapchain* swapchain, u32 image_index)
+void device_vk::present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies)
 {
     VkSwapchainKHR sc = swapchain->get_impl<VkSwapchainKHR>();
     VkResult result;
@@ -555,6 +609,19 @@ void device_vk::present(swapchain* swapchain, u32 image_index)
     presentInfo.pSwapchains = &sc;
     presentInfo.pImageIndices = &image_index;
     presentInfo.pResults = &result;
+
+    if( !dependencies.empty() )
+    {
+        std::vector<VkSemaphore> waitSema;
+        waitSema.reserve(dependencies.size());
+        for( const dependency* dep : dependencies )
+        {
+            waitSema.push_back(dep->get_impl<VkSemaphore>());
+        }
+
+        presentInfo.waitSemaphoreCount = u32_cast(waitSema.size());
+        presentInfo.pWaitSemaphores = waitSema.data();
+    }
 
     vkQueuePresentKHR(get_queue_by_present(), &presentInfo);
     switch( result )
@@ -678,6 +745,26 @@ void device_vk::submit_impl(VkQueue queue, const std::vector<command_list*>& lis
     }
 
     info.pCommandBuffers = buffers.data();
+    std::vector<VkSemaphore> waitSema;
+    std::vector<VkSemaphore> signalSema;
+
+    for( const command_list* list : lists )
+    {
+        for( const dependency* dep : list->get_wait_dependencies() )
+        {
+            waitSema.push_back(dep->get_impl<VkSemaphore>());
+        }
+
+        if( list->get_signal_dependency() != nullptr )
+        {
+            signalSema.push_back(list->get_signal_dependency()->get_impl<VkSemaphore>());
+        }
+    }
+
+    info.waitSemaphoreCount = u32_cast(waitSema.size());
+    info.pWaitSemaphores = waitSema.data();
+    info.signalSemaphoreCount = u32_cast(signalSema.size());
+    info.pSignalSemaphores = signalSema.data();
 
     VkFence submitFence = fence
         ? fence->get_impl<VkFence>()

@@ -45,7 +45,7 @@ public:
 
     u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) override;
 
-    void present(swapchain* swapchain, u32 image_index) override;
+    void present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies) override;
 #endif // GFX_EXT_SWAPCHAIN
 
     std::vector<gpu> enumerate_gpus() const override;
@@ -59,8 +59,14 @@ public:
     fence create_fence(bool signaled = false) override;
     void free_fence(fence* fence) override;
 
+    dependency create_dependency(const char* debug_name) override;
+    void free_dependency(dependency* dep) override;
+
     graphics_command_list allocate_graphics_command_list() override;
     void free_command_list(command_list* list) override;
+
+    shader create_shader(std::vector<shader_stage>&& stages, const std::vector<void*>& stages_data, const std::vector<u64>& stages_data_size) override;
+    void free_shader(shader* shader) override;
 
     void map(buffer* buf) override;
     void map(texture* tex) override;

@@ -150,5 +150,21 @@ constexpr texture_layout get_layout_vk(VkImageLayout layout)
     }
 }
 
+constexpr VkShaderStageFlags get_shader_stage_flags_vk(shader_stage_flags flags)
+{
+    VkShaderStageFlags retval{ };
+
+    if( flags & vertex_shader_stage )
+        retval |= VK_SHADER_STAGE_VERTEX_BIT;
+    if( flags & geometry_shader_stage )
+        retval |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    if( flags & fragment_shader_stage )
+        retval |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    if( flags & compute_shader_stage )
+        retval |= VK_SHADER_STAGE_COMPUTE_BIT;
+
+    return retval;
+}
+
 } // converters
 } // gfx

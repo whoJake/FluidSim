@@ -1,10 +1,12 @@
-
 #pragma once
+#include "gfxdefines.h"
 
-#include "gfx_core/fence.h"
-#include "gfx_core/types.h"
-#include "gfx_core/texture.h"
+#ifdef GFX_EXT_SWAPCHAIN
+#include "fence.h"
+#include "types.h"
+#include "texture.h"
 #include "cdt/imageformats.h"
+#include "dependency.h"
 
 namespace gfx
 {
@@ -26,9 +28,9 @@ public:
 
     void initialise(std::vector<texture>&& textures, void* pImpl);
     u32 aquire_next_image(u64 timeout = u64_max);
-    void wait_for_index(u32 index, u64 timeout = u64_max);
+    void wait_on_present(u32 index, u64 timeout = u64_max);
 
-    void present(u32 index);
+    void present(u32 index, const std::vector<dependency*>& dependencies = { });
 
     u32 get_image_count() const;
 
@@ -46,3 +48,4 @@ private:
 };
 
 } // gfx
+#endif // GFX_EXT_SWAPCHAIN

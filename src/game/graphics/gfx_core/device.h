@@ -8,8 +8,10 @@
 #include "texture.h"
 #include "fence.h"
 #include "command_list.h"
+#include "dependency.h"
+#include "shader.h"
 
-#include "gfx_ext/swapchain.h"
+#include "swapchain.h"
 
 namespace gfx
 {
@@ -35,8 +37,7 @@ public:
 
     virtual u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) = 0;
 
-    // semaphores? :(
-    virtual void present(swapchain* swapchain, u32 image_index) = 0;
+    virtual void present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies = { }) = 0;
 #endif // GFX_EXT_SWAPCHAIN
 
     virtual std::vector<gpu> enumerate_gpus() const = 0;
@@ -49,6 +50,12 @@ public:
 
     virtual fence create_fence(bool signaled = false) = 0;
     virtual void free_fence(fence* fence) = 0;
+
+    virtual dependency create_dependency(const char* debug_name = nullptr) = 0;
+    virtual void free_dependency(dependency* dep) = 0;
+
+    virtual shader create_shader(std::vector<shader_stage>&& stages, const std::vector<void*>& stages_data, const std::vector<u64>& stages_data_size) = 0;
+    virtual void free_shader(shader* shader) = 0;
 
     virtual graphics_command_list allocate_graphics_command_list() = 0;
     virtual void free_command_list(command_list* list) = 0;

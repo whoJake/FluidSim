@@ -1,6 +1,8 @@
 #include "AppStartup.h"
 
 #include "system/log.h"
+#include "system/timer.h"
+#include <chrono>
 #include "system/details/log_console.h"
 #include "system/details/basic_log.h"
 #include "gfx_core/Driver.h"
@@ -52,10 +54,7 @@ int main(int argc, const char* argv[])
 	gfx::swapchain swapchain = device->create_swapchain(nullptr, tInfo, gfx::present_mode::immediate);
 	u32 swapIndex = swapchain.aquire_next_image();
 	gfx::texture* swapTexture = swapchain.get_image(swapIndex);
-	swapchain.wait_for_index(swapIndex);
-
-	gfx::fence swapFence = device->create_fence(true);
-	swapFence.reset();
+	swapchain.wait_on_present(swapIndex);
 
 	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("assets/images/new_years.png");
 
@@ -67,34 +66,52 @@ int main(int argc, const char* argv[])
 
 	memcpy(buffer.get_memory_info().mapped, img->data(), img->get_size());
 
-	gfx::graphics_command_list swapList = device->allocate_graphics_command_list();
-	swapList.begin();
+	{
+		gfx::fence swapFence = device->create_fence(false);
+		gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
 
-	// buffer -> image
-	swapList.texture_memory_barrier(&texture, gfx::texture_layout::transfer_dst);
-	swapList.copy_to_texture(&buffer, &texture);
+		sys::timer<sys::microseconds> time("Record command list. {}");
+		gfx::graphics_command_list swapList = device->allocate_graphics_command_list();
+		swapList.set_signal_dependency(&dep);
 
-	// image -> swapchain
-	swapList.texture_memory_barrier(&texture, gfx::texture_layout::transfer_src);
-	swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::transfer_dst);
-	swapList.copy_to_texture(&texture, swapTexture);
+		swapList.begin();
 
-	swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::present);
-	swapList.end();
-	swapList.submit(&swapFence);
+		// buffer -> image
+		swapList.texture_memory_barrier(&texture, gfx::texture_layout::transfer_dst);
+		swapList.copy_to_texture(&buffer, &texture);
 
-	swapFence.wait();
+		// image -> swapchain
+		swapList.texture_memory_barrier(&texture, gfx::texture_layout::transfer_src);
+		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::transfer_dst);
+		swapList.copy_to_texture(&texture, swapTexture);
+
+		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::present);
+		swapList.end();
+		swapList.submit(&swapFence);
+
+		swapchain.present(swapIndex, { &dep });
+
+		swapFence.wait();
+		device->free_command_list(&swapList);
+		device->free_dependency(&dep);
+		device->free_fence(&swapFence);
+
+	}
 
 	device->free_texture(&texture);
 	device->free_buffer(&buffer);
-	device->free_command_list(&swapList);
-	device->free_fence(&swapFence);
 
-	swapchain.present(swapIndex);
 
+	sys::moment time = sys::now();
 	while( 1 )
 	{
 		window.process_events();
+
+		sys::moment now = sys::now();
+		u64 us = std::chrono::floor<std::chrono::microseconds>(now - time).count();
+		u64 fps = u64_cast(1.0 / f64_cast(us / 1000000.0));
+		window.set_title(std::format("{} fps", fps));
+		time = now;
 	}
 
 	device->free_swapchain(&swapchain);

@@ -29,6 +29,8 @@
     #define GFX_ASSERT(val, fmt, ...)
 #endif // CFG_DEBUG
 
+#define GFX_DEPENDENCY_NAMES 1
+
 #define GFX_NUM_FRAMES_AHEAD 1
 #define GFX_NUM_ACTIVE_FRAMES GFX_NUM_FRAMES_AHEAD + 1
 

@@ -141,4 +141,54 @@ enum class present_mode
     count,
 };
 
+enum shader_stage_flag_bits : u32
+{
+    vertex_shader_stage = 1 << 0,
+    geometry_shader_stage = 1 << 1,
+    fragment_shader_stage = 1 << 2,
+    compute_shader_stage = 1 << 3,
+
+    all_shader_stage =
+        vertex_shader_stage ||
+        geometry_shader_stage ||
+        fragment_shader_stage ||
+        compute_shader_stage,
+};
+using shader_stage_flags = std::underlying_type_t<shader_stage_flag_bits>;
+
+enum class shader_resource_type : u32
+{
+    input = 0,
+    input_attachment,
+    output,
+    image,
+    image_sampler,
+    image_storage,
+    sampler,
+    uniform_buffer,
+    dynamic_uniform_buffer,
+    storage_buffer,
+    dynamic_storage_buffer,
+    push_constant,
+    specialization_constant,
+
+    count,
+};
+
+/// <summary>
+/// A dynamic shader resource means that a dynamic offset can be applied
+/// to the buffer when binding it to the command list.
+/// </summary>
+constexpr bool is_dynamic_shader_resource_type(shader_resource_type type)
+{
+    switch( type )
+    {
+    case shader_resource_type::dynamic_uniform_buffer:
+    case shader_resource_type::dynamic_storage_buffer:
+        return true;
+    default:
+        return false;
+    }
+}
+
 } // gfx

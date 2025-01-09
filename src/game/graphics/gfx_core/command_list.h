@@ -4,6 +4,7 @@
 #include "buffer.h"
 #include "fence.h"
 #include "texture.h"
+#include "dependency.h"
 
 namespace gfx
 {
@@ -24,7 +25,7 @@ public:
     ~command_list() = default;
 
     void init(void* pImpl);
-    void reset();
+    void reset(bool keep_dependencies);
 
     void begin();
     void end();
@@ -37,14 +38,25 @@ public:
     void texture_memory_barrier(texture* texture, texture_layout dst_layout);
     // Pipeline barriers here !
 
+    void add_wait_dependency(dependency* dep);
+    void remove_wait_dependency(dependency* dep);
+    const std::vector<dependency*>& get_wait_dependencies() const;
+
+    void set_signal_dependency(dependency* dep);
+    const dependency* get_signal_dependency() const;
+
     GFX_HAS_IMPL(m_pImpl);
 protected:
     command_list(command_list_type type);
 
     pipeline_state m_pso;
     command_list_type m_type;
-    bool m_isActive{ false };
 
+    // Make this a sorted array
+    std::vector<dependency*> m_waitDependencies;
+    dependency* m_signalDependency;
+
+    bool m_isActive{ false };
 private:
     u8 m_unused[3];
     void* m_pImpl;

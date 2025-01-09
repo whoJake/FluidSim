@@ -15,11 +15,17 @@ void command_list::init(void* pImpl)
     m_pImpl = pImpl;
 }
 
-void command_list::reset()
+void command_list::reset(bool keep_dependencies)
 {
     GFX_ASSERT(!m_isActive, "Command list should not be reset whilst it is active.");
     m_pso.reset();
     GFX_CALL(reset, this);
+
+    if( !keep_dependencies )
+    {
+        m_waitDependencies.clear();
+        m_signalDependency = nullptr;
+    }
 }
 
 void command_list::begin()
@@ -83,6 +89,38 @@ void command_list::texture_memory_barrier(texture* texture, texture_layout dst_l
 const command_list_type& command_list::get_type() const
 {
     return m_type;
+}
+
+void command_list::add_wait_dependency(dependency* dep)
+{
+    if( std::find(m_waitDependencies.begin(), m_waitDependencies.end(), dep) != m_waitDependencies.end() )
+    {
+        m_waitDependencies.push_back(dep);
+    }
+}
+
+void command_list::remove_wait_dependency(dependency* dep)
+{
+    auto it = std::find(m_waitDependencies.begin(), m_waitDependencies.end(), dep);
+    if( it != m_waitDependencies.end() )
+    {
+        m_waitDependencies.erase(it);
+    }
+}
+
+const std::vector<dependency*>& command_list::get_wait_dependencies() const
+{
+    return m_waitDependencies;
+}
+
+void command_list::set_signal_dependency(dependency* dep)
+{
+    m_signalDependency = dep;
+}
+
+const dependency* command_list::get_signal_dependency() const
+{
+    return m_signalDependency;
 }
 
 transfer_command_list::transfer_command_list() :
