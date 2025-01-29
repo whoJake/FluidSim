@@ -1,73 +1,90 @@
 #pragma once
 #include "types.h"
 #include "gfxdefines.h"
+#include "system/hash_string.h"
 
 namespace gfx
 {
 
-using shader_hash_t = u32;
+using resource_hash_t = u32;
 
-class shader_resource
+// Descriptor / Binding
+class resource_slot
 {
 public:
-    shader_resource() = default;
-    ~shader_resource() = default;
+    resource_slot() = default;
+    ~resource_slot() = default;
 
-    DEFAULT_COPY(shader_resource);
-    DEFAULT_MOVE(shader_resource);
+    DEFAULT_COPY(resource_slot);
+    DEFAULT_MOVE(resource_slot);
 
-    void initialise(shader_hash_t hash, shader_resource_type type, u32 slot_index, u32 array_size, u32 resource_size);
+    void initialise(resource_hash_t hash, u32 slot_index, shader_resource_type type, u32 array_size, u32 resource_size);
 
-    shader_hash_t get_hash() const;
-    shader_resource_type get_type() const;
-    shader_stage_flags get_stages() const;
-    u32 get_slot_index() const;
+    void add_stage(shader_stage_flag_bits stage);
+    void set_stages(shader_stage_flags stages);
+
+    const shader_stage_flags& get_stages() const;
+    u32 get_index() const;
+
+    resource_hash_t get_hash() const;
+    const shader_resource_type& get_type() const;
     u32 get_array_size() const;
     u32 get_resource_size() const;
 private:
-    shader_hash_t m_hash;
+    resource_hash_t m_hash;
+    shader_stage_flags m_stages;
+    u32 m_index;
+
     shader_resource_type m_type;
-    u32 m_slotIndex;
     u32 m_arraySize;
 
     u32 m_resourceSize;
 };
 
-class shader_resource_group
+// Descriptor Table / Descriptor Set
+class resource_group
 {
 public:
-    shader_resource_group() = default;
-    ~shader_resource_group() = default;
+    resource_group() = default;
+    ~resource_group() = default;
 
-    void initialise(u32 group_index, std::vector<shader_resource>&& resources);
+    void initialise(u32 index);
 
+    void add_slot(resource_slot&& slot);
+    const resource_slot& get_slot(u32 index) const;
     u32 get_index() const;
-    const shader_resource& get_slot(u32 slot_index) const;
+
+    DEFAULT_COPY(resource_group);
+    DEFAULT_MOVE(resource_group);
 private:
-    bool validate_resources() const;
-private:
+    std::vector<u32> m_slotMap;
+    std::vector<resource_slot> m_slots;
     u32 m_index;
-    std::vector<shader_resource> m_resources;
+    u32 m_unused;
 };
 
-class shader_stage
+class shader_source
 {
 public:
-    shader_stage() = default;
-    ~shader_stage() = default;
+    shader_source() = default;
+    ~shader_source() = default;
 
-    void initialise(const char* entry_point, std::vector<shader_resource_group>&& groups, shader_stage_flags stage_flags);
+    void initialise(const char* entry_point, std::vector<u32>&& compiled_source);
 
-    const char* get_entry_point() const;
-    shader_stage_flags get_stage_flags() const;
-
-private:
-    bool validate_groups() const;
+    const char* const get_entry_point() const;
+    const std::vector<u32>& get_source() const;
 private:
     const char* m_entryPoint;
-    std::vector<shader_resource_group> m_groups;
-    shader_stage_flags m_stages;
+    std::vector<u32> m_source;
 };
+
+struct shader_stage_sources
+{
+    shader_source vertex;
+    shader_source fragment;
+};
+
+using shader_name = sys::hash_string;
 
 class shader
 {
@@ -75,18 +92,16 @@ public:
     shader() = default;
     ~shader() = default;
 
-    void initialise(shader_hash_t hash, std::vector<shader_stage>&& stages, void* pImpl);
+    void initialise(shader_name name, std::vector<resource_group>&& groups, shader_stage_sources&& sources);
 
-    shader_hash_t get_hash() const;
-    const std::vector<shader_stage>& get_stages() const;
+    const shader_name& get_name() const;
+    const resource_group& get_group(u32 index) const;
 
     GFX_HAS_IMPL(m_pImpl);
 private:
-    bool validate_stages() const;
-private:
+    shader_name m_name;
+    std::vector<resource_group> m_groups;
     void* m_pImpl;
-    shader_hash_t m_hash;
-    std::vector<shader_stage> m_stages;
 };
 
 } // gfx

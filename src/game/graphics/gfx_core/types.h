@@ -67,46 +67,46 @@ constexpr u32 get_format_stride(format format)
 // Ordered to match VkBufferUsageFlagBits
 enum buffer_usage_bits : u32
 {
-    buffer_transfer_src = 1 << 0,
-    buffer_transfer_dst = 1 << 1,
-    uniform_texel = 1 << 2,
-    storage_texel = 1 << 3,
-    uniform_buffer = 1 << 4,
-    storage_buffer = 1 << 5,
-    index_buffer = 1 << 6,
-    vertex_buffer = 1 << 7,
-    indirect_buffer = 1 << 8,
+    BUFFER_USAGE_TRANSER_SRC = 1 << 0,
+    BUFFER_USAGE_TRANSFER_DST = 1 << 1,
+    BUFFER_USAGE_UNIFORM_TEXEL = 1 << 2,
+    BUFFER_USAGE_STORAGE_TEXEL = 1 << 3,
+    BUFFER_USAGE_UNIFORM = 1 << 4,
+    BUFFER_USAGE_STORAGE = 1 << 5,
+    BUFFER_USAGE_INDEX = 1 << 6,
+    BUFFER_USAGE_VERTEX = 1 << 7,
+    BUFFER_USAGE_INDIRECT = 1 << 8,
 };
 
 using buffer_usage = std::underlying_type_t<buffer_usage_bits>;
 
 enum class index_buffer_type : u32
 {
-    u16_type = 0,
-    u32_type,
+    INDEX_TYPE_U16 = 0,
+    INDEX_TYPE_U32,
 };
 
 enum class vertex_type : u32
 {
-    position = 0,
-    normal,
-    tex0,
-    tex1,
-    tex2,
-    tex3,
+    VERTEX_TYPE_POSITION = 0,
+    VERTEX_TYPE_NORMAL,
+    VERTEX_TYPE_TEX0,
+    VERTEX_TYPE_TEX1,
+    VERTEX_TYPE_TEX2,
+    VERTEX_TYPE_TEX3,
 
-    count,
+    VERTEX_TYPE_COUNT,
 };
 
 // Ordered to match VkImageUsageFlagBits
 enum texture_usage_flag_bits : u32
 {
-    texture_transfer_src = 1 << 0,
-    texture_transfer_dst = 1 << 1,
-    texture_sampled = 1 << 2,
-    texture_storage = 1 << 3,
-    texture_color = 1 << 4,
-    texture_depth_stencil = 1 << 5,
+    TEXTURE_USAGE_TRANSFER_SRC = 1 << 0,
+    TEXTURE_USAGE_TRANSFER_DST = 1 << 1,
+    TEXTURE_USAGE_SAMPLED = 1 << 2,
+    TEXTURE_USAGE_STORAGE = 1 << 3,
+    TEXTURE_USAGE_COLOR = 1 << 4,
+    TEXTURE_USAGE_DEPTH_STENCIL = 1 << 5,
 };
 
 using texture_usage_flags = std::underlying_type_t<texture_usage_flag_bits>;
@@ -114,65 +114,65 @@ using texture_usage_flags = std::underlying_type_t<texture_usage_flag_bits>;
 enum class texture_layout : u32
 {
     // Matches VkImageLayout
-    undefined = 0,
-    general,
-    color_attachment,
-    depth_stencil_attachment,
-    depth_stencil_readonly,
-    shader_readonly,
-    transfer_src,
-    transfer_dst,
-    preinitialized,
+    TEXTURE_LAYOUT_UNDEFINED = 0,
+    TEXTURE_LAYOUT_GENERAL,
+    TEXTURE_LAYOUT_COLOR_ATTACHMENT,
+    TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT,
+    TEXTURE_LAYOUT_DEPTH_STENCIL_READONLY,
+    TEXTURE_LAYOUT_SHADER_READONLY,
+    TEXTURE_LAYOUT_TRANSER_SRC,
+    TEXTURE_LAYOUT_TRANSER_DST,
+    TEXTURE_LAYOUT_PREINITIALISED,
 
     // Does not match VkImageLayout
-    present,
+    TEXTURE_LAYOUT_PRESENT,
 
-    count,
+    TEXTURE_LAYOUT_COUNT,
 };
 
 // Ordered to match VkPresentModeKHR
 enum class present_mode
 {
-    immediate = 0,
-    mailbox,
-    fifo,
-    fifo_relaxed,
+    PRESENT_MODE_IMMEDIATE = 0,
+    PRESENT_MODE_MAILBOX,
+    PRESENT_MODE_FIFO,
+    PRESENT_MODE_FIFO_RELAXED,
     
-    count,
+    PRESENT_MODE_COUNT,
 };
 
 enum shader_stage_flag_bits : u32
 {
-    vertex_shader_stage = 1 << 0,
-    geometry_shader_stage = 1 << 1,
-    fragment_shader_stage = 1 << 2,
-    compute_shader_stage = 1 << 3,
+    SHADER_STAGE_VERTEX = 1 << 0,
+    SHADER_STAGE_GEOMETRY = 1 << 1,
+    SHADER_STAGE_FRAGMENT = 1 << 2,
+    SHADER_STAGE_COMPUTE = 1 << 3,
 
-    all_shader_stage =
-        vertex_shader_stage ||
-        geometry_shader_stage ||
-        fragment_shader_stage ||
-        compute_shader_stage,
+    SHADER_STAGE_ALL =
+        SHADER_STAGE_VERTEX ||
+        SHADER_STAGE_GEOMETRY ||
+        SHADER_STAGE_FRAGMENT ||
+        SHADER_STAGE_COMPUTE,
 };
 using shader_stage_flags = std::underlying_type_t<shader_stage_flag_bits>;
 
-enum class shader_resource_type : u32
+enum shader_resource_type : u32
 {
-    input = 0,
-    input_attachment,
-    output,
-    image,
-    image_sampler,
-    image_storage,
-    sampler,
-    uniform_buffer,
-    dynamic_uniform_buffer,
-    storage_buffer,
-    dynamic_storage_buffer,
-    push_constant,
-    specialization_constant,
+    SHADER_RESOURCE_INPUT = 0,
+    SHADER_RESOURCE_INPUT_ATTACHMENT,
+    SHADER_RESOURCE_OUTPUT,
+    SHADER_RESOURCE_IMAGE,
+    SHADER_RESOURCE_IMAGE_SAMPLER,
+    SHADER_RESOURCE_IMAGE_STORAGE,
+    SHADER_RESOURCE_SAMPLER,
+    SHADER_RESOURCE_UNIFORM_BUFFER,
+    SHADER_RESOURCE_UNIFORM_BUFFER_DYNAMIC,
+    SHADER_RESOURCE_STORAGE_BUFFER,
+    SHADER_RESOURCE_STORAGE_BUFFER_DYNAMIC,
+    SHADER_RESOURCE_PUSH_CONSTANT,
+    SHADER_RESOURCE_SPECIALIZATION_CONSTANT,
 
-    count,
+    SHADER_RESOURCE_COUNT,
 };
 
 /// <summary>
@@ -183,8 +183,8 @@ constexpr bool is_dynamic_shader_resource_type(shader_resource_type type)
 {
     switch( type )
     {
-    case shader_resource_type::dynamic_uniform_buffer:
-    case shader_resource_type::dynamic_storage_buffer:
+    case shader_resource_type::SHADER_RESOURCE_UNIFORM_BUFFER_DYNAMIC:
+    case shader_resource_type::SHADER_RESOURCE_STORAGE_BUFFER_DYNAMIC:
         return true;
     default:
         return false;
