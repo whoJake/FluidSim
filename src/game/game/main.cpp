@@ -46,22 +46,22 @@ int main(int argc, const char* argv[])
 	gfx::texture_info tInfo{ };
 	tInfo.initialise(
 		cdt::image_format::R8G8B8A8_SRGB,
-		gfx::texture_usage_flag_bits::texture_transfer_dst | gfx::texture_usage_flag_bits::texture_color,
+		gfx::texture_usage_flag_bits::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_COLOR,
 		window.get_extent().x,
 		window.get_extent().y,
 		1);
 
-	gfx::swapchain swapchain = device->create_swapchain(nullptr, tInfo, gfx::present_mode::immediate);
+	gfx::swapchain swapchain = device->create_swapchain(nullptr, tInfo, gfx::present_mode::PRESENT_MODE_IMMEDIATE);
 	u32 swapIndex = swapchain.aquire_next_image();
 	gfx::texture* swapTexture = swapchain.get_image(swapIndex);
 	swapchain.wait_on_present(swapIndex);
 
 	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("assets/images/new_years.png");
 
-	gfx::buffer buffer = device->create_buffer(img->get_size(), gfx::buffer_usage_bits::buffer_transfer_src, gfx::memory_type::cpu_accessible, true);
+	gfx::buffer buffer = device->create_buffer(img->get_size(), gfx::buffer_usage_bits::BUFFER_USAGE_TRANSFER_SRC, gfx::memory_type::cpu_accessible, true);
 
 	gfx::texture_info texInfo;
-	texInfo.initialise(img->get_metadata().format, gfx::texture_sampled | gfx::texture_transfer_src | gfx::texture_transfer_dst, img->get_metadata().width, img->get_metadata().height, img->get_metadata().depth);
+	texInfo.initialise(img->get_metadata().format, gfx::TEXTURE_USAGE_SAMPLED | gfx::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_TRANSFER_DST, img->get_metadata().width, img->get_metadata().height, img->get_metadata().depth);
 	gfx::texture texture = device->create_texture(texInfo, gfx::resource_view_type::texture_2d, gfx::memory_type::gpu_only, false);
 
 	memcpy(buffer.get_memory_info().mapped, img->data(), img->get_size());
@@ -77,15 +77,15 @@ int main(int argc, const char* argv[])
 		swapList.begin();
 
 		// buffer -> image
-		swapList.texture_memory_barrier(&texture, gfx::texture_layout::transfer_dst);
+		swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
 		swapList.copy_to_texture(&buffer, &texture);
 
 		// image -> swapchain
-		swapList.texture_memory_barrier(&texture, gfx::texture_layout::transfer_src);
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::transfer_dst);
+		swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
+		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
 		swapList.copy_to_texture(&texture, swapTexture);
 
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::present);
+		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		swapList.end();
 		swapList.submit(&swapFence);
 

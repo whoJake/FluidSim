@@ -132,7 +132,7 @@ constexpr VkImageLayout get_layout_vk(texture_layout layout)
 {
     switch( layout )
     {
-    case texture_layout::present:
+    case texture_layout::TEXTURE_LAYOUT_PRESENT:
         return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     default:
         return (VkImageLayout)layout;
@@ -144,7 +144,7 @@ constexpr texture_layout get_layout_vk(VkImageLayout layout)
     switch( layout )
     {
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-        return texture_layout::present;
+        return texture_layout::TEXTURE_LAYOUT_PRESENT;
     default:
         return (texture_layout)layout;
     }
@@ -154,13 +154,13 @@ constexpr VkShaderStageFlags get_shader_stage_flags_vk(shader_stage_flags flags)
 {
     VkShaderStageFlags retval{ };
 
-    if( flags & vertex_shader_stage )
+    if( flags & SHADER_STAGE_VERTEX )
         retval |= VK_SHADER_STAGE_VERTEX_BIT;
-    if( flags & geometry_shader_stage )
+    if( flags & SHADER_STAGE_GEOMETRY )
         retval |= VK_SHADER_STAGE_GEOMETRY_BIT;
-    if( flags & fragment_shader_stage )
+    if( flags & SHADER_STAGE_FRAGMENT )
         retval |= VK_SHADER_STAGE_FRAGMENT_BIT;
-    if( flags & compute_shader_stage )
+    if( flags & SHADER_STAGE_COMPUTE )
         retval |= VK_SHADER_STAGE_COMPUTE_BIT;
 
     return retval;

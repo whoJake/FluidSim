@@ -67,7 +67,7 @@ constexpr u32 get_format_stride(format format)
 // Ordered to match VkBufferUsageFlagBits
 enum buffer_usage_bits : u32
 {
-    BUFFER_USAGE_TRANSER_SRC = 1 << 0,
+    BUFFER_USAGE_TRANSFER_SRC = 1 << 0,
     BUFFER_USAGE_TRANSFER_DST = 1 << 1,
     BUFFER_USAGE_UNIFORM_TEXEL = 1 << 2,
     BUFFER_USAGE_STORAGE_TEXEL = 1 << 3,
@@ -120,8 +120,8 @@ enum class texture_layout : u32
     TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT,
     TEXTURE_LAYOUT_DEPTH_STENCIL_READONLY,
     TEXTURE_LAYOUT_SHADER_READONLY,
-    TEXTURE_LAYOUT_TRANSER_SRC,
-    TEXTURE_LAYOUT_TRANSER_DST,
+    TEXTURE_LAYOUT_TRANSFER_SRC,
+    TEXTURE_LAYOUT_TRANSFER_DST,
     TEXTURE_LAYOUT_PREINITIALISED,
 
     // Does not match VkImageLayout

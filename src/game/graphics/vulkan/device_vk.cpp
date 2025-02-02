@@ -804,10 +804,10 @@ void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buff
     VkIndexType type;
     switch( index_type )
     {
-        case index_buffer_type::u16_type:
+        case index_buffer_type::INDEX_TYPE_U16:
             type = VK_INDEX_TYPE_UINT16;
             break;
-        case index_buffer_type::u32_type:
+        case index_buffer_type::INDEX_TYPE_U32:
             type = VK_INDEX_TYPE_UINT32;
             break;
         default:
