@@ -3,7 +3,7 @@
 namespace dt
 {
 
-pool_base::pool_base(u32 capacity, u32 elem_size, u32 alignment, pool_ami* alloc_method) :
+pool_base::pool_base(u32 capacity, u32 elem_size, u32 alignment, allocator* alloc_method) :
     m_capacity(capacity),
     m_freeCount(capacity),
     m_method(alloc_method)

@@ -11,6 +11,9 @@ void* allocator::allocate(u64 size, u64 align)
 
 void allocator::free(void* ptr)
 {
+    if( !ptr ) [[unlikely]]
+        return;
+
     do_free(ptr);
 }
 
@@ -21,7 +24,7 @@ allocator* const allocator::get_main()
 
 void allocator::set_main(allocator* ptr)
 {
-    // SYSASSERT_FATAL(ptr, "Main allocator is already set.");
+    MEMASSERT_FATAL(ptr, "Main allocator is already set.");
     sm_main = ptr;
 }
 

@@ -1,0 +1,128 @@
+#pragma once
+#include "common.h"
+#include "array.h"
+
+namespace dt
+{
+
+#define DT_VECTOR_DFEAULT_GROWTH_EQUATION(x) (x + (x / 2))
+#define DT_VECTOR_DEFAULT_CAPACITY 4
+
+#ifndef DT_VECTOR_GROWTH_EQUATION
+    #define DT_VECTOR_GROWTH_EQUATION(x) DT_VECTOR_DFEAULT_GROWTH_EQUATION(x)
+#endif
+
+#if DT_VECTOR_DEBUG_LEVEL > 0
+    #ifndef DT_VECTOR_RANGE_CHECK
+        #define DT_VECTOR_RANGE_CHECK 1
+    #endif
+#endif
+
+using default_vector_allocator = zoned_allocator<sys::MEMZONE_DEFAULT>;
+
+template<typename T>
+class vector
+{
+public:
+    using iterator = array_iterator<T>;
+    using const_iterator = const_array_iterator<T>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    vector(allocator* alloc_method = default_vector_allocator::get());
+    vector(u64 initial_capacity, allocator* alloc_method = default_vector_allocator::get());
+
+    ~vector();
+
+    // TODO
+    // vector(const vector<T>& other);
+    // vector(vector<T>&& other);
+    // vector<T>& operator=(const vector<T>& other);
+    // vector<T>& operator=(vector<T>&& other);
+
+    T& at(u64 index);
+    const T& at(u64 index) const;
+
+    T& operator[](u64 index);
+    const T& operator[](u64 index) const;
+
+    T& front();
+    const T& front() const;
+
+    T& back();
+    const T& back() const;
+
+    u64 size() const;
+    u64 capacity() const;
+
+    T* data();
+    const T* data() const;
+
+    void reserve(u64 new_capacity);
+    void resize(u64 new_size);
+    void resize(u64 new_size, const T& value);
+
+    void push_back();
+    void push_back(const T& value);
+    void push_back(T&& value);
+
+    template<typename... Args>
+    void emplace_back(Args&&... args);
+
+    void erase(u64 index);
+
+    void shrink_to_size();
+
+    iterator begin();
+    const_iterator begin() const;
+    const_iterator cbegin() const;
+
+    reverse_iterator rbegin();
+    const_reverse_iterator rbegin() const;
+    const_reverse_iterator crbegin() const;
+
+    iterator end();
+    const_iterator end() const;
+    const_iterator cend() const;
+
+    reverse_iterator rend();
+    const_reverse_iterator rend() const;
+    const_reverse_iterator crend() const;
+private:
+    void move_container(u64 new_size);
+
+    void collapse(u64 shift_start, u64 new_start);
+
+    void construct_at(u64 index, T&& value);
+    void construct_at(u64 index, const T& value);
+    
+    template<typename... Args>
+    void construct_at(u64 index, Args&&... args);
+
+    void destroy_at(u64 index);
+private:
+    T* m_data;
+    allocator* m_allocator;
+    u64 m_size;
+    u64 m_capacity;
+};
+
+template<typename T, sys::memory_zone zone>
+class zoned_vector : public vector<T>
+{
+    zoned_vector() :
+        vector<T>(zoned_allocator<zone>::get())
+    { }
+
+    zoned_vector(u64 capacity) :
+        vector<T>(capacity, zoned_allocator<zone>::get())
+    { }
+};
+
+} // dt
+
+#ifndef INC_DT_VECTOR_INL
+
+    #define INC_DT_VECTOR_INL
+    #include "vector.inl"
+#endif

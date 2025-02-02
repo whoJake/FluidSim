@@ -21,7 +21,7 @@ enum severity
 };
 
 #define SYSDECLARE_CHANNEL(name) inline static ::sys::channel c_##name(#name)
-#define SYSDECLARE_SUBCHANNEL(name, parent) inline static ::sys::channel c_##name(#name, &c_##parent)
+#define SYSDECLARE_SUBCHANNEL(parent, name) inline static ::sys::channel c_##parent_##name(#name, &c_##parent)
 
 class channel
 {
@@ -60,6 +60,8 @@ void fast_quit();
 
 void set_quit_handler(quit_handler func);
 void set_quit_message_generator(quit_message_generator func);
+
+#define SYSASSERT(cond, res) if(!(cond))[[unlikely]]do{res;}while(0)
 
 #define SYSMSG_VERBOSE(fmt, ...) ::sys::message_handler::send_verbose(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
 #define SYSMSG_PROFILE(fmt, ...) ::sys::message_handler::send_profile(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)

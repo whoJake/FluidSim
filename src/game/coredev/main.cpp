@@ -8,6 +8,8 @@
 #include "dt/pool.h"
 
 #include "system/assert.h"
+#include "dt/vector.h"
+#include "dt/bitset.h"
 
 SYSDECLARE_CHANNEL(main);
 
@@ -29,23 +31,49 @@ int main(int argc, const char* argv[])
 
 	SYSMSG_CHANNEL_WARN(main, "Hello world!");
 
-	dt::zoned_pool<u8, sys::MEMZONE_GAME> pool(10);
-	u8* first = pool.allocate();
-	u8* second = pool.allocate();
-	pool.free(first);
-	u8* third = pool.allocate();
-
-	pool.free(second);
-	pool.free(third);
-
-	std::vector<u8*> fella;
-	for( u32 i = 0; i < 10; i++ )
+	struct S
 	{
-		fella.push_back(pool.allocate());
-	}
+		S()
+		{
+			SYSMSG_DEBUG("Constructing.");
+		}
 
-	for( u8* guy : fella )
+		S(const S&)
+		{
+			SYSMSG_DEBUG("Copy Constructing.");
+		}
+
+		S(S&&)
+		{
+			SYSMSG_DEBUG("Move Constructing.");
+		}
+
+		S& operator=(const S&)
+		{
+			SYSMSG_DEBUG("Copy.");
+			return *this;
+		}
+
+		S& operator=(S&&)
+		{
+			SYSMSG_DEBUG("Move.");
+			return *this;
+		}
+
+		~S()
+		{
+			SYSMSG_DEBUG("Destructing.");
+		}
+	};
+
 	{
-		pool.free(guy);
+		dt::bitset<u32> set;
+		bool a = set.is_set(33);
+		set.set(0, true);
+		set.set(1, true);
+		bool b = set.is_set(0);
+		bool c = set.is_set(1);
+		bool d = set.is_set(2);
+
 	}
 }

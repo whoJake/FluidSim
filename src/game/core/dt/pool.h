@@ -1,46 +1,15 @@
 #pragma once
-#include "system/allocator.h"
-#include "system/tracked_allocator.h"
+#include "allocation_interface.h"
 
 namespace dt
 {
 
-class pool_ami
-{
-public:
-    virtual void* allocate(u64 size, u64 align) = 0;
-    virtual void free(void* ptr) = 0;
-};
-
-template<sys::memory_zone zone>
-class pool_am : public pool_ami
-{
-public:
-    static inline pool_am* get()
-    {
-        static pool_am instance;
-        return &instance;
-    }
-
-    inline void* allocate(u64 size, u64 align) override
-    {
-        SYSUSE_ZONE(zone);
-        return sys::allocator::get_main()->allocate(size, align);
-    }
-
-    inline void free(void* ptr) override
-    {
-        SYSUSE_ZONE(zone);
-        return sys::allocator::get_main()->free(ptr);
-    }
-};
-
-using default_pool_am = pool_am<sys::MEMZONE_POOL>;
+using default_pool_allocator = zoned_allocator<sys::MEMZONE_DEFAULT>;
 
 class pool_base
 {
 public:
-    pool_base(u32 capacity, u32 elem_size, u32 alignment, pool_ami* alloc_method);
+    pool_base(u32 capacity, u32 elem_size, u32 alignment, allocator* allocator);
     ~pool_base();
 
 protected:
@@ -63,14 +32,14 @@ private:
     u32 m_capacity;
     u32 m_elemSize;
 
-    pool_ami* m_method;
+    allocator* m_method;
 };
 
 template<typename T>
 class pool : public pool_base
 {
 public:
-    pool(u32 capacity, pool_ami* alloc_method = default_pool_am::get()) :
+    pool(u32 capacity, allocator* alloc_method = default_pool_allocator::get()) :
         pool_base(capacity, sizeof(T), alignof(T), alloc_method)
     { }
 
@@ -105,8 +74,8 @@ class zoned_pool : public pool<T>
 {
 public:
     zoned_pool(u32 capacity) :
-        pool<T>(capacity, pool_am<zone>::get())
-    { };
+        pool<T>(capacity, zoned_allocator<zone>::get())
+    { }
 };
 
 } // dt
