@@ -3,38 +3,36 @@
 namespace dt
 {
 
-template<typename T>
-vector<T>::vector(allocator* alloc_method) :
+template<typename T, typename _allocator>
+vector<T, _allocator>::vector() :
     m_data(nullptr),
-    m_allocator(alloc_method),
     m_size(0),
     m_capacity(DT_VECTOR_DEFAULT_CAPACITY)
 {
     move_container(m_capacity);
 }
 
-template<typename T>
-vector<T>::vector(u64 initial_capacity, allocator* alloc_method) :
+template<typename T, typename _allocator>
+vector<T, _allocator>::vector(u64 initial_capacity) :
     m_data(nullptr),
-    m_allocator(alloc_method),
     m_size(0),
     m_capacity(initial_capacity)
 {
     move_container(m_capacity);
 }
 
-template<typename T>
-vector<T>::~vector()
+template<typename T, typename _allocator>
+vector<T, _allocator>::~vector()
 {
     for( u64 i = 0; i < m_size; i++ )
     {
         destroy_at(i);
     }
-    m_allocator->free(m_data);
+    _allocator::free(m_data);
 }
 
-template<typename T>
-T& vector<T>::at(u64 index)
+template<typename T, typename _allocator>
+T& vector<T, _allocator>::at(u64 index)
 {
 #if DT_VECTOR_RANGE_CHECK
     DT_ASSERT(index < m_size, "Indexed vector out of bounds. Index {}, Size {}", index, m_size);
@@ -43,8 +41,8 @@ T& vector<T>::at(u64 index)
     return m_data[index];
 }
 
-template<typename T>
-const T& vector<T>::at(u64 index) const
+template<typename T, typename _allocator>
+const T& vector<T, _allocator>::at(u64 index) const
 {
 #if DT_VECTOR_RANGE_CHECK
     DT_ASSERT(index < m_size, "Indexed vector out of bounds. Index {}, Size {}", index, m_size);
@@ -53,68 +51,68 @@ const T& vector<T>::at(u64 index) const
     return m_data[index];
 }
 
-template<typename T>
-T& vector<T>::operator[](u64 index)
+template<typename T, typename _allocator>
+T& vector<T, _allocator>::operator[](u64 index)
 {
     return at(index);
 }
 
-template<typename T>
-const T& vector<T>::operator[](u64 index) const
+template<typename T, typename _allocator>
+const T& vector<T, _allocator>::operator[](u64 index) const
 {
     return at(index);
 }
 
-template<typename T>
-T& vector<T>::front()
+template<typename T, typename _allocator>
+T& vector<T, _allocator>::front()
 {
     return m_data[0];
 }
 
-template<typename T>
-const T& vector<T>::front() const
+template<typename T, typename _allocator>
+const T& vector<T, _allocator>::front() const
 {
     return m_data[0];
 }
 
-template<typename T>
-T& vector<T>::back()
+template<typename T, typename _allocator>
+T& vector<T, _allocator>::back()
 {
     return m_data[m_size - 1];
 }
 
-template<typename T>
-const T& vector<T>::back() const
+template<typename T, typename _allocator>
+const T& vector<T, _allocator>::back() const
 {
     return m_data[m_size - 1];
 }
 
-template<typename T>
-u64 vector<T>::size() const
+template<typename T, typename _allocator>
+u64 vector<T, _allocator>::size() const
 {
     return m_size;
 }
 
-template<typename T>
-u64 vector<T>::capacity() const
+template<typename T, typename _allocator>
+u64 vector<T, _allocator>::capacity() const
 {
     return m_capacity;
 }
 
-template<typename T>
-T* vector<T>::data()
+template<typename T, typename _allocator>
+T* vector<T, _allocator>::data()
 {
     return m_data;
 }
 
-template<typename T>
-const T* vector<T>::data() const
+template<typename T, typename _allocator>
+const T* vector<T, _allocator>::data() const
 {
     return m_data;
 }
 
-template<typename T>
-void vector<T>::reserve(u64 new_capacity)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::reserve(u64 new_capacity)
 {
     if( new_capacity <= m_capacity )
         return;
@@ -123,8 +121,8 @@ void vector<T>::reserve(u64 new_capacity)
     move_container(new_capacity);
 }
 
-template<typename T>
-void vector<T>::resize(u64 new_size)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::resize(u64 new_size)
 {
     if( new_size == m_size )
         return;
@@ -132,7 +130,8 @@ void vector<T>::resize(u64 new_size)
     if( new_size > m_size )
     {
         // grow container to fit new_size
-        for( u64 i = 0; i < new_size - m_size; i++ )
+        u64 growth_amount = new_size - m_size;
+        for( u64 i = 0; i < growth_amount - m_size; i++ )
         {
             // Using emplace_back to default construct +
             // adher to normal growth rules.
@@ -150,8 +149,8 @@ void vector<T>::resize(u64 new_size)
     }
 }
 
-template<typename T>
-void vector<T>::resize(u64 new_size, const T& value)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::resize(u64 new_size, const T& value)
 {
     if( new_size == m_size )
         return;
@@ -159,7 +158,8 @@ void vector<T>::resize(u64 new_size, const T& value)
     if( new_size > m_size )
     {
         // grow container to fit new_size
-        for( u64 i = 0; i < new_size - m_size; i++ )
+        u64 growth_amount = new_size - m_size;
+        for( u64 i = 0; i < growth_amount; i++ )
         {
             // Using emplace_back to default construct +
             // adher to normal growth rules.
@@ -177,8 +177,8 @@ void vector<T>::resize(u64 new_size, const T& value)
     }
 }
 
-template<typename T>
-void vector<T>::push_back()
+template<typename T, typename _allocator>
+void vector<T, _allocator>::push_back()
 {
     if( m_size == m_capacity )
     {
@@ -189,8 +189,8 @@ void vector<T>::push_back()
     construct_at(m_size++);
 }
 
-template<typename T>
-void vector<T>::push_back(const T& value)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::push_back(const T& value)
 {
     if( m_size == m_capacity )
     {
@@ -201,8 +201,8 @@ void vector<T>::push_back(const T& value)
     construct_at(m_size++, value);
 }
 
-template<typename T>
-void vector<T>::push_back(T&& value)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::push_back(T&& value)
 {
     if( m_size == m_capacity )
     {
@@ -213,9 +213,9 @@ void vector<T>::push_back(T&& value)
     construct_at(std::move(value));
 }
 
-template<typename T>
+template<typename T, typename _allocator>
 template<typename... Args>
-void vector<T>::emplace_back(Args&&... args)
+void vector<T, _allocator>::emplace_back(Args&&... args)
 {
     if( m_size == m_capacity )
     {
@@ -226,8 +226,8 @@ void vector<T>::emplace_back(Args&&... args)
     construct_at(std::forward<Args>(args)...);
 }
 
-template<typename T>
-void vector<T>::erase(u64 index)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::erase(u64 index)
 {
 #if DT_VECTOR_RANGE_CHECK
     DT_ASSERT(index <= m_size, "Erased vector element out of bounds. Index {}, Size {}", index, m_size);
@@ -238,8 +238,8 @@ void vector<T>::erase(u64 index)
     --m_size;
 }
 
-template<typename T>
-void vector<T>::shrink_to_size()
+template<typename T, typename _allocator>
+void vector<T, _allocator>::shrink_to_size()
 {
     if( m_capacity == m_size )
         return;
@@ -248,11 +248,11 @@ void vector<T>::shrink_to_size()
     move_container(m_capacity);
 }
 
-template<typename T>
-void vector<T>::move_container(u64 new_size)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::move_container(u64 new_size)
 {
     T* old_data = m_data;
-    m_data = static_cast<T*>(m_allocator->allocate(sizeof(T) * new_size, alignof(T)));
+    m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * new_size, alignof(T)));
 
     // Move over our old values
     for( u64 i = 0; i < m_size; i++ )
@@ -260,11 +260,11 @@ void vector<T>::move_container(u64 new_size)
         construct_at(i, std::move(old_data[i]));
     }
 
-    m_allocator->free(old_data);
+    _allocator::free(old_data);
 }
 
-template<typename T>
-void vector<T>::collapse(u64 left, u64 right)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::collapse(u64 left, u64 right)
 {
     u64 diff = right - left;
     for( u64 i = right; i < m_size; i++ )
@@ -278,99 +278,99 @@ void vector<T>::collapse(u64 left, u64 right)
     }
 }
 
-template<typename T>
-void vector<T>::construct_at(u64 index, T&& value)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::construct_at(u64 index, T&& value)
 {
     new(&m_data[index]) T(std::move(value));
 }
 
-template<typename T>
-void vector<T>::construct_at(u64 index, const T& value)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::construct_at(u64 index, const T& value)
 {
     new(&m_data[index]) T(value);
 }
 
-template<typename T>
+template<typename T, typename _allocator>
 template<typename... Args>
-void vector<T>::construct_at(u64 index, Args&&... args)
+void vector<T, _allocator>::construct_at(u64 index, Args&&... args)
 {
     new(&m_data[index]) T(std::forward<Args>(args)...);
 }
 
-template<typename T>
-void vector<T>::destroy_at(u64 index)
+template<typename T, typename _allocator>
+void vector<T, _allocator>::destroy_at(u64 index)
 {
     m_data[index].~T();
 }
 
-template<typename T>
-vector<T>::iterator vector<T>::begin()
+template<typename T, typename _allocator>
+vector<T, _allocator>::iterator vector<T, _allocator>::begin()
 {
     return iterator(m_data, 0);
 }
 
-template<typename T>
-vector<T>::const_iterator vector<T>::begin() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_iterator vector<T, _allocator>::begin() const
 {
     return const_iterator(m_data, 0);
 }
 
-template<typename T>
-vector<T>::const_iterator vector<T>::cbegin() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_iterator vector<T, _allocator>::cbegin() const
 {
     return begin();
 }
 
-template<typename T>
-vector<T>::reverse_iterator vector<T>::rbegin()
+template<typename T, typename _allocator>
+vector<T, _allocator>::reverse_iterator vector<T, _allocator>::rbegin()
 {
     return reverse_iterator(end());
 }
 
-template<typename T>
-vector<T>::const_reverse_iterator vector<T>::rbegin() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_reverse_iterator vector<T, _allocator>::rbegin() const
 {
     return const_reverse_iterator(end());
 }
 
-template<typename T>
-vector<T>::const_reverse_iterator vector<T>::crbegin() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_reverse_iterator vector<T, _allocator>::crbegin() const
 {
     return rbegin();
 }
 
-template<typename T>
-vector<T>::iterator vector<T>::end()
+template<typename T, typename _allocator>
+vector<T, _allocator>::iterator vector<T, _allocator>::end()
 {
     return iterator(m_data, m_size);
 }
 
-template<typename T>
-vector<T>::const_iterator vector<T>::end() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_iterator vector<T, _allocator>::end() const
 {
     return const_iterator(m_data, m_size);
 }
 
-template<typename T>
-vector<T>::const_iterator vector<T>::cend() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_iterator vector<T, _allocator>::cend() const
 {
     return end();
 }
 
-template<typename T>
-vector<T>::reverse_iterator vector<T>::rend()
+template<typename T, typename _allocator>
+vector<T, _allocator>::reverse_iterator vector<T, _allocator>::rend()
 {
     return reverse_iterator(begin());
 }
 
-template<typename T>
-vector<T>::const_reverse_iterator vector<T>::rend() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_reverse_iterator vector<T, _allocator>::rend() const
 {
     return const_reverse_iterator(begin());
 }
 
-template<typename T>
-vector<T>::const_reverse_iterator vector<T>::crend() const
+template<typename T, typename _allocator>
+vector<T, _allocator>::const_reverse_iterator vector<T, _allocator>::crend() const
 {
     return rend();
 }

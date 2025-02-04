@@ -18,11 +18,11 @@ int main(int argc, const char* argv[])
 	sys::allocator::set_main(sys::tracked_allocator::get());
 	sys::tracked_allocator::set_allocate_callback([](u64 size, u64 align, void* ret_ptr, sys::memory_zone zone)
 		{
-			SYSMSG_CHANNEL_PROFILE(main, "Allocating {} bytes in zone {}", size, as_c_str(zone));
+			SYSMSG_CHANNEL_PROFILE(main, "Allocating {} bytes in zone {}", size, SYSZONE_NAME(zone));
 		});
 	sys::tracked_allocator::set_free_callback([](void* free_ptr, sys::memory_zone zone)
 		{
-			SYSMSG_CHANNEL_PROFILE(main, "Freeing {:#018x} in zone {}", reinterpret_cast<u64>(free_ptr), as_c_str(zone));
+			SYSMSG_CHANNEL_PROFILE(main, "Freeing {:#018x} in zone {}", reinterpret_cast<u64>(free_ptr), SYSZONE_NAME(zone));
 		});
 
 	sys::log::details::logger logger;
@@ -68,7 +68,8 @@ int main(int argc, const char* argv[])
 
 	{
 		dt::bitset<u32> set;
-		bool a = set.is_set(33);
+		set.set(151, true);
+		bool a = set.is_set(32);
 		set.set(0, true);
 		set.set(1, true);
 		bool b = set.is_set(0);

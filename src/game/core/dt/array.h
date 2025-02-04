@@ -1,12 +1,9 @@
 #pragma once
 #include "common.h"
-#include "allocation_interface.h"
 #include <type_traits>
 
 namespace dt
 {
-
-using default_array_am = zoned_allocator<sys::MEMZONE_DEFAULT>;
 
 template<typename T>
 class const_array_iterator
@@ -332,9 +329,7 @@ private:
     T m_data[_capacity];
 };
 
-using default_array_allocator = zoned_allocator<sys::MEMZONE_DEFAULT>;
-
-template<typename T>
+template<typename T, typename _allocator = default_allocator>
 class array
 {
 public:
@@ -343,14 +338,13 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    array(allocator* alloc_method = default_array_allocator::get()) :
+    array() :
         m_data(nullptr),
-        m_allocator(alloc_method),
         m_capacity(0)
     { }
 
-    array(u64 capacity, allocator* alloc_method = default_array_allocator::get()) :
-        array(alloc_method)
+    array(u64 capacity) :
+        array()
     {
         initialise(capacity);
     }
@@ -373,8 +367,7 @@ public:
 
     const array& operator=(const array& other)
     {
-        if( m_allocator == other.m_allocator
-            && m_capacity == other.m_capacity )
+        if( m_capacity == other.m_capacity )
         {
             // We don't have to re-allocate our own
             // array so do a small optimization here.
@@ -383,7 +376,6 @@ public:
         else
         {
             kill();
-            m_allocator = other.m_allocator;
             initialise(other.m_capacity, false);
         }
 
@@ -398,7 +390,7 @@ public:
     inline void initialise(u64 capacity, bool construct = true)
     {
         m_capacity = capacity;
-        m_data = static_cast<T*>(m_allocator->allocate(sizeof(T) * capacity, alignof(T)));
+        m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * capacity, alignof(T)));
         if( !construct )
             return;
 
@@ -530,27 +522,11 @@ private:
         }
 
         if( deallocate )
-            m_allocator->free(m_data);
+            _allocator::free(m_data);
     }
 private:
     T* m_data;
-    allocator* m_allocator;
     u64 m_capacity;
-};
-
-template<typename T, sys::memory_zone zone>
-class zoned_array : public array<T>
-{
-private:
-    using _allocator = zoned_allocator<zone>;
-public:
-    zoned_array() :
-        array<T>(_allocator::get())
-    { }
-
-    zoned_array(u64 capacity) :
-        array<T>(capacity, _allocator::get())
-    { }
 };
 
 } // dt

@@ -8,12 +8,6 @@
     #define GFX_EXT_SWAPCHAIN
 #endif
 
-#ifdef GFX_OPTIMIZE
-    #define GFX_OPTIMIZATION
-#else
-    #define GFX_OPTIMIZATION
-#endif
-
 #define GFX_MSG(fmt, ...) CHANNEL_LOG_MSG(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 #define GFX_VERBOSE(fmt, ...) CHANNEL_LOG_VERBOSE(::sys::log::channel::graphics, fmt, __VA_ARGS__)
 #define GFX_PROFILE(fmt, ...) CHANNEL_LOG_PROFILE(::sys::log::channel::graphics, fmt, __VA_ARGS__)

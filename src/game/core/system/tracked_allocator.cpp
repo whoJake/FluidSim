@@ -3,6 +3,9 @@
 namespace sys
 {
 
+SYSZONE_REGISTER("MEMZONE_DEFAULT", MEMZONE_DEFAULT);
+SYSZONE_REGISTER("MEMZONE_SYSTEM", MEMZONE_SYSTEM);
+
 tracked_allocator* tracked_allocator::get()
 {
     static tracked_allocator instance;
@@ -17,6 +20,17 @@ void tracked_allocator::set_allocate_callback(allocate_callback cb)
 void tracked_allocator::set_free_callback(free_callback cb)
 {
     get()->m_freeCb = cb;
+}
+
+memory_zone tracked_allocator::register_zone(memory_zone zone, const char* name)
+{
+    get()->register_zone_internal(zone, name);
+    return zone;
+}
+
+const char* tracked_allocator::find_zone_name(memory_zone zone)
+{
+    return get()->find_zone_name_internal(zone);
 }
 
 tracked_allocator::tracked_allocator() :
@@ -51,6 +65,23 @@ memory_zone* tracked_allocator::get_thread_zone() const
 {
     thread_local memory_zone zone = MEMZONE_DEFAULT;
     return &zone;
+}
+
+void tracked_allocator::register_zone_internal(memory_zone val, const char* name)
+{
+    SYSASSERT(find_zone_name_internal(val) == nullptr, SYSMSG_FATAL("Value {} for zone {} is already registered.", val, name));
+    m_registeredZones.push_back({ val, name });
+}
+
+const char* tracked_allocator::find_zone_name_internal(memory_zone val) const
+{
+    for( auto it = m_registeredZones.begin(); it != m_registeredZones.end(); ++it )
+    {
+        if( it->zone == val )
+            return it->name;
+    }
+
+    return nullptr;
 }
 
 tracked_allocator::zone_scope::zone_scope(memory_zone target) :

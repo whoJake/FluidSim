@@ -175,6 +175,16 @@ enum shader_resource_type : u32
     SHADER_RESOURCE_COUNT,
 };
 
+enum descriptor_table_type : u32
+{
+    DESCRIPTOR_TABLE_PER_FRAME = 0,
+    DESCRIPTOR_TABLE_PER_VIEWPORT,
+    DESCRIPTOR_TABLE_PER_PASS,
+    DESCRIPTOR_TABLE_PER_DRAW,
+
+    DESCRIPTOR_TABLE_COUNT,
+};
+
 /// <summary>
 /// A dynamic shader resource means that a dynamic offset can be applied
 /// to the buffer when binding it to the command list.

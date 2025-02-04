@@ -18,9 +18,7 @@ namespace dt
     #endif
 #endif
 
-using default_vector_allocator = zoned_allocator<sys::MEMZONE_DEFAULT>;
-
-template<typename T>
+template<typename T, typename _allocator = default_allocator>
 class vector
 {
 public:
@@ -29,8 +27,8 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    vector(allocator* alloc_method = default_vector_allocator::get());
-    vector(u64 initial_capacity, allocator* alloc_method = default_vector_allocator::get());
+    vector();
+    vector(u64 initial_capacity);
 
     ~vector();
 
@@ -102,21 +100,8 @@ private:
     void destroy_at(u64 index);
 private:
     T* m_data;
-    allocator* m_allocator;
     u64 m_size;
     u64 m_capacity;
-};
-
-template<typename T, sys::memory_zone zone>
-class zoned_vector : public vector<T>
-{
-    zoned_vector() :
-        vector<T>(zoned_allocator<zone>::get())
-    { }
-
-    zoned_vector(u64 capacity) :
-        vector<T>(capacity, zoned_allocator<zone>::get())
-    { }
 };
 
 } // dt

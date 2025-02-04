@@ -3,28 +3,28 @@
 namespace dt
 {
 
-template<typename _underlying>
-bitset<_underlying>::bitset(allocator* alloc_method) :
-    _base(1, alloc_method)
+template<typename _underlying, typename _allocator>
+bitset<_underlying, _allocator>::bitset() :
+    _base(1)
 {
     set_size(1);
 }
 
-template<typename _underlying>
-bitset<_underlying>::bitset(u64 initial_size, allocator* alloc_method) :
-    _base(bit_to_item_index(initial_size) + 1, alloc_method)
+template<typename _underlying, typename _allocator>
+bitset<_underlying, _allocator>::bitset(u64 initial_size) :
+    _base(bit_to_item_index(initial_size) + 1)
 {
     set_size(initial_size);
 }
 
-template<typename _underlying>
-bool bitset<_underlying>::is_set(u64 bit) const
+template<typename _underlying, typename _allocator>
+bool bitset<_underlying, _allocator>::is_set(u64 bit) const
 {
     return _base::at(bit_to_item_index(bit)) & bit_mask(bit);
 }
 
-template<typename _underlying>
-void bitset<_underlying>::set(u64 bit, bool value)
+template<typename _underlying, typename _allocator>
+void bitset<_underlying, _allocator>::set(u64 bit, bool value)
 {
     set_size(bit);
 
@@ -34,33 +34,33 @@ void bitset<_underlying>::set(u64 bit, bool value)
         _base::at(bit_to_item_index(bit)) &= ~bit_mask(bit);
 }
 
-template<typename _underlying>
-void bitset<_underlying>::resize(u64 bits)
+template<typename _underlying, typename _allocator>
+void bitset<_underlying, _allocator>::resize(u64 bits)
 {
     set_size(bits);
 }
 
-template<typename _underlying>
-u64 bitset<_underlying>::bit_to_item_index(u64 bit) const
+template<typename _underlying, typename _allocator>
+u64 bitset<_underlying, _allocator>::bit_to_item_index(u64 bit) const
 {
-    return (bit + 1) / bits_per_underlying;
+    return bit / bits_per_underlying;
 }
 
-template<typename _underlying>
-_underlying bitset<_underlying>::bit_mask(u64 bit) const
+template<typename _underlying, typename _allocator>
+_underlying bitset<_underlying, _allocator>::bit_mask(u64 bit) const
 {
     u64 subindex = bit - (bit_to_item_index(bit) * bits_per_underlying);
-    return 1 << static_cast<_underlying>(subindex);
+    return static_cast<_underlying>(subindex);
 }
 
-template<typename _underlying>
-u64 bitset<_underlying>::size_required(u64 bits) const
+template<typename _underlying, typename _allocator>
+u64 bitset<_underlying, _allocator>::size_required(u64 bits) const
 {
     return bit_to_item_index(bits) + 1;
 }
 
-template<typename _underlying>
-void bitset<_underlying>::set_size(u64 bits)
+template<typename _underlying, typename _allocator>
+void bitset<_underlying, _allocator>::set_size(u64 bits)
 {
     if( size_required(bits) == _base::size() )
         return;

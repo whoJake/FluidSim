@@ -1,36 +1,22 @@
 #pragma once
 
 #include "allocator.h"
+#include <vector>
 
 namespace sys
 {
 
-enum memory_zone
+using memory_zone = u32;
+
+#define SYSZONE_USE(x) ::sys::tracked_allocator::zone_scope __zonescope(x)
+#define SYSZONE_REGISTER(name, val) memory_zone __zone_##val = ::sys::tracked_allocator::register_zone(val, name)
+#define SYSZONE_NAME(val) ::sys::tracked_allocator::find_zone_name(val)
+
+enum system_zones : memory_zone
 {
     MEMZONE_DEFAULT = 0,
-
-    MEMZONE_POOL,
-    MEMZONE_GAME,
-
-    MEMZONE_COUNT,
+    MEMZONE_SYSTEM,
 };
-
-constexpr const char* as_c_str(memory_zone zone)
-{
-    switch( zone )
-    {
-    case MEMZONE_DEFAULT:
-        return "MEMZONE_DEFAULT";
-    case MEMZONE_POOL:
-        return "MEMZONE_POOL";
-    case MEMZONE_GAME:
-        return "MEMZONE_GAME";
-    default:
-        return "MEMZONE_UNKNOWN";
-    }
-}
-
-#define SYSUSE_ZONE(x) ::sys::tracked_allocator::zone_scope __zonescope(x)
 
 class tracked_allocator : public allocator
 {
@@ -50,21 +36,33 @@ public:
     static tracked_allocator* get();
     static void set_allocate_callback(allocate_callback cb);
     static void set_free_callback(free_callback cb);
+    static memory_zone register_zone(memory_zone val, const char* name);
+    static const char* find_zone_name(memory_zone zone);
 
     void* do_allocate(u64 size, u64 align) override;
     void do_free(void* ptr) override;
 
     void set_zone(memory_zone value);
     memory_zone get_zone() const;
-
 private:
     tracked_allocator();
     ~tracked_allocator() = default;
 
     memory_zone* get_thread_zone() const;
+
+    void register_zone_internal(memory_zone val, const char* name);
+    const char* find_zone_name_internal(memory_zone val) const;
 private:
     allocate_callback m_allocateCb;
     free_callback m_freeCb;
+
+    struct registered_memory_zone
+    {
+        memory_zone zone;
+        const char* name;
+    };
+
+    std::vector<registered_memory_zone> m_registeredZones;
 };
 
 } // sys

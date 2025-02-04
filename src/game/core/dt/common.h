@@ -1,5 +1,6 @@
 #pragma once
 
+#include "system/tracked_allocator.h"
 #include "system/assert.h"
 
 #ifndef DT_DEBUG_LEVEL
@@ -29,3 +30,26 @@ SYSDECLARE_CHANNEL(datatypes);
 #else
     #define DT_ASSERT(cond, fmt, ...) SYSASSERT(cond, DTMSG_ASSERT(fmt, __VA_ARGS__))
 #endif
+
+namespace dt
+{
+
+template<sys::memory_zone zone>
+struct zoned_allocator
+{
+    static constexpr void* allocate(u64 size, u64 align)
+    {
+        SYSZONE_USE(zone);
+        return sys::allocator::get_main()->allocate(size, align);
+    }
+
+    static constexpr void free(void* ptr)
+    {
+        SYSZONE_USE(zone);
+        sys::allocator::get_main()->free(ptr);
+    }
+};
+
+using default_allocator = zoned_allocator<sys::MEMZONE_DEFAULT>;
+
+} // dt
