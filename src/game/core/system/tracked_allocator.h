@@ -9,7 +9,7 @@ namespace sys
 using memory_zone = u32;
 
 #define SYSZONE_USE(x) ::sys::tracked_allocator::zone_scope __zonescope(x)
-#define SYSZONE_REGISTER(name, val) memory_zone __zone_##val = ::sys::tracked_allocator::register_zone(val, name)
+#define SYSZONE_REGISTER(name, val) inline static ::sys::memory_zone __zone_##name = ::sys::tracked_allocator::register_zone(val, #name)
 #define SYSZONE_NAME(val) ::sys::tracked_allocator::find_zone_name(val)
 
 enum system_zones : memory_zone

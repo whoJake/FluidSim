@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
-<structdef type="ExampleStruct">
-  <float name="m_float" init="0.2" />
-  <float name="m_float2" init="1.2222" />
-  <float name="m_float3" init="5" />
-</structdef>

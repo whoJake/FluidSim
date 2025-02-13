@@ -3,6 +3,11 @@
 namespace gfx
 {
 
+enum memory_zone : u32
+{
+    MEMZONE_SHADERS = 2,
+};
+
 enum class format
 {
     UNDEFINED = 0,
@@ -171,6 +176,7 @@ enum shader_resource_type : u32
     SHADER_RESOURCE_STORAGE_BUFFER_DYNAMIC,
     SHADER_RESOURCE_PUSH_CONSTANT,
     SHADER_RESOURCE_SPECIALIZATION_CONSTANT,
+    SHADER_RESOURCE_EMPTY,
 
     SHADER_RESOURCE_COUNT,
 };

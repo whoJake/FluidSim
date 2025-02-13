@@ -10,6 +10,7 @@
 #include "system/assert.h"
 #include "dt/vector.h"
 #include "dt/bitset.h"
+#include "dt/unique_ptr.h"
 
 SYSDECLARE_CHANNEL(main);
 
@@ -67,6 +68,12 @@ int main(int argc, const char* argv[])
 	};
 
 	{
+		dt::unique_ptr<u32> ptr = dt::make_unique<u32>(5);
+		SYSMSG_DEBUG("{}", *ptr);
+		ptr = dt::make_unique<u32>(6);
+		SYSMSG_DEBUG("{}", *ptr);
+		ptr.reset();
+
 		dt::bitset<u32> set;
 		set.set(151, true);
 		bool a = set.is_set(32);

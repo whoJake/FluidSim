@@ -210,7 +210,7 @@ void vector<T, _allocator>::push_back(T&& value)
         move_container(m_capacity);
     }
 
-    construct_at(std::move(value));
+    construct_at(m_size++, std::move(value));
 }
 
 template<typename T, typename _allocator>
@@ -223,7 +223,7 @@ void vector<T, _allocator>::emplace_back(Args&&... args)
         move_container(m_capacity);
     }
 
-    construct_at(std::forward<Args>(args)...);
+    construct_at(m_size++, std::forward<Args>(args)...);
 }
 
 template<typename T, typename _allocator>
