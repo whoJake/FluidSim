@@ -9,6 +9,12 @@ template<typename T>
 class const_array_iterator
 {
 public:
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = T;
+    using difference_Type = u64;
+    using pointer = const T*;
+    using reference = const T&;
+
     constexpr const_array_iterator() :
         m_ptr()
     { }
@@ -19,6 +25,11 @@ public:
 
     DEFAULT_MOVE(const_array_iterator);
     DEFAULT_COPY(const_array_iterator);
+
+    constexpr const T* ptr() const
+    {
+        return m_ptr;
+    }
 
     constexpr const T& operator*() const
     {
@@ -104,6 +115,12 @@ template<typename T>
 class array_iterator : public const_array_iterator<T>
 {
 private:
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = T;
+    using difference_Type = u64;
+    using pointer = T*;
+    using reference = T&;
+
     using _base = const_array_iterator<T>;
 public:
     constexpr array_iterator() :
@@ -116,6 +133,11 @@ public:
 
     DEFAULT_MOVE(array_iterator);
     DEFAULT_COPY(array_iterator);
+
+    constexpr T* ptr() const
+    {
+        return const_cast<T*>(_base::ptr());
+    }
 
     constexpr T& operator*() const
     {

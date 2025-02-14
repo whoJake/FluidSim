@@ -34,6 +34,13 @@ SYSDECLARE_CHANNEL(datatypes);
 namespace dt
 {
 
+enum datatypes_zones : sys::memory_zone
+{
+    MEMZONE_HASHSTR = 10,
+};
+
+SYSZONE_REGISTER(MEMZONE_HASHSTR, MEMZONE_HASHSTR);
+
 template<sys::memory_zone zone>
 struct zoned_allocator
 {

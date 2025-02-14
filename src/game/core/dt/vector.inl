@@ -227,6 +227,44 @@ void vector<T, _allocator>::emplace_back(Args&&... args)
 }
 
 template<typename T, typename _allocator>
+void vector<T, _allocator>::insert(u64 i, const T& value)
+{
+    if( m_size == 0 || i == m_size )
+    {
+        push_back(value);
+        return;
+    }
+
+    expand(i, i + 1);
+    construct_at(i, value);
+}
+
+template<typename T, typename _allocator>
+void vector<T, _allocator>::insert(u64 i, T&& value)
+{
+    if( m_size == 0 || i == m_size )
+    {
+        push_back(std::move(value));
+        return;
+    }
+
+    expand(i, i + 1);
+    construct_at(i, std::move(value));
+}
+
+template<typename T, typename _allocator>
+void vector<T, _allocator>::insert(const iterator& i, const T& value)
+{
+    insert(index_of(i), value);
+}
+
+template<typename T, typename _allocator>
+void vector<T, _allocator>::insert(const iterator& i, T&& value)
+{
+    insert(index_of(i), std::move(value));
+}
+
+template<typename T, typename _allocator>
 void vector<T, _allocator>::erase(u64 index)
 {
 #if DT_VECTOR_RANGE_CHECK
@@ -246,6 +284,18 @@ void vector<T, _allocator>::shrink_to_size()
 
     m_capacity = m_size;
     move_container(m_capacity);
+}
+
+template<typename T, typename _allocator>
+u64 vector<T, _allocator>::index_of(const const_iterator& it) const
+{
+    return it.ptr() - m_data;
+}
+
+template<typename T, typename _allocator>
+u64 vector<T, _allocator>::index_of(const iterator& it) const
+{
+    return it.ptr() - m_data;
 }
 
 template<typename T, typename _allocator>
@@ -276,6 +326,39 @@ void vector<T, _allocator>::collapse(u64 left, u64 right)
         // 4: x x x x o o c
         construct_at(i - diff, std::move(m_data[i]));
     }
+}
+
+template<typename T, typename _allocator>
+void vector<T, _allocator>::expand(u64 before, u64 after)
+{
+    // Similar to collapse but opposite. For a container of size N
+    // will move elements from before-N into after-N, leaving the newly created
+    // hole undefined.
+    u64 diff = after - before;
+    u64 required_size = m_size + diff;
+    u64 required_capacity = m_capacity;
+
+    // Grow our container to be big enough to handle this change, but abiding by our growth rules.
+    // Doing it like this means we only do one move operation.
+    while( required_capacity < required_size )
+    {
+        required_capacity = DT_VECTOR_GROWTH_EQUATION(required_capacity);
+    }
+
+    if( required_capacity != m_capacity )
+    {
+        m_capacity = required_capacity;
+        move_container(m_capacity);
+    }
+
+    // Start from the back
+    for( u64 i = 0; i < diff; i++ )
+    {
+        u64 cur_index = m_size - 1 - i;
+        construct_at(cur_index + diff, std::move(m_data[cur_index]));
+    }
+
+    m_size = m_size + diff;
 }
 
 template<typename T, typename _allocator>

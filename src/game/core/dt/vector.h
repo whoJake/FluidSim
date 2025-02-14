@@ -67,9 +67,17 @@ public:
     template<typename... Args>
     void emplace_back(Args&&... args);
 
-    void erase(u64 index);
+    void insert(u64 i, const T& value);
+    void insert(u64 i, T&& value);
 
+    void insert(const iterator& it, const T& value);
+    void insert(const iterator& it, T&& value);
+
+    void erase(u64 index);
     void shrink_to_size();
+
+    u64 index_of(const const_iterator& it) const;
+    u64 index_of(const iterator& it) const;
 
     iterator begin();
     const_iterator begin() const;
@@ -90,6 +98,7 @@ private:
     void move_container(u64 new_size);
 
     void collapse(u64 shift_start, u64 new_start);
+    void expand(u64 prev_index, u64 new_index);
 
     void construct_at(u64 index, T&& value);
     void construct_at(u64 index, const T& value);

@@ -5,12 +5,9 @@
 #include "system/allocator.h"
 #include "system/basic_allocator.h"
 #include "system/tracked_allocator.h"
-#include "dt/pool.h"
 
 #include "system/assert.h"
-#include "dt/vector.h"
-#include "dt/bitset.h"
-#include "dt/unique_ptr.h"
+#include "dt/hash_string.h"
 
 SYSDECLARE_CHANNEL(main);
 
@@ -32,56 +29,18 @@ int main(int argc, const char* argv[])
 
 	SYSMSG_CHANNEL_WARN(main, "Hello world!");
 
-	struct S
-	{
-		S()
-		{
-			SYSMSG_DEBUG("Constructing.");
-		}
+	dt::hash_string32 str1("Testing0");
+	dt::hash_string32 str2("Testing1");
+	dt::hash_string32 str3("Testing2");
+	dt::hash_string32 str4("Testing3");
+	dt::hash_string32 str5("Testing4");
+	dt::hash_string32 str6("Testing5");
 
-		S(const S&)
-		{
-			SYSMSG_DEBUG("Copy Constructing.");
-		}
+	SYSMSG_CHANNEL_INFO(main, "{}: {}", str1.get_hash(), str1.try_get_str());
+	SYSMSG_CHANNEL_INFO(main, "{}: {}", str2.get_hash(), str2.try_get_str());
+	SYSMSG_CHANNEL_INFO(main, "{}: {}", str3.get_hash(), str3.try_get_str());
+	SYSMSG_CHANNEL_INFO(main, "{}: {}", str4.get_hash(), str4.try_get_str());
+	SYSMSG_CHANNEL_INFO(main, "{}: {}", str5.get_hash(), str5.try_get_str());
+	SYSMSG_CHANNEL_INFO(main, "{}: {}", str6.get_hash(), str6.try_get_str());
 
-		S(S&&)
-		{
-			SYSMSG_DEBUG("Move Constructing.");
-		}
-
-		S& operator=(const S&)
-		{
-			SYSMSG_DEBUG("Copy.");
-			return *this;
-		}
-
-		S& operator=(S&&)
-		{
-			SYSMSG_DEBUG("Move.");
-			return *this;
-		}
-
-		~S()
-		{
-			SYSMSG_DEBUG("Destructing.");
-		}
-	};
-
-	{
-		dt::unique_ptr<u32> ptr = dt::make_unique<u32>(5);
-		SYSMSG_DEBUG("{}", *ptr);
-		ptr = dt::make_unique<u32>(6);
-		SYSMSG_DEBUG("{}", *ptr);
-		ptr.reset();
-
-		dt::bitset<u32> set;
-		set.set(151, true);
-		bool a = set.is_set(32);
-		set.set(0, true);
-		set.set(1, true);
-		bool b = set.is_set(0);
-		bool c = set.is_set(1);
-		bool d = set.is_set(2);
-
-	}
 }
