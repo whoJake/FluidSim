@@ -2,7 +2,6 @@
 
 #ifdef GFX_SUPPORTS_VULKAN
 #include "vkconverts.h"
-#include "shader_vk.h"
 
 namespace gfx
 {
@@ -503,34 +502,6 @@ void device_vk::free_command_list(command_list* list)
     m_commandPool.free_buffer_by_flags(list->get_impl<VkCommandBuffer>(), flags);
 }
 
-shader device_vk::create_shader(std::vector<shader_stage>&& stages, const std::vector<void*>& stages_data, const std::vector<u64>& stages_data_size)
-{
-    GFX_ASSERT(stages.size() == stages_data.size(), "A stages data must be provided for each shader stage.");
-    GFX_ASSERT(stages.size() == stages_data_size.size(), "A stages data size must be provided for each shader stage.");
-
-    shader_vk* pImpl = new shader_vk();
-    pImpl->stages.reserve(stages.size());
-
-    for( u64 i = 0; i < stages.size(); i++ )
-    {
-        shader_stage_vk stage{ };
-
-        VkShaderModuleCreateInfo moduleCreateInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-        moduleCreateInfo.codeSize = stages_data_size[i];
-        moduleCreateInfo.pCode = (u32*)stages_data[i];
-
-        VkResult moduleResult = vkCreateShaderModule(m_device, &moduleCreateInfo, nullptr, &stage.shader_module);
-        GFX_ASSERT(moduleResult == VK_SUCCESS, "Failed to create shader module.");
-
-        // Descriptor set layouts?
-    }
-}
-
-void device_vk::free_shader(shader* shader)
-{
-
-}
-
 void device_vk::map(buffer* buf)
 {
     map_impl(&buf->get_memory_info());
@@ -912,6 +883,120 @@ void device_vk::texture_barrier(command_list* list, texture* texture, texture_la
         &barrier);
 }
 
+void* device_vk::create_shader_pass_impl(program* program, u64 pass)
+{
+    return nullptr;
+}
+
+void* device_vk::create_shader_pass_layout_impl(pass* pass)
+{
+    dt::vector<VkDescriptorSetLayout> layouts(DESCRIPTOR_TABLE_COUNT);
+    for( u64 i = 0; i < DESCRIPTOR_TABLE_COUNT; i++ )
+    {
+        layouts.push_back(pass->get_descriptor_table((descriptor_table_type)i).get_impl<VkDescriptorSetLayout>());
+    }
+
+    VkPipelineLayoutCreateInfo createInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    createInfo.setLayoutCount = u32_cast(DESCRIPTOR_TABLE_COUNT);
+    createInfo.pSetLayouts = layouts.data();
+
+    VkPipelineLayout retval{ VK_NULL_HANDLE };
+    VkResult result = vkCreatePipelineLayout(m_device, &createInfo, nullptr, &retval);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create VkPipelineLayout.");
+    }
+
+    return retval;
+}
+
+void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
+{
+    // Implicitly ordered buffer descriptors -> image descriptors
+    const dt::array<descriptor_slot_desc>& bufferSlots = desc->get_buffer_descriptions();
+    const dt::array<descriptor_slot_desc>& imageSlots = desc->get_image_descriptions();
+
+    dt::vector<VkDescriptorSetLayoutBinding> bindings(bufferSlots.size() + imageSlots.size());
+    u64 curIndex = 0;
+
+    // TODO: could probably combine these into one array for convinience but this'll do for now.
+    for( const auto& slot : bufferSlots )
+    {
+        VkDescriptorSetLayoutBinding binding{ };
+        binding.binding = curIndex++;
+        binding.stageFlags = converters::get_shader_stage_flags_vk(slot.get_visibility());
+        binding.descriptorCount = slot.get_array_size();
+        binding.descriptorType = converters::get_descriptor_type_vk(slot.get_resource_type());
+
+        bindings.push_back(binding);
+    }
+
+    for( const auto& slot : imageSlots )
+    {
+        VkDescriptorSetLayoutBinding binding{ };
+        binding.binding = curIndex++;
+        binding.stageFlags = converters::get_shader_stage_flags_vk(slot.get_visibility());
+        binding.descriptorCount = slot.get_array_size();
+        binding.descriptorType = converters::get_descriptor_type_vk(slot.get_resource_type());
+
+        bindings.push_back(binding);
+    }
+
+    VkDescriptorSetLayoutCreateInfo createInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    createInfo.bindingCount = u32_cast(bindings.size());
+    createInfo.pBindings = bindings.data();
+
+    VkDescriptorSetLayout retval{ VK_NULL_HANDLE };
+    VkResult result = vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &retval);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create DescriptorSetLayout.");
+    }
+    return retval;
+}
+
+void device_vk::destroy_shader_program(program* program)
+{
+    for( u64 passIdx = 0; passIdx < program->get_pass_count(); passIdx++ )
+    {
+        const pass& pass = program->get_pass(passIdx);
+
+        // Destroy the tables first.
+        for( u64 tableIdx = 0; tableIdx < DESCRIPTOR_TABLE_COUNT; tableIdx++ )
+        {
+            const descriptor_table_desc& table = pass.get_descriptor_table((descriptor_table_type)tableIdx);
+            vkDestroyDescriptorSetLayout(m_device, table.get_impl<VkDescriptorSetLayout>(), nullptr);
+        }
+
+        // These two doesn't really matter what order
+        vkDestroyPipelineLayout(m_device, pass.get_layout_impl<VkPipelineLayout>(), nullptr);
+        vkDestroyPipeline(m_device, pass.get_impl<VkPipeline>(), nullptr);
+    }
+}
+
+void device_vk::write_descriptor_table(descriptor_table* table)
+{
+    const dt::array<void*>& bufferViews = table->get_buffer_views();
+    const dt::array<void*>& imageViews = table->get_image_views();
+
+    u32 bindingIdx = 0;
+    if( bufferViews.size() != 0 )
+    {
+
+    }
+
+    if( imageViews.size() != 0 )
+    {
+
+    }
+}
+
 VkQueue device_vk::get_queue(u32 familyIdx, u32 idx) const
 {
     GFX_ASSERT(u32_cast(m_queueFamilies.size()) > familyIdx, "Family index is invalid.");
@@ -1004,10 +1089,9 @@ void device_vk::create_instance()
                     break;
                 case debugger::severity::error:
                     GFX_ERROR(message);
-                    GFX_ASSERT(false, "Validation failure, see previous errors.");
                     break;
                 default:
-                    GFX_MSG(message);
+                    GFX_INFO(message);
                     break;
             }
         });

@@ -476,6 +476,16 @@ public:
         return m_data;
     }
 
+    inline u64 index_of(const const_iterator& it) const
+    {
+        return it.ptr() - m_data;
+    }
+
+    inline u64 index_of(const iterator& it) const
+    {
+        return it.ptr() - m_data;
+    }
+
     inline iterator begin()
     {
         return iterator(m_data, 0);

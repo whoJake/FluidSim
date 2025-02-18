@@ -46,7 +46,7 @@ int main(int argc, const char* argv[])
 	gfx::texture_info tInfo{ };
 	tInfo.initialise(
 		cdt::image_format::R8G8B8A8_SRGB,
-		gfx::texture_usage_flag_bits::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_COLOR,
+		gfx::texture_usage_flag_bits::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_COLOR,
 		window.get_extent().x,
 		window.get_extent().y,
 		1);
@@ -102,16 +102,27 @@ int main(int argc, const char* argv[])
 	device->free_buffer(&buffer);
 
 
-	sys::moment time = sys::now();
+	sys::moment lastupdate = sys::now();
+	u64 frames = 0;
+
+	const double seconds_per_update = 1.0;
 	while( 1 )
 	{
 		window.process_events();
+		++frames;
 
 		sys::moment now = sys::now();
-		u64 us = std::chrono::floor<std::chrono::microseconds>(now - time).count();
-		u64 fps = u64_cast(1.0 / f64_cast(us / 1000000.0));
-		window.set_title(std::format("{} fps", fps));
-		time = now;
+		u64 us_since_last_update = std::chrono::floor<std::chrono::microseconds>(now - lastupdate).count();
+
+		if( us_since_last_update * 0.000001 > seconds_per_update  )
+		{
+			lastupdate = now;
+
+			u64 fps = frames / seconds_per_update;
+			frames = 0;
+
+			window.set_title(std::format("{} fps", fps));
+		}
 	}
 
 	device->free_swapchain(&swapchain);

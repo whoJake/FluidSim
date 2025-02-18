@@ -1,7 +1,9 @@
 #pragma once
-#include "types.h"
 #include "gfxdefines.h"
-#include "system/hash_string.h"
+#include "types.h"
+#include "pipeline_state.h"
+
+#include "dt/hash_string.h"
 #include "dt/array.h"
 #include "dt/vector.h"
 #include "dt/unique_ptr.h"
@@ -9,82 +11,201 @@
 namespace gfx
 {
 
-class Driver;
+class program;
 class shader;
+class pass;
+class descriptor_table;
+class descriptor_slot_desc;
 
-class shader_manager
+/*
+class program_manager
 {
 public:
-    static const shader* find_shader(sys::hash_string name);
+    static const program* find_program(dt::hash_string32 name);
     static void load(const char* path);
 private:
-    static shader_manager& get();
-    dt::vector<dt::unique_ptr<shader, dt::zoned_allocator<MEMZONE_SHADERS>>> m_loadedShaders;
+    static program_manager& get();
+    dt::vector<dt::unique_ptr<program>> m_loadedPrograms;
 };
+*/
 
-class descriptor_binding
+/// Program : A collection of passes that define a rendering sequence. Named after
+/// the OpenGL name of a ShaderProgram.
+class program
 {
 public:
-    descriptor_binding() = default;
-    ~descriptor_binding() = default;
+    program() = default;
+    ~program() = default;
 
-    void initialise(sys::hash_string name, u64 resource_size, shader_resource_type type, shader_stage_flags visibility);
+    dt::hash_string32 get_name() const;
+    const pass& get_pass(u64 index) const;
 
-    const sys::hash_string& get_name() const;
-    u64 size() const;
-    shader_resource_type get_resource_type() const;
-    shader_stage_flags get_visibility() const;
+    u64 get_pass_count() const;
 private:
-    sys::hash_string m_name;
-    u64 m_size;
-    shader_resource_type m_type{ SHADER_RESOURCE_EMPTY };
-    shader_stage_flags m_visibility;
+    dt::hash_string32 m_name;
+    dt::array<pass> m_passes;
+    dt::array<shader> m_shaders;
 };
 
-class descriptor_table
+/// Descriptor Table Description : Describes the layout of a descriptor table. Tables are
+/// implicitely ordered with all buffer views being at the start, and all image views being
+/// at the end. A descriptor table can be created via a descriptor table desc and then bound
+/// onto it via its shader.
+/// TODO: This shouldn't have to be ordered like this. It just makes binding with vulkan a bit
+/// easier since you can only bind buffers or images at any one time.
+/// 
+/// In Vulkan, a descriptor_table_desc is roughly equal to a VkDescriptorSetLayout. Multiple
+/// descriptor_table_desc therefore make up a VkPipelineLayout.
+class descriptor_table_desc
 {
 public:
-    descriptor_table() = default;
-    ~descriptor_table() = default;
+    friend class program_manager;
 
-    void initialise(u64 binding_count);
-    void set_binding(u64 index, descriptor_binding&& binding);
+    descriptor_table_desc() = default;
+    ~descriptor_table_desc() = default;
 
-    const descriptor_binding& get_binding(u64 index) const;
-    const descriptor_binding* find_binding(const sys::hash_string& name) const;
-    const descriptor_binding* find_binding(u64 name_hash) const;
-private:
-    dt::array<descriptor_binding> m_bindings;
-};
+    u64 find_buffer_slot(dt::hash_string32 name) const;
+    u64 find_image_slot(dt::hash_string32 name) const;
 
-class pass
-{
-public:
-    pass() = default;
-    ~pass() = default;
-private:
-};
-
-class shader
-{
-public:
-    shader() = default;
-    ~shader() = default;
-    void initialise(const sys::hash_string& name);
-    void set_table(descriptor_table_type type, descriptor_table&& table);
-    void set_impl(void* pImpl);
-
-    const sys::hash_string& get_name() const;
-
-    const descriptor_table& get_table(descriptor_table_type type) const;
-    const descriptor_binding* find_binding(descriptor_table_type type, const sys::hash_string& name) const;
+    const dt::array<descriptor_slot_desc>& get_buffer_descriptions() const;
+    const dt::array<descriptor_slot_desc>& get_image_descriptions() const;
 
     GFX_HAS_IMPL(m_pImpl);
 private:
-    sys::hash_string m_name;
-    dt::inline_array<descriptor_table, DESCRIPTOR_TABLE_COUNT> m_tables;
+    dt::array<descriptor_slot_desc> m_bufferDescs;
+    dt::array<descriptor_slot_desc> m_imageDescs;
 
-    // VkGraphicsPipeline
+    void* m_pImpl;
+};
+
+/// Pass : A full front of pipeline to back of pipeline program, made up of a combination
+/// of shaders. A pass holds the information needed to describe all the resource
+/// bindings that will need to happen for it to take effect.
+/// 
+/// In Vulkan, a pass is roughly equivalent to a combination of VkPipeline and VkPipelineLayout
+class pass
+{
+public:
+    friend class program_manager;
+
+    pass() = default;
+    ~pass() = default;
+
+    shader_stage_flags get_stage_mask() const;
+    u8 get_vertex_shader_index() const;
+    u8 get_geometry_shader_index() const;
+    u8 get_fragment_shader_index() const;
+    u8 get_compute_shader_index() const;
+
+    const descriptor_table_desc& get_descriptor_table(descriptor_table_type type) const;
+    const pipeline_state& get_pipeline_state() const;
+
+    GFX_HAS_IMPL(m_pImpl);
+
+    template<typename T>T get_layout_impl()
+    {
+        return static_cast<T>(m_pLayoutImpl);
+    }
+    
+    template<typename T>T get_layout_impl() const
+    {
+        return static_cast<T>(m_pLayoutImpl);
+    };
+private:
+    shader_stage_flags m_stageMask;
+
+    u8 m_vertexShaderIndex;
+    u8 m_geometryShaderIndex;
+    u8 m_fragmentShaderIndex;
+    u8 m_computeShaderIndex;
+
+    descriptor_table_desc m_tables[DESCRIPTOR_TABLE_COUNT];
+    pipeline_state m_pso;
+
+    void* m_pImpl; // VkPipeline
+    void* m_pLayoutImpl; // VkPipelineLayout
+};
+
+/// Shader : A singular shader program representing a single shader stage. Multiple shaders
+/// make up a pass which will then be bound to the pipeline in order to create a top to bottom
+/// effect.
+class shader
+{
+public:
+    friend class program_manager;
+
+    shader() = default;
+    ~shader() = default;
+
+    void initialise(shader_stage_flag_bits stage);
+private:
+    dt::hash_string32 m_entryPoint;
+    shader_stage_flag_bits m_stage;
+    void* m_code;
+    u64 m_codeSize;
+};
+
+/// Descriptor Slot Description : A slot/binding inside of a descriptor table. Buffer or image
+/// views can be bound onto a slot in order for it to be visible to the shader at that location.
+class descriptor_slot_desc
+{
+public:
+    descriptor_slot_desc() = default;
+    ~descriptor_slot_desc() = default;
+
+    void initialise(dt::hash_string32 name, shader_resource_type type, u32 array_size, u32 slot_size, u32 resource_size, shader_stage_flags visiblility);
+
+    dt::hash_string32 get_name() const;
+    shader_resource_type get_resource_type() const;
+    u32 get_array_size() const;
+    u32 get_slot_size() const;
+    u32 get_resource_size() const;
+    shader_stage_flags get_visibility() const;
+private:
+    dt::hash_string32 m_name;
+    shader_resource_type m_type;
+    u32 m_arraySize;
+    u32 m_slotSize;
+    u32 m_resourceSize;
+    shader_stage_flags m_visibility;
+};
+
+/// Descriptor Table : Equal to a descriptor set where the user can bind a set of resources
+/// finalise it to write to the underlying API and then bind this descriptor table to a given
+/// shader when rendering.
+/// TODO: Should this have a concept of being dirty? My thinking is that a descriptor table is
+/// flushed at the point it is bound and if its changed then its written to first? Is synchonization
+/// something to worry about if I do that?
+/// 
+/// In Vulkan, a descriptor_table is roughly equivalent to a DescriptorSet and is what binds resources
+/// into the pipeline.
+class descriptor_table
+{
+public:
+    friend class program_manager;
+
+    descriptor_table() = default;
+    ~descriptor_table() = default;
+
+    void initialise(descriptor_table_desc* owner, void* pImpl);
+
+    void set_buffer(dt::hash_string32 name, void* value);
+    void set_image(dt::hash_string32 name, void* value);
+
+    const dt::array<void*>& get_buffer_views() const;
+    const dt::array<void*>& get_image_views() const;
+
+    /// Write the currently applied views into the underlying
+    /// descriptor table.
+    void write();
+
+    GFX_HAS_IMPL(m_pImpl);
+private:
+    descriptor_table_desc* m_desc;
+
+    dt::array<void*> m_bufferViews;
+    dt::array<void*> m_imageViews;
+
     void* m_pImpl;
 };
 

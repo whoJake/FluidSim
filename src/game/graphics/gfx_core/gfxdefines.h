@@ -1,27 +1,27 @@
 #pragma once
-#ifndef NOMINMAX
-    #define NOMINMAX
-#endif // NOMINMAX
+#include "system/assert.h"
 
 #ifdef PLATFORM_WINDOWS
     #define GFX_SUPPORTS_GFX
     #define GFX_EXT_SWAPCHAIN
 #endif
 
-#define GFX_MSG(fmt, ...) CHANNEL_LOG_MSG(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_VERBOSE(fmt, ...) CHANNEL_LOG_VERBOSE(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_PROFILE(fmt, ...) CHANNEL_LOG_PROFILE(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_DEBUG(fmt, ...) CHANNEL_LOG_DEBUG(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_INFO(fmt, ...) CHANNEL_LOG_INFO(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_WARN(fmt, ...) CHANNEL_LOG_WARN(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_ERROR(fmt, ...) CHANNEL_LOG_ERROR(::sys::log::channel::graphics, fmt, __VA_ARGS__)
-#define GFX_FATAL(fmt, ...) CHANNEL_LOG_FATAL(::sys::log::channel::graphics, fmt, __VA_ARGS__)
+namespace gfx
+{
 
-#ifdef CFG_DEBUG
-    #define GFX_ASSERT(val, fmt, ...) if(!(!!(val))){ QUITFMT(fmt, __VA_ARGS__); }
-#else
-    #define GFX_ASSERT(val, fmt, ...)
-#endif // CFG_DEBUG
+SYSDECLARE_CHANNEL(graphics);
+
+#define GFX_VERBOSE(fmt, ...) SYSMSG_CHANNEL_VERBOSE(graphics, fmt, __VA_ARGS__)
+#define GFX_PROFILE(fmt, ...) SYSMSG_CHANNEL_PROFILE(graphics, fmt, __VA_ARGS__)
+#define GFX_DEBUG(fmt, ...) SYSMSG_CHANNEL_DEBUG(graphics, fmt, __VA_ARGS__)
+#define GFX_INFO(fmt, ...) SYSMSG_CHANNEL_INFO(graphics, fmt, __VA_ARGS__)
+#define GFX_WARN(fmt, ...) SYSMSG_CHANNEL_WARN(graphics, fmt, __VA_ARGS__)
+#define GFX_ERROR(fmt, ...) SYSMSG_CHANNEL_ERROR(graphics, fmt, __VA_ARGS__)
+#define GFX_FATAL(fmt, ...) SYSMSG_CHANNEL_FATAL(graphics, fmt, __VA_ARGS__)
+
+#define GFX_ASSERT(val, fmt, ...) SYSASSERT(val, SYSMSG_CHANNEL_ASSERT(graphics, fmt, __VA_ARGS__))
+
+}
 
 #define GFX_DEPENDENCY_NAMES 1
 

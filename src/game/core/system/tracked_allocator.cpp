@@ -3,9 +3,6 @@
 namespace sys
 {
 
-SYSZONE_REGISTER(MEMZONE_DEFAULT, MEMZONE_DEFAULT);
-SYSZONE_REGISTER(MEMZONE_SYSTEM, MEMZONE_SYSTEM);
-
 tracked_allocator* tracked_allocator::get()
 {
     static tracked_allocator instance;

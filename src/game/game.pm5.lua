@@ -389,6 +389,9 @@
       "%{prj.name}",
       "%{prj_Core}",
 	  "%{prj_Graphics}",
+
+      -- spirv/glsl
+      "%{g_Vendordir}/glslang",
     }
 
     dependson
@@ -402,14 +405,33 @@
       "/FIforceinclude.h",
     }
 
+    files
+    {
+        "%{prj.name}/*.fx",
+        "%{prj.name}/*.glsl",
+    }
+
     libdirs
     {
+      "%VULKAN_SDK%/Lib",
     }
 
     links
     {
       "%{prj_Core}",
 	  "%{prj_Graphics}",
+
+      -- shader parsing
+      "spirv-cross-core",
+      "spirv-cross-glsl",
+      "glslang",
+      "glslang-default-resource-limits",
+      "OSDependent",
+      "GenericCodeGen",
+      "MachineIndependent",
+      "SPIRV",
+      "SPIRV-Tools",
+      "SPIRV-Tools-opt",
     }
 
     filter "configurations:Debug"

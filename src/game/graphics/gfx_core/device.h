@@ -54,9 +54,6 @@ public:
     virtual dependency create_dependency(const char* debug_name = nullptr) = 0;
     virtual void free_dependency(dependency* dep) = 0;
 
-    virtual shader create_shader(std::vector<shader_stage>&& stages, const std::vector<void*>& stages_data, const std::vector<u64>& stages_data_size) = 0;
-    virtual void free_shader(shader* shader) = 0;
-
     virtual graphics_command_list allocate_graphics_command_list() = 0;
     virtual void free_command_list(command_list* list) = 0;
 
@@ -93,6 +90,15 @@ public:
     virtual void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) = 0;
 
     // virtual void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index = 0, void* pAux = nullptr) = 0;
+
+    // Shader things
+    virtual void* create_shader_pass_impl(program* program, u64 pass) = 0;
+    virtual void* create_shader_pass_layout_impl(pass* pass) = 0;
+    virtual void* create_descriptor_table_desc_impl(descriptor_table_desc* desc) = 0;
+
+    virtual void destroy_shader_program(program* program) = 0;
+
+    virtual void write_descriptor_table(descriptor_table* table) = 0;
 
     inline debugger& get_debugger()
     {

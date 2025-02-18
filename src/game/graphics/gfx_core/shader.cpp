@@ -5,127 +5,177 @@
 namespace gfx
 {
 
-const shader* shader_manager::find_shader(sys::hash_string name)
-{
-    auto it = std::lower_bound(
-        get().m_loadedShaders.begin(),
-        get().m_loadedShaders.end(),
-        name,
-        [](const std::unique_ptr<shader>& comp, const sys::hash_string& val)
-        {
-            return comp->get_name().get_hash() < val.get_hash();
-        });
-    if( it != get().m_loadedShaders.end() )
-    {
-        shader* found = it->get();
-
-        if( found->get_name().get_hash() == name.get_hash() )
-            return it->get();
-    }
-
-    return nullptr;
-}
-
-void shader_manager::load(const char* path)
-{
-    sys::hash_string name(path);
-    dt::unique_ptr<shader> val = dt::make_unique<shader>();
-    val->initialise(name);
-
-
-}
-
-shader_manager& shader_manager::get()
-{
-    static shader_manager instance;
-    return instance;
-}
-
-const descriptor_table& shader::get_table(descriptor_table_type type) const
-{
-    return m_tables[type];
-}
-
-const descriptor_binding* shader::find_binding(descriptor_table_type type, const sys::hash_string& name) const
-{
-    return m_tables[type].find_binding(name);
-}
-
-void shader::initialise(const sys::hash_string& name)
-{
-    m_name = name;
-}
-
-void shader::set_impl(void* pImpl)
-{
-    m_pImpl = pImpl;
-}
-
-void shader::set_table(descriptor_table_type type, descriptor_table&& table)
-{
-    m_tables[type] = std::move(table);
-}
-
-void descriptor_binding::initialise(sys::hash_string name, u64 resource_size, shader_resource_type type, shader_stage_flags flags)
-{
-    m_name = name;
-    m_size = resource_size;
-    m_type = type;
-    m_visibility = flags;
-}
-
-const sys::hash_string& descriptor_binding::get_name() const
+dt::hash_string32 program::get_name() const
 {
     return m_name;
 }
 
-u64 descriptor_binding::size() const
+const pass& program::get_pass(u64 index) const
 {
-    return m_size;
+    return m_passes[index];
 }
 
-shader_resource_type descriptor_binding::get_resource_type() const
+u64 program::get_pass_count() const
+{
+    return m_passes.size();
+}
+
+shader_stage_flags pass::get_stage_mask() const
+{
+    return m_stageMask;
+}
+
+u8 pass::get_vertex_shader_index() const
+{
+    return m_vertexShaderIndex;
+}
+
+u8 pass::get_geometry_shader_index() const
+{
+    return m_geometryShaderIndex;
+}
+
+
+u8 pass::get_fragment_shader_index() const
+{
+    return m_fragmentShaderIndex;
+}
+
+
+u8 pass::get_compute_shader_index() const
+{
+    return m_computeShaderIndex;
+}
+
+const descriptor_table_desc& pass::get_descriptor_table(descriptor_table_type type) const
+{
+    return m_tables[type];
+}
+
+const pipeline_state& pass::get_pipeline_state() const
+{
+    return m_pso;
+}
+
+void shader::initialise(shader_stage_flag_bits stage)
+{
+    m_stage = stage;
+}
+
+void descriptor_slot_desc::initialise(dt::hash_string32 name, shader_resource_type type, u32 array_size, u32 slot_size, u32 resource_size, shader_stage_flags visibility)
+{
+    m_name = name;
+    m_type = type;
+    m_arraySize = array_size;
+    m_slotSize = slot_size;
+    m_resourceSize = resource_size;
+    m_visibility = visibility;
+}
+
+dt::hash_string32 descriptor_slot_desc::get_name() const
+{
+    return m_name;
+}
+
+shader_resource_type descriptor_slot_desc::get_resource_type() const
 {
     return m_type;
 }
 
-shader_stage_flags descriptor_binding::get_visibility() const
+u32 descriptor_slot_desc::get_array_size() const
+{
+    return m_arraySize;
+}
+
+u32 descriptor_slot_desc::get_slot_size() const
+{
+    return m_slotSize;
+}
+
+u32 descriptor_slot_desc::get_resource_size() const
+{
+    return m_resourceSize;
+}
+
+shader_stage_flags descriptor_slot_desc::get_visibility() const
 {
     return m_visibility;
 }
 
-void descriptor_table::initialise(u64 binding_count)
+u64 descriptor_table_desc::find_buffer_slot(dt::hash_string32 name) const
 {
-    m_bindings = dt::array<descriptor_binding>(binding_count);
+    auto it = std::lower_bound(
+        m_bufferDescs.begin(),
+        m_bufferDescs.end(),
+        name,
+        [](const descriptor_slot_desc& slot, const dt::hash_string32& name)
+        {
+            return slot.get_name().get_hash() < name.get_hash();
+        });
+
+    GFX_ASSERT(it != m_bufferDescs.end() && it->get_name().get_hash() == name.get_hash(), "Buffer descriptor {} ({}) was not found inside descriptor table.", name.get_hash(), name.try_get_str());
+    return m_bufferDescs.index_of(it);
 }
 
-void descriptor_table::set_binding(u64 index, descriptor_binding&& binding)
+u64 descriptor_table_desc::find_image_slot(dt::hash_string32 name) const
 {
-    GFX_ASSERT(index < m_bindings.size(), "Setting binding {} of descriptor table of size {}.", index, m_bindings.size());
-    GFX_ASSERT(find_binding(binding.get_name()) == nullptr, "Binding with the name {} already exists in this descriptor table.", binding.get_name().try_get_str());
-    m_bindings[index] = std::move(binding);
+    auto it = std::lower_bound(
+        m_imageDescs.begin(),
+        m_imageDescs.end(),
+        name,
+        [](const descriptor_slot_desc& slot, const dt::hash_string32& name)
+        {
+            return slot.get_name().get_hash() < name.get_hash();
+        });
+
+    GFX_ASSERT(it != m_imageDescs.end() && it->get_name().get_hash() == name.get_hash(), "Buffer descriptor {} ({}) was not found inside descriptor table.", name.get_hash(), name.try_get_str());
+    return m_imageDescs.index_of(it);
 }
 
-const descriptor_binding& descriptor_table::get_binding(u64 index) const
+const dt::array<descriptor_slot_desc>& descriptor_table_desc::get_buffer_descriptions() const
 {
-    return m_bindings[index];
+    return m_bufferDescs;
 }
 
-const descriptor_binding* descriptor_table::find_binding(const sys::hash_string& name) const
+const dt::array<descriptor_slot_desc>& descriptor_table_desc::get_image_descriptions() const
 {
-    return find_binding(name.get_hash());
+    return m_imageDescs;
 }
 
-const descriptor_binding* descriptor_table::find_binding(u64 name_hash) const
+void descriptor_table::initialise(descriptor_table_desc* owner, void* pImpl)
 {
-    // Improve speed, helper sorted mapping?
-    for( auto it = m_bindings.begin(); it != m_bindings.end(); ++it )
-    {
-        if( it->get_name().get_hash() == name_hash )
-            return &(*it);
-    }
+    GFX_ASSERT(owner, "Descriptor table must be created with an owner.");
+    GFX_ASSERT(pImpl, "Descriptor table must have a pre-computed impl pointer.");
 
-    return nullptr;
+    m_desc = owner;
+    m_bufferViews = dt::array<void*>(owner->get_buffer_descriptions().size());
+    m_imageViews = dt::array<void*>(owner->get_image_descriptions().size());
+    m_pImpl = pImpl;
+}
+
+void descriptor_table::set_buffer(dt::hash_string32 name, void* value)
+{
+    m_bufferViews[m_desc->find_buffer_slot(name)] = value;
+}
+
+void descriptor_table::set_image(dt::hash_string32 name, void* value)
+{
+    m_imageViews[m_desc->find_image_slot(name)] = value;
+}
+
+const dt::array<void*>& descriptor_table::get_buffer_views() const
+{
+    return m_bufferViews;
+}
+
+const dt::array<void*>& descriptor_table::get_image_views() const
+{
+    return m_imageViews;
+}
+
+void descriptor_table::write()
+{
+    GFX_CALL(write_descriptor_table, this);
 }
 
 } // gfx

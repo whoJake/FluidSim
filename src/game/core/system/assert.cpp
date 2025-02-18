@@ -1,5 +1,15 @@
 #include "assert.h"
 
+#ifndef NOMINMAX
+    #define NOMINMAX
+#endif // NOMINMAX
+
+// Have to include Windows.h before including debugapi for reasons of
+// I have no idea its just required.
+// https://stackoverflow.com/questions/4845198/fatal-error-no-target-architecture-in-visual-studio
+#include "Windows.h"
+#include "debugapi.h"
+
 #include <iostream>
 #include <sstream>
 
@@ -90,6 +100,11 @@ void set_quit_handler(quit_handler func)
 void set_quit_message_generator(quit_message_generator func)
 {
     g_quitMessageGenerator = func;
+}
+
+bool is_debugger_present()
+{
+    return IsDebuggerPresent();
 }
 
 static void default_message_callback(const channel& channel, severity level, std::string formatted_message)

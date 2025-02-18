@@ -60,6 +60,9 @@ void fast_quit();
 
 void set_quit_handler(quit_handler func);
 void set_quit_message_generator(quit_message_generator func);
+bool is_debugger_present();
+
+#define SYSBREAK do{ if( ::sys::is_debugger_present() ) __debugbreak(); }while(0)
 
 #define SYSASSERT(cond, res) if(!(cond))[[unlikely]]do{res;}while(0)
 
@@ -69,8 +72,8 @@ void set_quit_message_generator(quit_message_generator func);
 #define SYSMSG_INFO(fmt, ...) ::sys::message_handler::send_info(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
 #define SYSMSG_WARN(fmt, ...) ::sys::message_handler::send_warn(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
 #define SYSMSG_ERROR(fmt, ...) ::sys::message_handler::send_error(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
-#define SYSMSG_ASSERT(fmt, ...) ::sys::message_handler::send_assert(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
-#define SYSMSG_FATAL(fmt, ...) ::sys::message_handler::send_fatal(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
+#define SYSMSG_ASSERT(fmt, ...) SYSBREAK; ::sys::message_handler::send_assert(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
+#define SYSMSG_FATAL(fmt, ...) SYSBREAK; ::sys::message_handler::send_fatal(*::sys::channel::get_global_channel(), fmt, __VA_ARGS__)
 
 #define SYSMSG_CHANNEL_VERBOSE(channel, fmt, ...) ::sys::message_handler::send_verbose(c_##channel, fmt, __VA_ARGS__)
 #define SYSMSG_CHANNEL_PROFILE(channel, fmt, ...) ::sys::message_handler::send_profile(c_##channel, fmt, __VA_ARGS__)
@@ -78,8 +81,8 @@ void set_quit_message_generator(quit_message_generator func);
 #define SYSMSG_CHANNEL_INFO(channel, fmt, ...) ::sys::message_handler::send_info(c_##channel, fmt, __VA_ARGS__)
 #define SYSMSG_CHANNEL_WARN(channel, fmt, ...) ::sys::message_handler::send_warn(c_##channel, fmt, __VA_ARGS__)
 #define SYSMSG_CHANNEL_ERROR(channel, fmt, ...) ::sys::message_handler::send_error(c_##channel, fmt, __VA_ARGS__)
-#define SYSMSG_CHANNEL_ASSERT(channel, fmt, ...) ::sys::message_handler::send_assert(c_##channel, fmt, __VA_ARGS__)
-#define SYSMSG_CHANNEL_FATAL(channel, fmt, ...) ::sys::message_handler::send_fatal(c_##channel, fmt, __VA_ARGS__)
+#define SYSMSG_CHANNEL_ASSERT(channel, fmt, ...) SYSBREAK; ::sys::message_handler::send_assert(c_##channel, fmt, __VA_ARGS__)
+#define SYSMSG_CHANNEL_FATAL(channel, fmt, ...) SYSBREAK; ::sys::message_handler::send_fatal(c_##channel, fmt, __VA_ARGS__)
 
 using message_callback = std::function<void(const channel&, severity, std::string formatted_message)>;
 

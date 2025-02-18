@@ -65,9 +65,6 @@ public:
     graphics_command_list allocate_graphics_command_list() override;
     void free_command_list(command_list* list) override;
 
-    shader create_shader(std::vector<shader_stage>&& stages, const std::vector<void*>& stages_data, const std::vector<u64>& stages_data_size) override;
-    void free_shader(shader* shader) override;
-
     void map(buffer* buf) override;
     void map(texture* tex) override;
     void unmap(buffer* buf) override;
@@ -103,6 +100,15 @@ public:
     void copy_texture_to_texture(command_list* list, texture* src, texture* dst) override;
     void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) override;
     void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) override;
+
+    // Shader things
+    void* create_shader_pass_impl(program* program, u64 pass) override;
+    void* create_shader_pass_layout_impl(pass* pass) override;
+    void* create_descriptor_table_desc_impl(descriptor_table_desc* desc) override;
+
+    void destroy_shader_program(program* program) override;
+
+    void write_descriptor_table(descriptor_table* table) override;
 
     // Internal VK functions
     VkQueue get_queue(u32 familyIdx, u32 idx = 0) const;

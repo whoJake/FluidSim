@@ -9,7 +9,10 @@ namespace sys
 using memory_zone = u32;
 
 #define SYSZONE_USE(x) ::sys::tracked_allocator::zone_scope __zonescope(x)
-#define SYSZONE_REGISTER(name, val) inline static ::sys::memory_zone __zone_##name = ::sys::tracked_allocator::register_zone(val, #name)
+
+// This must be in exactly one CPP file.
+#define SYSZONE_REGISTER(name, val) inline ::sys::memory_zone __zone_##name = ::sys::tracked_allocator::register_zone(val, #name)
+
 #define SYSZONE_NAME(val) ::sys::tracked_allocator::find_zone_name(val)
 
 enum system_zones : memory_zone
@@ -64,5 +67,8 @@ private:
 
     std::vector<registered_memory_zone> m_registeredZones;
 };
+
+SYSZONE_REGISTER(MEMZONE_DEFAULT, MEMZONE_DEFAULT);
+SYSZONE_REGISTER(MEMZONE_SYSTEM, MEMZONE_SYSTEM);
 
 } // sys

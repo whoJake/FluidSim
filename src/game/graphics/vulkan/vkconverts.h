@@ -166,5 +166,32 @@ constexpr VkShaderStageFlags get_shader_stage_flags_vk(shader_stage_flags flags)
     return retval;
 }
 
+constexpr VkDescriptorType get_descriptor_type_vk(shader_resource_type type)
+{
+    switch( type )
+    {
+        case SHADER_RESOURCE_INPUT_ATTACHMENT:
+            return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+        case SHADER_RESOURCE_IMAGE:
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        case SHADER_RESOURCE_IMAGE_SAMPLER:
+            return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        case SHADER_RESOURCE_IMAGE_STORAGE:
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        case SHADER_RESOURCE_SAMPLER:
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        case SHADER_RESOURCE_UNIFORM_BUFFER:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case SHADER_RESOURCE_UNIFORM_BUFFER_DYNAMIC:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        case SHADER_RESOURCE_STORAGE_BUFFER:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        case SHADER_RESOURCE_STORAGE_BUFFER_DYNAMIC:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+        default:
+            GFX_ASSERT(false, "Shader resource type is not valid for VkDescriptorType conversion.");
+    }
+}
+
 } // converters
 } // gfx

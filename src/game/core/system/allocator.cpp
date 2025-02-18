@@ -1,7 +1,11 @@
 #include "allocator.h"
+#include "basic_allocator.h"
 
 namespace sys
 {
+
+// Default value.
+allocator* allocator::sm_main = basic_allocator::get();
 
 void* allocator::allocate(u64 size, u64 align)
 {

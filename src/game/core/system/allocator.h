@@ -27,7 +27,7 @@ public:
     static allocator* const get_main();
     static void set_main(allocator* ptr);
 private:
-    inline static allocator* sm_main{ nullptr };
+    static allocator* sm_main;
 
 };
 
