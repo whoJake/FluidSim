@@ -1,11 +1,11 @@
 #include "main.h"
 
+#include "gfx_core/loaders/compiled_shader.h"
+#include "gfx_core/loaders/loaders.h"
 #include "compiler/glsl_compiler.h"
 #include "system/device.h"
 
 #include "pugi_include.h"
-
-#include <fstream>
 
 bool parse_program(const char* filename, shader_program_file& program)
 {
@@ -154,59 +154,48 @@ bool compile_shader(const char* filename, const char* entry_point, gfx::shader_s
     return true;
 }
 
-bool write_program(const char* filename, const shader_program_compiled& compiled_program)
+bool write_program(const char* filename, shader_program_compiled& comp_program)
 {
-    std::fstream file;
-    file.open(filename, std::ios::binary | std::ios::trunc | std::ios::out);
+    gfx::compiled_program prog;
+    prog.name_size = u8_cast(comp_program.name.size());
+    prog.shader_count = u8_cast(comp_program.shaders.size());
+    prog.pass_count = u8_cast(comp_program.passes.size());
 
-    compiled_header hdr{ };
-    hdr.m_nameSize = u8_cast(compiled_program.name.size());
-    hdr.m_shaderCount = u8_cast(compiled_program.shaders.size());
-    hdr.m_passCount = u8_cast(compiled_program.passes.size());
-    hdr.m_pad = 0;
+    std::vector<gfx::compiled_pass> passes;
+    passes.reserve(comp_program.passes.size());
 
-    file.write((const char*)&hdr, sizeof(compiled_header));
-
-    u32 offset = hdr.m_nameSize;
-    for( const shader_compiled& shader : compiled_program.shaders )
+    for( const shader_pass_compiled& pass : comp_program.passes )
     {
-        compiled_shader_header shdr{ };
-        shdr.m_entryPointOffset = offset;
-        shdr.m_entryPointSize = u8_cast(shader.entry_point.size());
-        shdr.m_stage = shader.stage;
-        shdr.m_dataSize32 = u32_cast(shader.data.size());
-
-        offset += shdr.m_entryPointSize + (shdr.m_dataSize32 * sizeof(u32));
-
-        file.write((const char*)&shdr, sizeof(compiled_shader_header));
+        passes.push_back({ });
+        passes.back().stage_mask = pass.stage_mask;
+        passes.back().vertex_index = pass.vertex_index;
+        passes.back().geometry_index = pass.geometry_index;
+        passes.back().fragment_index = pass.fragment_index;
+        passes.back().compute_index = pass.compute_index;
     }
 
-    for( const shader_pass_compiled& pass : compiled_program.passes )
-    {
-        // Exactly the same for now.
-        compiled_pass_header phdr{ };
-        phdr.stage_mask = pass.stage_mask;
-        phdr.vertex_index = pass.vertex_index;
-        phdr.geometry_index = pass.geometry_index;
-        phdr.fragment_index = pass.fragment_index;
-        phdr.compute_index = pass.compute_index;
+    std::vector<gfx::compiled_shader> shaders;
+    shaders.reserve(comp_program.shaders.size());
 
-        file.write((const char*)&phdr, sizeof(compiled_pass_header));
+    std::vector<const char*> shaderEntryPoints;
+    shaderEntryPoints.reserve(comp_program.shaders.size());
+
+    std::vector<std::vector<u32>> shaderDatas;
+    shaderDatas.reserve(comp_program.shaders.size());
+
+    for( shader_compiled& shader : comp_program.shaders )
+    {
+        shaders.push_back({ });
+        shaders.back().entry_point_size = u8_cast(shader.entry_point.size());
+        shaders.back().stage = shader.stage;
+        shaders.back().data_size_32 = u32_cast(shader.data.size());
+
+        shaderEntryPoints.push_back(shader.entry_point.data());
+
+        shaderDatas.push_back(std::move(shader.data));
     }
 
-    // Write our "heap" data
-    {
-        file.write(compiled_program.name.data(), hdr.m_nameSize);
-        
-        for( const shader_compiled& shader : compiled_program.shaders )
-        {
-            file.write(shader.entry_point.data(), shader.entry_point.size());
-            file.write((const char*)shader.data.data(), shader.data.size() * sizeof(u32));
-        }
-    }
-
-    file.close();
-    return true;
+    return gfx::loaders::save(filename, comp_program.name.data(), prog, passes, shaders, shaderEntryPoints, shaderDatas);
 }
 
 int main(int argc, const char* argv[])
@@ -223,7 +212,7 @@ int main(int argc, const char* argv[])
         return -1;
     }
 
-    if( !write_program("compiled/triangle.fxcp", compiled_program) )
+    if( !write_program("compiled/triangle2.fxcp", compiled_program) )
     {
         return -1;
     }

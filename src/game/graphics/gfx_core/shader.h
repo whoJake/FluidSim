@@ -17,6 +17,8 @@ class pass;
 class descriptor_table;
 class descriptor_slot_desc;
 
+class loaders;
+
 /*
 class program_manager
 {
@@ -34,6 +36,8 @@ private:
 class program
 {
 public:
+    friend class loaders;
+
     program() = default;
     ~program() = default;
 
@@ -60,6 +64,7 @@ class descriptor_table_desc
 {
 public:
     friend class program_manager;
+    friend class loaders;
 
     descriptor_table_desc() = default;
     ~descriptor_table_desc() = default;
@@ -87,6 +92,7 @@ class pass
 {
 public:
     friend class program_manager;
+    friend class loaders;
 
     pass() = default;
     ~pass() = default;
@@ -133,6 +139,7 @@ class shader
 {
 public:
     friend class program_manager;
+    friend class loaders;
 
     shader() = default;
     ~shader() = default;
@@ -150,6 +157,8 @@ private:
 class descriptor_slot_desc
 {
 public:
+    friend class loaders;
+
     descriptor_slot_desc() = default;
     ~descriptor_slot_desc() = default;
 

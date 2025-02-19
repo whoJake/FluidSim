@@ -25,7 +25,7 @@ bool compile_program(const shader_program_file& program_file, shader_program_com
 /// in the out_data pointer. Returns whether the compilation was successful or not.
 bool compile_shader(const char* filename, const char* entry_point, gfx::shader_stage_flag_bits stage, std::vector<u32>* out_data);
 
-bool write_program(const char* filename, const shader_program_compiled& compiled_program);
+bool write_program(const char* filename, shader_program_compiled& compiled_program);
 
 
 
