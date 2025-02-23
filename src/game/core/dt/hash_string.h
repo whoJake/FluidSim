@@ -40,7 +40,7 @@ class basic_hash_string
 public:
     basic_hash_string(std::string_view str, _underlying hash);
     basic_hash_string(std::string_view str);
-    basic_hash_string(_underlying hash);
+    basic_hash_string(_underlying hash = 0);
 
     ~basic_hash_string();
 

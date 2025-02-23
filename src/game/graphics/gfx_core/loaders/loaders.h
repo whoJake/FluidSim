@@ -24,6 +24,9 @@ public:
                      const std::vector<compiled_shader>& shader_descriptions,
                      const std::vector<const char*>& shader_entry_points,
                      const std::vector<std::vector<u32>>& shader_datas);
+
+    static bool load(const char* filename,
+                     program* out_program);
 };
 
 } // gfx

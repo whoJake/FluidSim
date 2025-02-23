@@ -1,6 +1,5 @@
 #pragma once
-
-#include "hashing/spookyhash.h"
+#include "hash.h"
 
 namespace sys
 {
@@ -15,10 +14,10 @@ enum class hash_string_pools
 
 #ifdef SYS_HASH_STRING_32_BIT
 using hash_string_value = u32;
-#define CALCULATE_HASH(stringview) SpookyHash::Hash32(stringview.data(), stringview.size(), 0x7FFFFFFFU)
+#define CALCULATE_HASH(stringview) ::sys::hash32(stringview.data(), stringview.size())
 #else
 using hash_string_value = u64;
-#define CALCULATE_HASH(stringview) SpookyHash::Hash64(stringview.data(), stringview.size(), 0x9ae16a3b2f90404fULL)
+#define CALCULATE_HASH(stringview) ::sys::hash64(stringview.data(), stringview.size())
 #endif
 
 class hash_string_table

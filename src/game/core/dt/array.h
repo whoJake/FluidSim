@@ -11,7 +11,7 @@ class const_array_iterator
 public:
     using iterator_category = std::random_access_iterator_tag;
     using value_type = T;
-    using difference_Type = u64;
+    using difference_type = u64;
     using pointer = const T*;
     using reference = const T&;
 
@@ -117,7 +117,7 @@ class array_iterator : public const_array_iterator<T>
 private:
     using iterator_category = std::random_access_iterator_tag;
     using value_type = T;
-    using difference_Type = u64;
+    using difference_type = u64;
     using pointer = T*;
     using reference = T&;
 
@@ -212,6 +212,7 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
 
     static constexpr u32 capacity = _capacity;
+    static_assert(capacity != 0, "Inline array cannot be created with zero size.");
 
     inline_array() = default;
     ~inline_array() = default;
@@ -376,7 +377,23 @@ public:
         kill();
     }
 
-    DEFAULT_MOVE(array);
+    array(array&& other) :
+        m_data(other.m_data),
+        m_capacity(other.m_capacity)
+    {
+        other.m_data = nullptr;
+        other.m_capacity = 0;
+    }
+
+    array& operator=(array&& other)
+    {
+        m_data = other.m_data;
+        m_capacity = other.m_capacity;
+        other.m_data = nullptr;
+        other.m_capacity = 0;
+
+        return *this;
+    }
 
     array(const array& other)
     {
@@ -387,7 +404,7 @@ public:
         }
     }
 
-    const array& operator=(const array& other)
+    array& operator=(const array& other)
     {
         if( m_capacity == other.m_capacity )
         {
@@ -411,8 +428,12 @@ public:
 
     inline void initialise(u64 capacity, bool construct = true)
     {
+        DT_ASSERT(!m_data, "Array is already initialised.");
+
         m_capacity = capacity;
-        m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * capacity, alignof(T)));
+        if( capacity != 0 )
+            m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * capacity, alignof(T)));
+
         if( !construct )
             return;
 

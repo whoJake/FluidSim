@@ -4,6 +4,7 @@
 #include "../shader.h"
 
 #include <fstream>
+#include "system/device.h"
 
 namespace gfx
 {
@@ -73,7 +74,78 @@ bool loaders::save(const char* filename,
     out_file.close();
 
     return success;
+}
 
+bool loaders::load(const char* filename,
+                   program* out_program)
+{
+    GFX_ASSERT(out_program, "Must pass an allocated program.");
+    sys::fi_device file;
+    if( !file.open(filename) )
+    {
+        GFX_ERROR("Failed to open file {}.", filename);
+        return false;
+    }
+
+    if( file.size() < sizeof(u32) + sizeof(compiled_program) )
+    {
+        GFX_ERROR("File {} is smaller than the minimum size of a program.", filename);
+        return false;
+    }
+
+    u32 magic = 0;
+    file.read((u8*)&magic, sizeof(u32));
+    if( magic != PROGRAM_MAGIC_NUMBER )
+    {
+        GFX_ERROR("File {} magic number does not match that of a gfx::program", filename);
+        return false;
+    }
+
+    compiled_program hdr;
+    file.read((u8*)&hdr, sizeof(compiled_program));
+
+    dt::array<compiled_shader> shdrs(hdr.shader_count);
+    dt::array<compiled_pass> phdrs(hdr.pass_count);
+
+    file.read((u8*)shdrs.data(), shdrs.size() * sizeof(compiled_shader));
+    file.read((u8*)phdrs.data(), phdrs.size() * sizeof(compiled_pass));
+
+    dt::vector<char> pname_vec(hdr.name_size);
+    file.read((u8*)pname_vec.data(), hdr.name_size);
+
+    std::string_view pname(pname_vec.data(), pname_vec.size());
+    out_program->m_name = pname;
+    out_program->m_passes = dt::array<pass>(hdr.pass_count);
+    out_program->m_shaders = dt::array<shader>(hdr.shader_count);
+
+    for( u64 idx = 0; idx < hdr.shader_count; idx++ )
+    {
+        shader& shader = out_program->m_shaders[idx];
+        dt::vector<char> sname_vec(shdrs[idx].entry_point_size);
+        file.read((u8*)sname_vec.data(), shdrs[idx].entry_point_size);
+        std::string_view sname(sname_vec.data(), shdrs[idx].entry_point_size);
+
+        shader.m_entryPoint = sname;
+        shader.m_stage = shdrs[idx].stage;
+        shader.m_code = dt::array<u32>(shdrs[idx].data_size_32);
+
+        file.read((u8*)shader.m_code.data(), shdrs[idx].data_size_32 * sizeof(u32));
+    }
+
+    for( u64 idx = 0; idx < hdr.pass_count; idx++ )
+    {
+        pass& pass = out_program->m_passes[idx];
+        pass.m_stageMask = phdrs[idx].stage_mask;
+        pass.m_vertexShaderIndex = phdrs[idx].vertex_index;
+        pass.m_geometryShaderIndex = phdrs[idx].geometry_index;
+        pass.m_fragmentShaderIndex = phdrs[idx].fragment_index;
+        pass.m_computeShaderIndex = phdrs[idx].compute_index;
+
+        // Add descriptors to pass once its up and running.
+    }
+
+    file.close();
+    return true;
 }
 
 } // gfx

@@ -6,10 +6,13 @@
 #include "system/details/log_console.h"
 #include "system/details/basic_log.h"
 #include "gfx_core/Driver.h"
+#include "gfx_core/loaders/loaders.h"
 
 #include "cdt/loaders/image_loaders.h"
 #include "vulkan/vkdefines.h"
 #include "platform/windows/window_glfw.h"
+
+static u64 g_frame = 0;
 
 int main(int argc, const char* argv[])
 {
@@ -102,6 +105,9 @@ int main(int argc, const char* argv[])
 	device->free_buffer(&buffer);
 
 
+	gfx::program prog{ };
+	gfx::loaders::load("../shaderdev/compiled/triangle.fxcp", &prog);
+
 	sys::moment lastupdate = sys::now();
 	u64 frames = 0;
 
@@ -118,11 +124,13 @@ int main(int argc, const char* argv[])
 		{
 			lastupdate = now;
 
-			u64 fps = frames / seconds_per_update;
+			u64 fps = u64_cast(frames / seconds_per_update);
 			frames = 0;
 
 			window.set_title(std::format("{} fps", fps));
 		}
+
+		g_frame++;
 	}
 
 	device->free_swapchain(&swapchain);

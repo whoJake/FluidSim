@@ -33,10 +33,10 @@ public:
     ~vector();
 
     // TODO
-    // vector(const vector<T>& other);
-    // vector(vector<T>&& other);
-    // vector<T>& operator=(const vector<T>& other);
-    // vector<T>& operator=(vector<T>&& other);
+    // vector(const vector& other);
+    // vector(vector&& other);
+    // vector<T, _allocator>& operator=(const vector& other);
+    // vector<T, _allocator>& operator=(vector&& other);
 
     T& at(u64 index);
     const T& at(u64 index) const;

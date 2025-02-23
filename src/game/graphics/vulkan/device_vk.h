@@ -104,7 +104,9 @@ public:
     // Shader things
     void* create_shader_pass_impl(program* program, u64 pass) override;
     void* create_shader_pass_layout_impl(pass* pass) override;
+
     void* create_descriptor_table_desc_impl(descriptor_table_desc* desc) override;
+    void destroy_descriptor_table_desc(descriptor_table_desc* desc) override;
 
     void destroy_shader_program(program* program) override;
 

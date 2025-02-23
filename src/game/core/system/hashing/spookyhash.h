@@ -1,4 +1,4 @@
-//
+#pragma once
 // SpookyHash: a 128-bit noncryptographic hash function
 // By Bob Jenkins, public domain
 //   Oct 31 2010: alpha, framework + SpookyHash::Mix appears right

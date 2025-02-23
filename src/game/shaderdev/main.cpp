@@ -35,11 +35,11 @@ bool parse_program(const char* filename, shader_program_file& program)
         {
             pass.geometry_index = std::stoi(geometry.child_value());
         }
-        if( pugi::xml_node fragment = item.child("GeometryShader") )
+        if( pugi::xml_node fragment = item.child("FragmentShader") )
         {
             pass.fragment_index = std::stoi(fragment.child_value());
         }
-        if( pugi::xml_node compute = item.child("GeometryShader") )
+        if( pugi::xml_node compute = item.child("ComputeShader") )
         {
             pass.compute_index = std::stoi(compute.child_value());
         }
@@ -212,7 +212,7 @@ int main(int argc, const char* argv[])
         return -1;
     }
 
-    if( !write_program("compiled/triangle2.fxcp", compiled_program) )
+    if( !write_program("compiled/triangle.fxcp", compiled_program) )
     {
         return -1;
     }

@@ -15,9 +15,31 @@ class program;
 class shader;
 class pass;
 class descriptor_table;
+class descriptor_table_desc;
 class descriptor_slot_desc;
 
 class loaders;
+
+/// Descriptor Cache : Handles both descriptor_table_desc's and descriptor_tables.
+/// In order for a descriptor_table_desc to gain its impl ptr it must pass through the descriptor
+/// cache, which will use a pre-cached descriptor_table_desc if it has already been created.
+/// 
+/// TODO: API could be nicer on this. I like passing in a pre-formed (but without an impl) descriptor_table_desc
+/// into the cache in order to gain an impl ptr but it feels like a weird way of doing it.
+class descriptor_cache
+{
+public:
+    static descriptor_table_desc* get_descriptor_table_desc(descriptor_table_desc&& desc);
+
+    static void initialise();
+    static void shutdown();
+private:
+    inline static descriptor_cache* sm_instance = nullptr;
+    static descriptor_cache& get();
+
+    dt::vector<u64> m_tableDescHashes;
+    dt::vector<descriptor_table_desc> m_tableDescs;
+};
 
 /*
 class program_manager
@@ -63,14 +85,22 @@ private:
 class descriptor_table_desc
 {
 public:
-    friend class program_manager;
     friend class loaders;
+    friend class descriptor_cache;
 
     descriptor_table_desc() = default;
     ~descriptor_table_desc() = default;
 
+    DEFAULT_MOVE(descriptor_table_desc);
+    DELETE_COPY(descriptor_table_desc);
+
+    void initialise(const dt::vector<descriptor_slot_desc>& buffer_slots,
+                    const dt::vector<descriptor_slot_desc>& image_slots);
+
     u64 find_buffer_slot(dt::hash_string32 name) const;
     u64 find_image_slot(dt::hash_string32 name) const;
+
+    u64 calculate_hash() const;
 
     const dt::array<descriptor_slot_desc>& get_buffer_descriptions() const;
     const dt::array<descriptor_slot_desc>& get_image_descriptions() const;
@@ -79,6 +109,14 @@ public:
 private:
     dt::array<descriptor_slot_desc> m_bufferDescs;
     dt::array<descriptor_slot_desc> m_imageDescs;
+
+    struct slot_cache
+    {
+        dt::hash_string32 name;
+        u32 index;
+    };
+
+    dt::vector<slot_cache> m_lookup;
 
     void* m_pImpl;
 };
@@ -148,8 +186,7 @@ public:
 private:
     dt::hash_string32 m_entryPoint;
     shader_stage_flag_bits m_stage;
-    void* m_code;
-    u64 m_codeSize;
+    dt::array<u32> m_code;
 };
 
 /// Descriptor Slot Description : A slot/binding inside of a descriptor table. Buffer or image
@@ -157,7 +194,7 @@ private:
 class descriptor_slot_desc
 {
 public:
-    friend class loaders;
+    // friend class loaders;
 
     descriptor_slot_desc() = default;
     ~descriptor_slot_desc() = default;

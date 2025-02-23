@@ -926,7 +926,7 @@ void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
     for( const auto& slot : bufferSlots )
     {
         VkDescriptorSetLayoutBinding binding{ };
-        binding.binding = curIndex++;
+        binding.binding = u32_cast(curIndex++);
         binding.stageFlags = converters::get_shader_stage_flags_vk(slot.get_visibility());
         binding.descriptorCount = slot.get_array_size();
         binding.descriptorType = converters::get_descriptor_type_vk(slot.get_resource_type());
@@ -937,7 +937,7 @@ void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
     for( const auto& slot : imageSlots )
     {
         VkDescriptorSetLayoutBinding binding{ };
-        binding.binding = curIndex++;
+        binding.binding = u32_cast(curIndex++);
         binding.stageFlags = converters::get_shader_stage_flags_vk(slot.get_visibility());
         binding.descriptorCount = slot.get_array_size();
         binding.descriptorType = converters::get_descriptor_type_vk(slot.get_resource_type());
@@ -959,6 +959,11 @@ void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
         GFX_ASSERT(false, "Failed to create DescriptorSetLayout.");
     }
     return retval;
+}
+
+void device_vk::destroy_descriptor_table_desc(descriptor_table_desc* desc)
+{
+    vkDestroyDescriptorSetLayout(m_device, desc->get_impl<VkDescriptorSetLayout>(), nullptr);
 }
 
 void device_vk::destroy_shader_program(program* program)

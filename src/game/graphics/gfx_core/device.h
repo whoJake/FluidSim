@@ -94,7 +94,9 @@ public:
     // Shader things
     virtual void* create_shader_pass_impl(program* program, u64 pass) = 0;
     virtual void* create_shader_pass_layout_impl(pass* pass) = 0;
+
     virtual void* create_descriptor_table_desc_impl(descriptor_table_desc* desc) = 0;
+    virtual void destroy_descriptor_table_desc(descriptor_table_desc* desc) = 0;
 
     virtual void destroy_shader_program(program* program) = 0;
 

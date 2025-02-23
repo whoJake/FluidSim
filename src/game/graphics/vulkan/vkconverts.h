@@ -190,6 +190,7 @@ constexpr VkDescriptorType get_descriptor_type_vk(shader_resource_type type)
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
         default:
             GFX_ASSERT(false, "Shader resource type is not valid for VkDescriptorType conversion.");
+            return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 }
 
