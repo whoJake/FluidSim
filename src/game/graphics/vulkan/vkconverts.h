@@ -2,13 +2,16 @@
 #include "vkdefines.h"
 #include "cdt/imageformats.h"
 #include "gfx_core/memory.h"
+#include "dt/array.h"
+#include "gfx_core/types.h"
+#include "gfx_core/pipeline_state.h"
 
 namespace gfx
 {
 namespace converters
 {
 
-constexpr VkFormat get_format_vk(cdt::image_format format)
+constexpr VkFormat get_format_cdt_vk(cdt::image_format format)
 {
     switch( format )
     {
@@ -111,6 +114,57 @@ constexpr cdt::image_format get_format_vk_cdt(VkFormat format)
     }
 }
 
+constexpr VkFormat get_format_vk(format format)
+{
+    switch( format )
+    {
+    case format::R8_UNORM:
+        return VK_FORMAT_R8_UNORM;
+    case format::R8_SNORM:
+        return VK_FORMAT_R8_SNORM;
+    case format::R8_UINT:
+        return VK_FORMAT_R8_UINT;
+    case format::R8_SINT:
+        return VK_FORMAT_R8_SINT;
+    case format::R8_SRGB:
+        return VK_FORMAT_R8_SRGB;
+    case format::R8G8_UNORM:
+        return VK_FORMAT_R8G8_UNORM;
+    case format::R8G8_SNORM:
+        return VK_FORMAT_R8G8_SNORM;
+    case format::R8G8_UINT:
+        return VK_FORMAT_R8G8_UINT;
+    case format::R8G8_SINT:
+        return VK_FORMAT_R8G8_SINT;
+    case format::R8G8_SRGB:
+        return VK_FORMAT_R8G8_SRGB;
+    case format::R8G8B8_UNORM:
+        return VK_FORMAT_R8G8B8_UNORM;
+    case format::R8G8B8_SNORM:
+        return VK_FORMAT_R8G8B8_SNORM;
+    case format::R8G8B8_UINT:
+        return VK_FORMAT_R8G8B8_UINT;
+    case format::R8G8B8_SINT:
+        return VK_FORMAT_R8G8B8_SINT;
+    case format::R8G8B8_SRGB:
+        return VK_FORMAT_R8G8B8_SRGB;
+    case format::R8G8B8A8_UNORM:
+        return VK_FORMAT_R8G8B8A8_UNORM;
+    case format::R8G8B8A8_SNORM:
+        return VK_FORMAT_R8G8B8A8_SNORM;
+    case format::R8G8B8A8_UINT:
+        return VK_FORMAT_R8G8B8A8_UINT;
+    case format::R8G8B8A8_SINT:
+        return VK_FORMAT_R8G8B8A8_SINT;
+    case format::R8G8B8A8_SRGB:
+        return VK_FORMAT_R8G8B8A8_SRGB;
+    case format::A2B10G10R10_UNORM:
+        return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+    default:
+        return VK_FORMAT_UNDEFINED;
+    }
+}
+
 constexpr VkImageViewType get_view_type_vk(resource_view_type type, bool isArray = false)
 {
     switch( type )
@@ -192,6 +246,94 @@ constexpr VkDescriptorType get_descriptor_type_vk(shader_resource_type type)
             GFX_ASSERT(false, "Shader resource type is not valid for VkDescriptorType conversion.");
             return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
+}
+
+constexpr VkPrimitiveTopology get_topology_vk(topology_mode mode)
+{
+    return static_cast<VkPrimitiveTopology>(mode);
+}
+
+constexpr VkSampleCountFlags get_sample_count_flags_vk(sample_count_flags flags)
+{
+    return static_cast<VkSampleCountFlags>(flags);
+}
+
+constexpr VkPolygonMode get_polygon_mode_vk(polygon_mode mode)
+{
+    switch( mode )
+    {
+    case polygon_mode::fill:
+        return VK_POLYGON_MODE_FILL;
+    case polygon_mode::line:
+        return VK_POLYGON_MODE_LINE;
+    case polygon_mode::point:
+        return VK_POLYGON_MODE_POINT;
+    default:
+        GFX_ASSERT(false, "Polygon mode is not valid for VkPolygonMode conversion.");
+        return VK_POLYGON_MODE_MAX_ENUM;
+    }
+}
+
+constexpr VkCullModeFlags get_cull_mode_vk(cull_mode mode)
+{
+    switch( mode )
+    {
+    case cull_mode::none:
+        return VK_CULL_MODE_NONE;
+    case cull_mode::front:
+        return VK_CULL_MODE_FRONT_BIT;
+    case cull_mode::back:
+        return VK_CULL_MODE_BACK_BIT;
+    case cull_mode::front_and_back:
+        return VK_CULL_MODE_FRONT_BIT | VK_CULL_MODE_BACK_BIT;
+    default:
+        GFX_ASSERT(false, "Cull mode is not valid for VkCullModeFlags conversion.");
+        return VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
+    }
+}
+
+constexpr VkFrontFace get_front_face_vk(front_face_mode mode)
+{
+    switch( mode )
+    {
+    case front_face_mode::clockwise:
+        return VK_FRONT_FACE_CLOCKWISE;
+    case front_face_mode::counter_clockwise:
+        return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    default:
+        GFX_ASSERT(false, "Front face is not valid for VkFrontFace conversion.");
+        return VK_FRONT_FACE_MAX_ENUM;
+    }
+}
+
+constexpr VkCompareOp get_compare_op_vk(compare_operation operation)
+{
+    return static_cast<VkCompareOp>(operation);
+}
+
+constexpr VkStencilOp get_stencil_op_vk(stencil_operation operation)
+{
+    return static_cast<VkStencilOp>(operation);
+}
+
+constexpr VkLogicOp get_logic_op_vk(logic_operation operation)
+{
+    return static_cast<VkLogicOp>(operation);
+}
+
+constexpr VkBlendOp get_blend_op_vk(blend_operation operation)
+{
+    return static_cast<VkBlendOp>(operation);
+}
+
+constexpr VkBlendFactor get_blend_factor_vk(blend_factor factor)
+{
+    return static_cast<VkBlendFactor>(factor);
+}
+
+constexpr VkVertexInputRate get_vertex_input_rate_vk(vertex_input_rate rate)
+{
+    return static_cast<VkVertexInputRate>(rate);
 }
 
 } // converters

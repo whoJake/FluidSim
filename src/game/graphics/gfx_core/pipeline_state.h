@@ -224,12 +224,12 @@ struct rasterization_state
 
 struct multisample_state
 {
-    sample_count_flags sample_count;
-    f32 min_sample_shading;
-    u32 sample_mask;
-    bool enable_alpha_to_coverage;
-    bool enable_alpha_to_one;
-    bool enable_sample_shading;
+    sample_count_flags sample_count{ static_cast<sample_count_flags>(sample_count_flag_bits::count_1) };
+    f32 min_sample_shading{ 0.f };
+    u32 sample_mask{ 0 };
+    bool enable_alpha_to_coverage{ false };
+    bool enable_alpha_to_one{ false };
+    bool enable_sample_shading{ false };
     u8 unused;
 };
 

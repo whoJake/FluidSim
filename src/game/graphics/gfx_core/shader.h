@@ -64,9 +64,12 @@ public:
     ~program() = default;
 
     dt::hash_string32 get_name() const;
+
     const pass& get_pass(u64 index) const;
+    const shader& get_shader(u64 index) const;
 
     u64 get_pass_count() const;
+    u64 get_shader_count() const;
 private:
     dt::hash_string32 m_name;
     dt::array<pass> m_passes;
@@ -143,6 +146,7 @@ public:
 
     const descriptor_table_desc& get_descriptor_table(descriptor_table_type type) const;
     const pipeline_state& get_pipeline_state() const;
+    const shader_pass_outputs& get_outputs() const;
 
     GFX_HAS_IMPL(m_pImpl);
 
@@ -155,6 +159,9 @@ public:
     {
         return static_cast<T>(m_pLayoutImpl);
     };
+
+    void* m_pImpl; // VkPipeline
+    void* m_pLayoutImpl; // VkPipelineLayout
 private:
     shader_stage_flags m_stageMask;
 
@@ -166,8 +173,7 @@ private:
     descriptor_table_desc m_tables[DESCRIPTOR_TABLE_COUNT];
     pipeline_state m_pso;
 
-    void* m_pImpl; // VkPipeline
-    void* m_pLayoutImpl; // VkPipelineLayout
+    shader_pass_outputs m_outputs;
 };
 
 /// Shader : A singular shader program representing a single shader stage. Multiple shaders
@@ -183,7 +189,12 @@ public:
     ~shader() = default;
 
     void initialise(shader_stage_flag_bits stage);
+
+    shader_stage_flag_bits get_stage() const;
+    const dt::array<u32>& get_code() const;
+    const char* get_entry_point() const;
 private:
+    // TODO: This shouldn't be a hashstring I think.
     dt::hash_string32 m_entryPoint;
     shader_stage_flag_bits m_stage;
     dt::array<u32> m_code;

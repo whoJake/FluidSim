@@ -62,9 +62,19 @@ const pass& program::get_pass(u64 index) const
     return m_passes[index];
 }
 
+const shader& program::get_shader(u64 index) const
+{
+    return m_shaders[index];
+}
+
 u64 program::get_pass_count() const
 {
     return m_passes.size();
+}
+
+u64 program::get_shader_count() const
+{
+    return m_shaders.size();
 }
 
 shader_stage_flags pass::get_stage_mask() const
@@ -104,9 +114,29 @@ const pipeline_state& pass::get_pipeline_state() const
     return m_pso;
 }
 
+const shader_pass_outputs& pass::get_outputs() const
+{
+    return m_outputs;
+}
+
 void shader::initialise(shader_stage_flag_bits stage)
 {
     m_stage = stage;
+}
+
+shader_stage_flag_bits shader::get_stage() const
+{
+    return m_stage;
+}
+
+const dt::array<u32>& shader::get_code() const
+{
+    return m_code;
+}
+
+const char* shader::get_entry_point() const
+{
+    return m_entryPoint.try_get_str().data();
 }
 
 void descriptor_slot_desc::initialise(dt::hash_string32 name, shader_resource_type type, u32 array_size, u32 slot_size, u32 resource_size, shader_stage_flags visibility)

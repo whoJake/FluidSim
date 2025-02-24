@@ -142,6 +142,12 @@ bool loaders::load(const char* filename,
         pass.m_computeShaderIndex = phdrs[idx].compute_index;
 
         // Add descriptors to pass once its up and running.
+        pass.m_outputs.color_output_count = 1;
+        pass.m_outputs.color_outputs[0] = format::R8G8B8A8_SRGB;
+
+        output_blend_states state{ };
+        state.state_count = 1;
+        pass.m_pso.set_output_blend_states(state);
     }
 
     file.close();

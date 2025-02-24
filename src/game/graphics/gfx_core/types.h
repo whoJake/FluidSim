@@ -1,4 +1,5 @@
 #pragma once
+#include "gfxdefines.h"
 
 namespace gfx
 {
@@ -158,6 +159,8 @@ enum shader_stage_flag_bits : u32
         SHADER_STAGE_GEOMETRY ||
         SHADER_STAGE_FRAGMENT ||
         SHADER_STAGE_COMPUTE,
+
+    SHADER_STAGE_FINAL = SHADER_STAGE_COMPUTE + 1,
 };
 using shader_stage_flags = std::underlying_type_t<shader_stage_flag_bits>;
 
@@ -206,5 +209,14 @@ constexpr bool is_dynamic_shader_resource_type(shader_resource_type type)
         return false;
     }
 }
+
+struct shader_pass_outputs
+{
+    // u32 viewMask; ??
+    u32 color_output_count;
+    format color_outputs[GFX_MAX_OUTPUT_ATTACHMENTS];
+    format depth_output{ format::UNDEFINED };
+    format stencil_output{ format::UNDEFINED };
+};
 
 } // gfx

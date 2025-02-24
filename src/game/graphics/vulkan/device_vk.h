@@ -102,7 +102,7 @@ public:
     void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) override;
 
     // Shader things
-    void* create_shader_pass_impl(program* program, u64 pass) override;
+    void* create_shader_pass_impl(program* program, u64 passIdx) override;
     void* create_shader_pass_layout_impl(pass* pass) override;
 
     void* create_descriptor_table_desc_impl(descriptor_table_desc* desc) override;
@@ -139,6 +139,9 @@ private:
 
     // TODO fence?
     void submit_impl(VkQueue queue, const std::vector<command_list*>& lists, fence* fence);
+
+    VkPipeline create_graphics_pipeline_impl(program* program, u64 passIdx);
+    VkPipeline create_compute_pipeline_impl(program* program, u64 passIdx);
 private:
     VkInstance m_instance;
 

@@ -108,6 +108,9 @@ int main(int argc, const char* argv[])
 	gfx::program prog{ };
 	gfx::loaders::load("../shaderdev/compiled/triangle.fxcp", &prog);
 
+	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pLayoutImpl = gfx::Driver::get_device()->create_shader_pass_layout_impl(const_cast<gfx::pass*>(&prog.get_pass(0)));
+	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pImpl = gfx::Driver::get_device()->create_shader_pass_impl(&prog, 0);
+
 	sys::moment lastupdate = sys::now();
 	u64 frames = 0;
 

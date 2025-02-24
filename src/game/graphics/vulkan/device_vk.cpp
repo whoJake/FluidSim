@@ -111,8 +111,12 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
         GFX_ASSERT(enabled, "Device extension is not available.");
     }
 
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR };
+    dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+
     // Create device
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    createInfo.pNext = &dynamicRenderingFeatures;
     createInfo.queueCreateInfoCount = u32_cast(queueInfos.size());
     createInfo.pQueueCreateInfos = queueInfos.data();
     createInfo.enabledExtensionCount = u32_cast(m_enabledDeviceExtensions.size());
@@ -230,7 +234,7 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
 
     // TODO
     createInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-    createInfo.imageFormat = converters::get_format_vk(info.get_format());
+    createInfo.imageFormat = converters::get_format_cdt_vk(info.get_format());
     createInfo.imageArrayLayers = info.get_depth();
     createInfo.imageUsage = info.get_usage();
 
@@ -384,7 +388,7 @@ texture device_vk::create_texture(texture_info info, resource_view_type view_typ
 
     VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
     viewInfo.image = static_cast<VkImage>(pImpl);
-    viewInfo.format = converters::get_format_vk(info.get_format());
+    viewInfo.format = converters::get_format_cdt_vk(info.get_format());
     viewInfo.viewType = converters::get_view_type_vk(view_type);
     
     VkImageSubresourceRange range{ };
@@ -883,9 +887,255 @@ void device_vk::texture_barrier(command_list* list, texture* texture, texture_la
         &barrier);
 }
 
-void* device_vk::create_shader_pass_impl(program* program, u64 pass)
+VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passIdx)
 {
-    return nullptr;
+    GFX_ASSERT(program->get_pass_count() > passIdx, "Program {} ({}) does not have a pass index {}", program->get_name().get_hash(), program->get_name().try_get_str(), passIdx);
+    const pass& rPass = program->get_pass(passIdx);
+
+    GFX_ASSERT(rPass.get_layout_impl<void*>(), "Pass layout impl must have already been set.");
+
+    dt::vector<VkShaderModule> modules;
+    dt::vector<VkPipelineShaderStageCreateInfo> stages;
+
+    for( u32 stage = 1; stage < SHADER_STAGE_FINAL; stage <<= 1 )
+    {
+        shader_stage_flag_bits eStage = static_cast<shader_stage_flag_bits>(stage);
+        if( !(rPass.get_stage_mask() & eStage) )
+            continue;
+
+        u32 shaderIdx;
+        switch( eStage )
+        {
+        case SHADER_STAGE_VERTEX:
+            shaderIdx = rPass.get_vertex_shader_index();
+            break;
+        case SHADER_STAGE_GEOMETRY:
+            shaderIdx = rPass.get_geometry_shader_index();
+            break;
+        case SHADER_STAGE_FRAGMENT:
+            shaderIdx = rPass.get_fragment_shader_index();
+            break;
+        default:
+            GFX_ASSERT(false, "Shader stage not implemented.");
+            return VK_NULL_HANDLE;
+        }
+
+        GFX_ASSERT(program->get_shader_count() > shaderIdx, "Program {} ({}) does not have shader index {}. Bad data?", program->get_name().get_hash(), program->get_name().try_get_str(), shaderIdx);
+        const shader& rShader = program->get_shader(shaderIdx);
+
+        GFX_ASSERT(rShader.get_stage() == eStage, "Shader on index {} does not match the stage.", shaderIdx);
+        const dt::array<u32>& code = rShader.get_code();
+
+        VkShaderModuleCreateInfo modCreateInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+        modCreateInfo.codeSize = code.size() * sizeof(u32);
+        modCreateInfo.pCode = code.data();
+
+        VkPipelineShaderStageCreateInfo stageCreateInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        stageCreateInfo.stage = (VkShaderStageFlagBits)converters::get_shader_stage_flags_vk(eStage);
+        stageCreateInfo.pName = rShader.get_entry_point();
+
+        VkResult modResult = vkCreateShaderModule(m_device, &modCreateInfo, nullptr, &stageCreateInfo.module);
+        switch( modResult )
+        {
+        case VK_SUCCESS:
+            break;
+        default:
+            GFX_ASSERT(false, "Failed to create shader module.");
+            return VK_NULL_HANDLE;
+        }
+
+        modules.push_back(stageCreateInfo.module);
+        stages.push_back(stageCreateInfo);
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineCreateInfo{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    pipelineCreateInfo.stageCount = u32_cast(stages.size());
+    pipelineCreateInfo.pStages = stages.data();
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    vertexInputInfo.vertexBindingDescriptionCount = rPass.get_pipeline_state().get_vertex_input_state().channel_count;
+
+    dt::vector<VkVertexInputBindingDescription> bindings;
+    dt::vector<VkVertexInputAttributeDescription> attributes;
+    bindings.reserve(vertexInputInfo.vertexBindingDescriptionCount);
+    for( u32 idx = 0; idx < vertexInputInfo.vertexBindingDescriptionCount; idx++ )
+    {
+        VkVertexInputBindingDescription binding{ };
+        binding.binding = idx;
+        binding.stride = rPass.get_pipeline_state().get_vertex_input_state().descriptions[idx].stride;
+        binding.inputRate = converters::get_vertex_input_rate_vk(rPass.get_pipeline_state().get_vertex_input_state().descriptions[idx].input_rate);
+
+        u32 attributeCount = rPass.get_pipeline_state().get_vertex_input_state().descriptions[idx].attribute_count;
+        for( u32 dIdx = 0; dIdx < attributeCount; dIdx++ )
+        {
+            VkVertexInputAttributeDescription attribute{ };
+            attribute.binding = idx;
+            attribute.location = dIdx;
+            attribute.offset = rPass.get_pipeline_state().get_vertex_input_state().descriptions[idx].attributes[dIdx].offset;
+            attribute.format = converters::get_format_vk(rPass.get_pipeline_state().get_vertex_input_state().descriptions[idx].attributes[dIdx].format);
+
+            attributes.push_back(attribute);
+        }
+
+        bindings.push_back(binding);
+    }
+
+    vertexInputInfo.vertexAttributeDescriptionCount = u32_cast(attributes.size());
+    vertexInputInfo.pVertexBindingDescriptions = bindings.data();
+    vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    inputAssemblyInfo.topology = converters::get_topology_vk(rPass.get_pipeline_state().get_input_assembly_state().topology);
+    inputAssemblyInfo.primitiveRestartEnable = rPass.get_pipeline_state().get_input_assembly_state().allow_restart ? VK_TRUE : VK_FALSE;
+
+    VkPipelineTessellationStateCreateInfo tessellationInfo{ VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
+    tessellationInfo.patchControlPoints = rPass.get_pipeline_state().get_tessellation_state().patch_control_points;
+
+    VkPipelineViewportStateCreateInfo viewportInfo{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    viewportInfo.viewportCount = 0;
+    viewportInfo.scissorCount = 0;
+
+    VkPipelineRasterizationStateCreateInfo rasterizationInfo{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    rasterizationInfo.depthClampEnable = rPass.get_pipeline_state().get_rasterization_state().enable_depth_clamp ? VK_TRUE : VK_FALSE;
+    rasterizationInfo.rasterizerDiscardEnable = rPass.get_pipeline_state().get_rasterization_state().enable_rasterizer_discard ? VK_TRUE : VK_FALSE;
+
+    rasterizationInfo.polygonMode = converters::get_polygon_mode_vk(rPass.get_pipeline_state().get_rasterization_state().polygon_mode);
+    rasterizationInfo.cullMode = converters::get_cull_mode_vk(rPass.get_pipeline_state().get_rasterization_state().cull_mode);
+    rasterizationInfo.frontFace = converters::get_front_face_vk(rPass.get_pipeline_state().get_rasterization_state().front_face_mode);
+
+    rasterizationInfo.depthBiasEnable = rPass.get_pipeline_state().get_rasterization_state().enable_depth_bias ? VK_TRUE : VK_FALSE;
+    rasterizationInfo.depthBiasConstantFactor = rPass.get_pipeline_state().get_rasterization_state().depth_bias_mode.constant_factor;
+    rasterizationInfo.depthBiasSlopeFactor = rPass.get_pipeline_state().get_rasterization_state().depth_bias_mode.slope_factor;
+
+    rasterizationInfo.lineWidth = rPass.get_pipeline_state().get_rasterization_state().line_width;
+
+    VkPipelineMultisampleStateCreateInfo multisampleInfo{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    multisampleInfo.rasterizationSamples = static_cast<VkSampleCountFlagBits>(converters::get_sample_count_flags_vk(rPass.get_pipeline_state().get_multisample_state().sample_count));
+    multisampleInfo.sampleShadingEnable = rPass.get_pipeline_state().get_multisample_state().enable_sample_shading;
+    multisampleInfo.minSampleShading = rPass.get_pipeline_state().get_multisample_state().min_sample_shading;
+
+    VkSampleMask sampleMask = rPass.get_pipeline_state().get_multisample_state().sample_mask;
+    multisampleInfo.pSampleMask = sampleMask ? &sampleMask : VK_NULL_HANDLE;
+
+    VkPipelineDepthStencilStateCreateInfo depthStencilInfo{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    depthStencilInfo.depthTestEnable = rPass.get_pipeline_state().get_depth_stencil_state().enable_depth_test ? VK_TRUE : VK_FALSE;
+    depthStencilInfo.depthWriteEnable = rPass.get_pipeline_state().get_depth_stencil_state().write_depth ? VK_TRUE : VK_FALSE;
+    depthStencilInfo.depthCompareOp = converters::get_compare_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().depth_compare);
+    depthStencilInfo.depthBoundsTestEnable = rPass.get_pipeline_state().get_depth_stencil_state().enable_depth_bounds_test ? VK_TRUE : VK_FALSE;
+    depthStencilInfo.stencilTestEnable = rPass.get_pipeline_state().get_depth_stencil_state().enable_stencil_test ? VK_TRUE : VK_FALSE;
+
+    depthStencilInfo.front.failOp = converters::get_stencil_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().front_stencil.fail);
+    depthStencilInfo.front.passOp = converters::get_stencil_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().front_stencil.pass);
+    depthStencilInfo.front.depthFailOp = converters::get_stencil_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().front_stencil.depth_fail);
+    depthStencilInfo.front.compareOp = converters::get_compare_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().front_stencil.compare);
+    // TOOD?
+    depthStencilInfo.front.compareMask = 0;
+    depthStencilInfo.front.writeMask = 0;
+    depthStencilInfo.front.reference = 0;
+
+    depthStencilInfo.back.failOp = converters::get_stencil_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().back_stencil.fail);
+    depthStencilInfo.back.passOp = converters::get_stencil_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().back_stencil.pass);
+    depthStencilInfo.back.depthFailOp = converters::get_stencil_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().back_stencil.depth_fail);
+    depthStencilInfo.back.compareOp = converters::get_compare_op_vk(rPass.get_pipeline_state().get_depth_stencil_state().back_stencil.compare);
+    // TOOD?
+    depthStencilInfo.back.compareMask = 0;
+    depthStencilInfo.back.writeMask = 0;
+    depthStencilInfo.back.reference = 0;
+
+    VkPipelineColorBlendStateCreateInfo colorBlendInfo{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    colorBlendInfo.logicOpEnable = rPass.get_pipeline_state().get_output_blend_states().enable_blend ? VK_TRUE : VK_FALSE;
+    colorBlendInfo.logicOp = converters::get_logic_op_vk(rPass.get_pipeline_state().get_output_blend_states().logic_op);
+    colorBlendInfo.attachmentCount = rPass.get_pipeline_state().get_output_blend_states().state_count;
+    dt::vector<VkPipelineColorBlendAttachmentState> blendStates;
+    blendStates.reserve(colorBlendInfo.attachmentCount);
+
+    for( u32 idx = 0; idx < colorBlendInfo.attachmentCount; idx++ )
+    {
+        VkPipelineColorBlendAttachmentState blendState{ };
+        blendState.blendEnable = rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].enable_blend;
+        blendState.srcColorBlendFactor = converters::get_blend_factor_vk(rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].src_color_factor);
+        blendState.dstColorBlendFactor = converters::get_blend_factor_vk(rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].dst_color_factor);
+        blendState.colorBlendOp = converters::get_blend_op_vk(rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].color_operation);
+
+        blendState.srcAlphaBlendFactor = converters::get_blend_factor_vk(rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].src_alpha_factor);
+        blendState.dstAlphaBlendFactor = converters::get_blend_factor_vk(rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].dst_alpha_factor);
+        blendState.alphaBlendOp = converters::get_blend_op_vk(rPass.get_pipeline_state().get_output_blend_states().blend_states[idx].alpha_operation);
+
+        blendState.colorWriteMask = VK_COLOR_COMPONENT_A_BIT | VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+
+        blendStates.push_back(blendState);
+    }
+
+    colorBlendInfo.pAttachments = blendStates.data();
+
+    // TODO?
+    colorBlendInfo.blendConstants[0] = 1.f;
+    colorBlendInfo.blendConstants[1] = 1.f;
+    colorBlendInfo.blendConstants[2] = 1.f;
+    colorBlendInfo.blendConstants[3] = 1.f;
+
+    dt::inline_array<VkDynamicState, 3> dynamicStates;
+    dynamicStates[0] = VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT;
+    dynamicStates[1] = VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT;
+    dynamicStates[2] = VK_DYNAMIC_STATE_BLEND_CONSTANTS;
+
+    VkPipelineDynamicStateCreateInfo dynamicInfo{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    dynamicInfo.dynamicStateCount = u32_cast(dynamicStates.size());
+    dynamicInfo.pDynamicStates = dynamicStates.data();
+
+    pipelineCreateInfo.pVertexInputState = &vertexInputInfo;
+    pipelineCreateInfo.pInputAssemblyState = &inputAssemblyInfo;
+    pipelineCreateInfo.pTessellationState = &tessellationInfo;
+    pipelineCreateInfo.pViewportState = &viewportInfo;
+    pipelineCreateInfo.pRasterizationState = &rasterizationInfo;
+    pipelineCreateInfo.pMultisampleState = &multisampleInfo;
+    pipelineCreateInfo.pDepthStencilState = &depthStencilInfo;
+    pipelineCreateInfo.pColorBlendState = &colorBlendInfo;
+    pipelineCreateInfo.pDynamicState = &dynamicInfo;
+    
+    pipelineCreateInfo.layout = rPass.get_layout_impl<VkPipelineLayout>();
+
+    VkPipelineRenderingCreateInfo renderingInfo{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+    renderingInfo.viewMask = 0;
+    renderingInfo.colorAttachmentCount = rPass.get_outputs().color_output_count;
+    renderingInfo.depthAttachmentFormat = converters::get_format_vk(rPass.get_outputs().depth_output);
+    renderingInfo.stencilAttachmentFormat = converters::get_format_vk(rPass.get_outputs().stencil_output);
+
+    dt::vector<VkFormat> outputColorFormats;
+    outputColorFormats.reserve(renderingInfo.colorAttachmentCount);
+    for( u32 idx = 0; idx < renderingInfo.colorAttachmentCount; idx++ )
+    {
+        outputColorFormats.push_back(converters::get_format_vk(rPass.get_outputs().color_outputs[idx]));
+    }
+
+    renderingInfo.pColorAttachmentFormats = outputColorFormats.data();
+
+    pipelineCreateInfo.pNext = &renderingInfo;
+    pipelineCreateInfo.subpass = 0; // ?
+
+    VkPipeline retval{ VK_NULL_HANDLE };
+    VkResult pipelineResult = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &retval);
+    switch( pipelineResult )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create Graphics Pipeline.");
+        break; // Still need to destroy the modules.
+    }
+
+    // ShaderModules can just be destroyed after we've made the pipeline.
+    for( VkShaderModule module : modules )
+    {
+        vkDestroyShaderModule(m_device, module, nullptr);
+    }
+
+    return retval;
+}
+
+void* device_vk::create_shader_pass_impl(program* program, u64 passIdx)
+{
+    return create_graphics_pipeline_impl(program, passIdx);
 }
 
 void* device_vk::create_shader_pass_layout_impl(pass* pass)
@@ -897,8 +1147,8 @@ void* device_vk::create_shader_pass_layout_impl(pass* pass)
     }
 
     VkPipelineLayoutCreateInfo createInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    createInfo.setLayoutCount = u32_cast(DESCRIPTOR_TABLE_COUNT);
-    createInfo.pSetLayouts = layouts.data();
+    createInfo.setLayoutCount = 0;// u32_cast(DESCRIPTOR_TABLE_COUNT);
+    createInfo.pSetLayouts = VK_NULL_HANDLE;// layouts.data();
 
     VkPipelineLayout retval{ VK_NULL_HANDLE };
     VkResult result = vkCreatePipelineLayout(m_device, &createInfo, nullptr, &retval);
@@ -1233,7 +1483,7 @@ std::vector<const char*> device_vk::get_instance_layers() const
 
 std::vector<const char*> device_vk::get_device_extensions() const
 {
-    return { "VK_KHR_swapchain" };
+    return { "VK_KHR_swapchain", "VK_KHR_dynamic_rendering" };
 }
 
 void device_vk::dump_info() const

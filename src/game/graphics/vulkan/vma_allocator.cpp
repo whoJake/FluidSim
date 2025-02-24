@@ -95,7 +95,7 @@ vma_allocation<VkImage> vma_allocator::allocate_image(texture_info info, resourc
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     imageInfo.extent = { info.get_width(), info.get_height(), info.get_depth() };
     imageInfo.usage = static_cast<VkImageUsageFlags>(info.get_usage());
-    imageInfo.format = converters::get_format_vk(info.get_format());
+    imageInfo.format = converters::get_format_cdt_vk(info.get_format());
 
     // TODO
     imageInfo.mipLevels = 1;
