@@ -69,6 +69,12 @@ int main(int argc, const char* argv[])
 
 	memcpy(buffer.get_memory_info().mapped, img->data(), img->get_size());
 
+	gfx::program prog{ };
+	gfx::loaders::load("../shaderdev/compiled/triangle.fxcp", &prog);
+
+	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pLayoutImpl = gfx::Driver::get_device()->create_shader_pass_layout_impl(const_cast<gfx::pass*>(&prog.get_pass(0)));
+	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pImpl = gfx::Driver::get_device()->create_shader_pass_impl(&prog, 0);
+
 	{
 		gfx::fence swapFence = device->create_fence(false);
 		gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
@@ -79,15 +85,22 @@ int main(int argc, const char* argv[])
 
 		swapList.begin();
 
+		// swapchain -> renderable
+		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+
+		gfx::Driver::get_device()->begin_pass(&swapList, &prog, 0, swapTexture);
+		swapList.draw(3);
+		gfx::Driver::get_device()->end_pass(&swapList);
+
 		// buffer -> image
-		swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
-		swapList.copy_to_texture(&buffer, &texture);
-
-		// image -> swapchain
-		swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
-		swapList.copy_to_texture(&texture, swapTexture);
-
+		//swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		//swapList.copy_to_texture(&buffer, &texture);
+		//
+		//// image -> swapchain
+		//swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
+		//swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		//swapList.copy_to_texture(&texture, swapTexture);
+		
 		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		swapList.end();
 		swapList.submit(&swapFence);
@@ -103,13 +116,6 @@ int main(int argc, const char* argv[])
 
 	device->free_texture(&texture);
 	device->free_buffer(&buffer);
-
-
-	gfx::program prog{ };
-	gfx::loaders::load("../shaderdev/compiled/triangle.fxcp", &prog);
-
-	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pLayoutImpl = gfx::Driver::get_device()->create_shader_pass_layout_impl(const_cast<gfx::pass*>(&prog.get_pass(0)));
-	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pImpl = gfx::Driver::get_device()->create_shader_pass_impl(&prog, 0);
 
 	sys::moment lastupdate = sys::now();
 	u64 frames = 0;

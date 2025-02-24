@@ -1,5 +1,7 @@
 #pragma once
-#define GFX_SUPPORTS_VULKAN
+#ifndef GFX_SUPPORTS_VULKAN
+    #define GFX_SUPPORTS_VULKAN
+#endif
 #define GFX_VK_VMA_ALLOCATOR
 
 #ifdef GFX_SUPPORTS_VULKAN

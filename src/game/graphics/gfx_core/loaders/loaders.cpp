@@ -1,6 +1,7 @@
 #include "loaders.h"
 
 #include "compiled_shader.h"
+#include "../pipeline_state.h"
 #include "../shader.h"
 
 #include <fstream>

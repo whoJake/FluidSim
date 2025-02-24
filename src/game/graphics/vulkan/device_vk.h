@@ -97,6 +97,9 @@ public:
     void bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index) override;
     void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) override;
 
+    void begin_pass(command_list* list, program* program, u64 passIdx, texture* output) override;
+    void end_pass(command_list* list) override;
+
     void copy_texture_to_texture(command_list* list, texture* src, texture* dst) override;
     void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) override;
     void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) override;

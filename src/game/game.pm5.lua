@@ -390,6 +390,13 @@
       "%{prj_Core}",
 	  "%{prj_Graphics}",
 
+      -- I want to get rid of this dependency. We shouldn't
+      -- have to load any vulkan dll's (glslang only) in shaderdev..
+      -- I'm pretty sure this is coming from the inclusion of pipeline_state in shader.h (which goes through to gfxdefines.h)
+      -- vulkan
+      "%VULKAN_SDK%/Include",
+      "%{g_Vendordir}/vma3.0.1",
+
       -- spirv/glsl
       "%{g_Vendordir}/glslang",
     }

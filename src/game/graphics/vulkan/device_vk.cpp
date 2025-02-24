@@ -263,10 +263,39 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
 
     for( VkImage image : images )
     {
+        // Make a full view for now?
+        VkImageView pViewImpl{ VK_NULL_HANDLE };
+
+        VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        viewInfo.image = image;
+        viewInfo.format = converters::get_format_cdt_vk(info.get_format());
+        viewInfo.viewType = converters::get_view_type_vk(resource_view_type::texture_2d);
+
+        VkImageSubresourceRange range{ };
+        if( cdt::is_depth_format(info.get_format()) )
+            range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        else
+            range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        range.baseMipLevel = 0;
+        range.baseArrayLayer = 0;
+        range.levelCount = 1;
+        range.layerCount = 1;
+
+        viewInfo.subresourceRange = range;
+
+        VkResult result = vkCreateImageView(m_device, &viewInfo, nullptr, &pViewImpl);
+        switch( result )
+        {
+        case VK_SUCCESS:
+            break;
+        default:
+            GFX_ASSERT(false, "Image view creation failed.");
+        }
+
         textures.emplace_back();
 
         memory_info blankInfo{ };
-        textures.back().initialise(blankInfo, info, image, nullptr);
+        textures.back().initialise(blankInfo, info, image, pViewImpl);
     }
 
     swapchain retval;
@@ -794,6 +823,45 @@ void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buff
     vkCmdBindIndexBuffer(list->get_impl<VkCommandBuffer>(), buffer->get_impl<VkBuffer>(), offset, type);
 }
 
+void device_vk::begin_pass(command_list* list, program* program, u64 passIdx, texture* output)
+{
+    VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+    
+    VkRenderingAttachmentInfo attachmentInfo{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+    attachmentInfo.imageView = output->get_view_impl<VkImageView>();
+    attachmentInfo.imageLayout = converters::get_layout_vk(output->get_layout());
+    attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+    renderInfo.colorAttachmentCount = 1;
+    renderInfo.pColorAttachments = &attachmentInfo;
+    renderInfo.renderArea = { 0, 0, 1430, 1079 };
+    renderInfo.layerCount = 1;
+
+    vkCmdBeginRendering(list->get_impl<VkCommandBuffer>(), &renderInfo);
+    vkCmdBindPipeline(list->get_impl<VkCommandBuffer>(), VK_PIPELINE_BIND_POINT_GRAPHICS, program->get_pass(passIdx).get_impl<VkPipeline>());
+
+    VkViewport viewport{ };
+    viewport.x = 0.f;
+    viewport.y = f32_cast(1079);
+    viewport.width = f32_cast(1430);
+    viewport.height = -f32_cast(1079);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{ };
+    scissor.offset = { 0, 0 };
+    scissor.extent = { 1430, 1079 };
+
+    vkCmdSetViewport(list->get_impl<VkCommandBuffer>(), 0, 1, &viewport);
+    vkCmdSetScissor(list->get_impl<VkCommandBuffer>(), 0, 1, &scissor);
+}
+
+void device_vk::end_pass(command_list* list)
+{
+    vkCmdEndRendering(list->get_impl<VkCommandBuffer>());
+}
+
 void device_vk::copy_texture_to_texture(command_list* list, texture* src, texture* dst)
 {
     VkImageSubresourceLayers srcSubresource{ };
@@ -992,8 +1060,8 @@ VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passId
     tessellationInfo.patchControlPoints = rPass.get_pipeline_state().get_tessellation_state().patch_control_points;
 
     VkPipelineViewportStateCreateInfo viewportInfo{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-    viewportInfo.viewportCount = 0;
-    viewportInfo.scissorCount = 0;
+    viewportInfo.viewportCount = 1;
+    viewportInfo.scissorCount = 1;
 
     VkPipelineRasterizationStateCreateInfo rasterizationInfo{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rasterizationInfo.depthClampEnable = rPass.get_pipeline_state().get_rasterization_state().enable_depth_clamp ? VK_TRUE : VK_FALSE;
@@ -1075,8 +1143,8 @@ VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passId
     colorBlendInfo.blendConstants[3] = 1.f;
 
     dt::inline_array<VkDynamicState, 3> dynamicStates;
-    dynamicStates[0] = VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT;
-    dynamicStates[1] = VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT;
+    dynamicStates[0] = VK_DYNAMIC_STATE_VIEWPORT;
+    dynamicStates[1] = VK_DYNAMIC_STATE_SCISSOR;
     dynamicStates[2] = VK_DYNAMIC_STATE_BLEND_CONSTANTS;
 
     VkPipelineDynamicStateCreateInfo dynamicInfo{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };

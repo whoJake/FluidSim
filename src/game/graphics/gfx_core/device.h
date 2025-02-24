@@ -84,6 +84,10 @@ public:
     virtual void bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index) = 0;
     virtual void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) = 0;
 
+    // TEMPORARY
+    virtual void begin_pass(command_list* list, program* program, u64 passIdx, texture* output) = 0;
+    virtual void end_pass(command_list* list) = 0;
+
     // virtual void copy_texture(texture* src, texture_layout src_layout, texture* dst, texture_layout dst_layout, texture_region? region);
     virtual void copy_texture_to_texture(command_list* list, texture* src, texture* dst) = 0;
     virtual void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) = 0;
