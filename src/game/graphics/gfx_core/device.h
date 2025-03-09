@@ -10,6 +10,7 @@
 #include "command_list.h"
 #include "dependency.h"
 #include "shader.h"
+#include "descriptor_pool.h"
 
 #include "swapchain.h"
 
@@ -104,6 +105,11 @@ public:
 
     virtual void destroy_shader_program(program* program) = 0;
 
+    virtual void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size) = 0;
+    virtual void destroy_descriptor_pool(descriptor_pool* pool) = 0;
+    virtual void reset_descriptor_pool(descriptor_pool* pool) = 0;
+
+    virtual void* allocate_descriptor_table_impl(descriptor_pool* pool) = 0;
     virtual void write_descriptor_table(descriptor_table* table) = 0;
 
     inline debugger& get_debugger()

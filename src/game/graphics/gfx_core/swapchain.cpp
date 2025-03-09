@@ -50,5 +50,10 @@ texture* swapchain::get_image(u32 index)
     return &m_images[index];
 }
 
+fence* swapchain::get_fence(u32 index)
+{
+    return &m_aquireFences[index];
+}
+
 } // gfx
 #endif // GFX_EXT_SWAPCHAIN

@@ -175,7 +175,6 @@ void Renderer::render()
             buffer.draw(vertexCount);
         }
     }
-
 #if CFG_ENABLE_IMGUI
     m_imgui->render(&buffer);
     m_imgui->begin_frame();

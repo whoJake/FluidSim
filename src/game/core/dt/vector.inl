@@ -131,7 +131,7 @@ void vector<T, _allocator>::resize(u64 new_size)
     {
         // grow container to fit new_size
         u64 growth_amount = new_size - m_size;
-        for( u64 i = 0; i < growth_amount - m_size; i++ )
+        for( u64 i = 0; i < growth_amount; i++ )
         {
             // Using emplace_back to default construct +
             // adher to normal growth rules.

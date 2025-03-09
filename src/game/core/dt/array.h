@@ -428,8 +428,6 @@ public:
 
     inline void initialise(u64 capacity, bool construct = true)
     {
-        DT_ASSERT(!m_data, "Array is already initialised.");
-
         m_capacity = capacity;
         if( capacity != 0 )
             m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * capacity, alignof(T)));

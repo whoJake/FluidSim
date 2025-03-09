@@ -1,109 +1,56 @@
 #include "main.h"
 
-#include "gfx_core/loaders/compiled_shader.h"
-#include "gfx_core/loaders/loaders.h"
 #include "compiler/glsl_compiler.h"
 #include "system/device.h"
 
 #include "pugi_include.h"
+#include "shadev_channels.h"
+#include "reflection.h"
+#include "parser.h"
+#include "system/param.h"
 
-bool parse_program(const char* filename, shader_program_file& program)
-{
-    pugi::xml_document xDoc;
-
-    pugi::xml_parse_result result = xDoc.load_file(filename);
-    if( !result )
-    {
-        SHADEV_ERROR("Parsing error in program {}.", filename);
-        SHADEV_ERROR("Error at offset {}: {}", result.offset, result.description());
-        return false;
-    }
-
-    pugi::xml_node root = xDoc.child("Program");
-    
-    program.name = root.child("Name").child_value();
-
-    // Parse our passes
-    for( pugi::xml_node item : root.child("Passes").children() )
-    {
-        shader_pass_desc pass{ };
-        if( pugi::xml_node vertex = item.child("VertexShader") )
-        {
-            pass.vertex_index = std::stoi(vertex.child_value());
-        }
-        if( pugi::xml_node geometry = item.child("GeometryShader") )
-        {
-            pass.geometry_index = std::stoi(geometry.child_value());
-        }
-        if( pugi::xml_node fragment = item.child("FragmentShader") )
-        {
-            pass.fragment_index = std::stoi(fragment.child_value());
-        }
-        if( pugi::xml_node compute = item.child("ComputeShader") )
-        {
-            pass.compute_index = std::stoi(compute.child_value());
-        }
-        
-        program.passes.push_back(pass);
-    }
-
-    // Parse our shader files
-    for( pugi::xml_node item : root.child("Shaders").children() )
-    {
-        shader_file_desc file{ };
-        file.filepath = item.child("File").child_value();
-        file.entry_point = item.child("EntryPoint").child_value();
-
-        std::string stage = item.child("Stage").child_value();
-        if( stage == "VERTEX" )
-        {
-            file.stage = gfx::SHADER_STAGE_VERTEX;
-        }
-        else if( stage == "GEOMETRY" )
-        {
-            file.stage = gfx::SHADER_STAGE_GEOMETRY;
-        }
-        else if( stage == "FRAGMENT" )
-        {
-            file.stage = gfx::SHADER_STAGE_FRAGMENT;
-        }
-        else if( stage == "COMPUTE" )
-        {
-            file.stage = gfx::SHADER_STAGE_COMPUTE;
-        }
-
-        program.shader_files.push_back(std::move(file));
-    }
-
-    return true;
-}
-
-bool compile_program(const shader_program_file& program_file, shader_program_compiled& compiled_program)
+bool compile_program(const shader_program_file& program_file, gfx::program_def& compiled_program)
 {
     compiled_program.name = program_file.name;
     compiled_program.passes.reserve(program_file.passes.size());
 
     for( const shader_pass_desc& pass : program_file.passes )
     {
-        shader_pass_compiled compiled_pass{ };
+        gfx::pass_def compiled_pass{ };
+        compiled_pass.pipeline_state_object = pass.pipeline_state_object;
+
+        compiled_pass.output_formats.color_output_count = u32_cast(pass.color_outputs.size());
+
+        // We manually change our blend states using our pass colour outputs since they have to match.
+        gfx::output_blend_states blend_states{ };
+        blend_states.state_count = u32_cast(pass.color_outputs.size());
+
+        for( u64 idx = 0; idx < pass.color_outputs.size(); idx++ )
+        {
+            compiled_pass.output_formats.color_outputs[idx] = pass.color_outputs[idx].format;
+            blend_states.blend_states[idx] = pass.color_outputs[idx].blend_state;
+        }
+
+        compiled_pass.pipeline_state_object.set_output_blend_states(blend_states);
+
         if( pass.vertex_index != shader_pass_desc::invalid_index )
         {
-            compiled_pass.vertex_index = pass.vertex_index;
+            compiled_pass.vertex_index = u8_cast(pass.vertex_index);
             compiled_pass.stage_mask |= gfx::SHADER_STAGE_VERTEX;
         }
         if( pass.geometry_index != shader_pass_desc::invalid_index )
         {
-            compiled_pass.geometry_index = pass.geometry_index;
+            compiled_pass.geometry_index = u8_cast(pass.geometry_index);
             compiled_pass.stage_mask |= gfx::SHADER_STAGE_GEOMETRY;
         }
         if( pass.fragment_index != shader_pass_desc::invalid_index )
         {
-            compiled_pass.fragment_index = pass.fragment_index;
+            compiled_pass.fragment_index = u8_cast(pass.fragment_index);
             compiled_pass.stage_mask |= gfx::SHADER_STAGE_FRAGMENT;
         }
         if( pass.compute_index != shader_pass_desc::invalid_index )
         {
-            compiled_pass.compute_index = pass.compute_index;
+            compiled_pass.compute_index = u8_cast(pass.compute_index);
             compiled_pass.stage_mask |= gfx::SHADER_STAGE_COMPUTE;
         }
 
@@ -113,19 +60,26 @@ bool compile_program(const shader_program_file& program_file, shader_program_com
     compiled_program.shaders.reserve(program_file.shader_files.size());
     for( const shader_file_desc& shader : program_file.shader_files )
     {
-        shader_compiled compiled_shader{ };
+        gfx::shader_def compiled_shader{ };
         compiled_shader.entry_point = shader.entry_point;
         compiled_shader.stage = shader.stage;
 
-        if( !compile_shader(shader.filepath.c_str(), shader.entry_point.c_str(), shader.stage, &compiled_shader.data) )
+        std::vector<u32> spirv_data;
+        if( !compile_shader(shader.filepath.c_str(), shader.entry_point.c_str(), shader.stage, &spirv_data) )
         {
             SHADEV_ERROR("Failed to compile {}", shader.filepath);
             return false;
         }
 
+        u64 spirv_bytes = spirv_data.size() * sizeof(u32);
+
+        compiled_shader.data.reserve(spirv_bytes);
+        compiled_shader.data.resize(spirv_bytes);
+        memcpy(compiled_shader.data.data(), spirv_data.data(), spirv_bytes);
+
         compiled_program.shaders.push_back(std::move(compiled_shader));
     }
-    
+
     return true;
 }
 
@@ -154,68 +108,44 @@ bool compile_shader(const char* filename, const char* entry_point, gfx::shader_s
     return true;
 }
 
-bool write_program(const char* filename, shader_program_compiled& comp_program)
-{
-    gfx::compiled_program prog;
-    prog.name_size = u8_cast(comp_program.name.size());
-    prog.shader_count = u8_cast(comp_program.shaders.size());
-    prog.pass_count = u8_cast(comp_program.passes.size());
-
-    std::vector<gfx::compiled_pass> passes;
-    passes.reserve(comp_program.passes.size());
-
-    for( const shader_pass_compiled& pass : comp_program.passes )
-    {
-        passes.push_back({ });
-        passes.back().stage_mask = pass.stage_mask;
-        passes.back().vertex_index = pass.vertex_index;
-        passes.back().geometry_index = pass.geometry_index;
-        passes.back().fragment_index = pass.fragment_index;
-        passes.back().compute_index = pass.compute_index;
-    }
-
-    std::vector<gfx::compiled_shader> shaders;
-    shaders.reserve(comp_program.shaders.size());
-
-    std::vector<const char*> shaderEntryPoints;
-    shaderEntryPoints.reserve(comp_program.shaders.size());
-
-    std::vector<std::vector<u32>> shaderDatas;
-    shaderDatas.reserve(comp_program.shaders.size());
-
-    for( shader_compiled& shader : comp_program.shaders )
-    {
-        shaders.push_back({ });
-        shaders.back().entry_point_size = u8_cast(shader.entry_point.size());
-        shaders.back().stage = shader.stage;
-        shaders.back().data_size_32 = u32_cast(shader.data.size());
-
-        shaderEntryPoints.push_back(shader.entry_point.data());
-
-        shaderDatas.push_back(std::move(shader.data));
-    }
-
-    return gfx::loaders::save(filename, comp_program.name.data(), prog, passes, shaders, shaderEntryPoints, shaderDatas);
-}
+MAKEPARAM(input);
+MAKEPARAM(output);
 
 int main(int argc, const char* argv[])
 {
+    std::vector<const char*> args;
+    for( i32 i = 1; i < argc; i++ )
+    {
+        args.push_back(argv[i]);
+    }
+    sys::param::init(args);
+
+    if( !p_input.get() )
+    {
+        SHADEV_ERROR("Must supply an input path.");
+        return -1;
+    }
+
+    if( !p_output.get() )
+    {
+        SHADEV_ERROR("Must supply an output path.");
+        return -1;
+    }
+
     shader_program_file program{ };
-    if( !parse_program("source/programs/triangle.fxp", program) )
-    {
+    if( !parser::parse_program(p_input.as_value(), &program) )
         return -1;
-    }
 
-    shader_program_compiled compiled_program{ };
+    gfx::program_def compiled_program{ };
     if( !compile_program(program, compiled_program) )
-    {
         return -1;
-    }
 
-    if( !write_program("compiled/triangle.fxcp", compiled_program) )
-    {
+    if( !reflector::reflect(&compiled_program) )
         return -1;
-    }
+
+#
+    if( !gfx::shader_loader::save(p_output.as_value(), compiled_program) )
+        return -1;
 
     return 0;
 }

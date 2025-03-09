@@ -121,7 +121,11 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
     createInfo.pQueueCreateInfos = queueInfos.data();
     createInfo.enabledExtensionCount = u32_cast(m_enabledDeviceExtensions.size());
     createInfo.ppEnabledExtensionNames = m_enabledDeviceExtensions.data();
-    createInfo.pEnabledFeatures = 0; // TODO
+
+    VkPhysicalDeviceFeatures features{ };
+    features.wideLines = true;
+    features.fillModeNonSolid = true;
+    createInfo.pEnabledFeatures = &features; // TODO
 
     VkResult deviceResult = vkCreateDevice(physicalDevice, &createInfo, nullptr, &m_device);
     switch( deviceResult )
@@ -295,7 +299,7 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
         textures.emplace_back();
 
         memory_info blankInfo{ };
-        textures.back().initialise(blankInfo, info, image, pViewImpl);
+        textures.back().initialise(blankInfo, info, image, pViewImpl, true);
     }
 
     swapchain retval;
@@ -305,6 +309,13 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
 
 void device_vk::free_swapchain(swapchain* swapchain)
 {
+    u32 imageCount = swapchain->get_image_count();
+    for( u32 idx = 0; idx < imageCount; idx++ )
+    {
+        free_texture(swapchain->get_image(idx));
+        free_fence(swapchain->get_fence(idx));
+    }
+
     vkDestroySwapchainKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), nullptr);
 }
 #endif // GFX_EXT_SWAPCHAIN
@@ -460,7 +471,10 @@ void device_vk::free_texture(texture* tex)
     vkDestroyImageView(m_device, tex->get_view_impl<VkImageView>(), nullptr);
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.free_image({ tex->get_impl<VkImage>(), tex->get_backing_memory<VmaAllocation>() });
+    if( !tex->is_swapchain_image() )
+    {
+        m_allocator.free_image({ tex->get_impl<VkImage>(), tex->get_backing_memory<VmaAllocation>() });
+    }
 #endif
 }
 
@@ -614,9 +628,9 @@ void device_vk::present(swapchain* swapchain, u32 image_index, const std::vector
     presentInfo.pImageIndices = &image_index;
     presentInfo.pResults = &result;
 
+    std::vector<VkSemaphore> waitSema;
     if( !dependencies.empty() )
     {
-        std::vector<VkSemaphore> waitSema;
         waitSema.reserve(dependencies.size());
         for( const dependency* dep : dependencies )
         {
@@ -960,7 +974,7 @@ VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passId
     GFX_ASSERT(program->get_pass_count() > passIdx, "Program {} ({}) does not have a pass index {}", program->get_name().get_hash(), program->get_name().try_get_str(), passIdx);
     const pass& rPass = program->get_pass(passIdx);
 
-    GFX_ASSERT(rPass.get_layout_impl<void*>(), "Pass layout impl must have already been set.");
+    GFX_ASSERT(rPass.get_layout_impl<void*>() != nullptr, "Pass layout impl must have already been set.");
 
     dt::vector<VkShaderModule> modules;
     dt::vector<VkPipelineShaderStageCreateInfo> stages;
@@ -1208,15 +1222,16 @@ void* device_vk::create_shader_pass_impl(program* program, u64 passIdx)
 
 void* device_vk::create_shader_pass_layout_impl(pass* pass)
 {
-    dt::vector<VkDescriptorSetLayout> layouts(DESCRIPTOR_TABLE_COUNT);
-    for( u64 i = 0; i < DESCRIPTOR_TABLE_COUNT; i++ )
+    dt::vector<VkDescriptorSetLayout> layouts;
+    layouts.reserve(DESCRIPTOR_TABLE_COUNT);
+    for( u64 i = 0; i < pass->get_descriptor_table_count(); i++ )
     {
-        layouts.push_back(pass->get_descriptor_table((descriptor_table_type)i).get_impl<VkDescriptorSetLayout>());
+        layouts.push_back(pass->get_descriptor_table((descriptor_table_type)i)->get_impl<VkDescriptorSetLayout>());
     }
 
     VkPipelineLayoutCreateInfo createInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    createInfo.setLayoutCount = 0;// u32_cast(DESCRIPTOR_TABLE_COUNT);
-    createInfo.pSetLayouts = VK_NULL_HANDLE;// layouts.data();
+    createInfo.setLayoutCount = u32_cast(layouts.size());
+    createInfo.pSetLayouts = layouts.data();
 
     VkPipelineLayout retval{ VK_NULL_HANDLE };
     VkResult result = vkCreatePipelineLayout(m_device, &createInfo, nullptr, &retval);
@@ -1291,16 +1306,120 @@ void device_vk::destroy_shader_program(program* program)
         const pass& pass = program->get_pass(passIdx);
 
         // Destroy the tables first.
-        for( u64 tableIdx = 0; tableIdx < DESCRIPTOR_TABLE_COUNT; tableIdx++ )
+        for( u64 tableIdx = 0; tableIdx < pass.get_descriptor_table_count(); tableIdx++ )
         {
-            const descriptor_table_desc& table = pass.get_descriptor_table((descriptor_table_type)tableIdx);
-            vkDestroyDescriptorSetLayout(m_device, table.get_impl<VkDescriptorSetLayout>(), nullptr);
+            const descriptor_table_desc* table = pass.get_descriptor_table((descriptor_table_type)tableIdx);
+            vkDestroyDescriptorSetLayout(m_device, table->get_impl<VkDescriptorSetLayout>(), nullptr);
         }
 
         // These two doesn't really matter what order
         vkDestroyPipelineLayout(m_device, pass.get_layout_impl<VkPipelineLayout>(), nullptr);
         vkDestroyPipeline(m_device, pass.get_impl<VkPipeline>(), nullptr);
     }
+}
+
+void* device_vk::create_descriptor_pool_impl(descriptor_table_desc* base, u32 size)
+{
+    dt::vector<VkDescriptorPoolSize> sizes;
+    // Just do this slow as fuck who cares
+    for( const auto& slot : base->get_buffer_descriptions() )
+    {
+        bool found = false;
+        VkDescriptorType vkType = converters::get_descriptor_type_vk(slot.get_resource_type());
+        // Find if we already have one of this descriptor type
+        for( VkDescriptorPoolSize& pool_size : sizes )
+        {
+            if( pool_size.type == vkType )
+            {
+                pool_size.descriptorCount++;
+                found = true;
+                break;
+            }
+        }
+
+        if( !found )
+        {
+            VkDescriptorPoolSize insert{ };
+            insert.type = vkType;
+            insert.descriptorCount = 1;
+            sizes.push_back(insert);
+        }
+    }
+
+    for( const auto& slot : base->get_image_descriptions() )
+    {
+        bool found = false;
+        VkDescriptorType vkType = converters::get_descriptor_type_vk(slot.get_resource_type());
+        // Find if we already have one of this descriptor type
+        for( VkDescriptorPoolSize& pool_size : sizes )
+        {
+            if( pool_size.type == vkType )
+            {
+                pool_size.descriptorCount++; // Does this need to be size?
+                found = true;
+                break;
+            }
+        }
+
+        if( !found )
+        {
+            VkDescriptorPoolSize insert{ };
+            insert.type = vkType;
+            insert.descriptorCount = 1;
+            sizes.push_back(insert);
+        }
+    }
+
+    VkDescriptorPoolCreateInfo createInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+    createInfo.maxSets = size;
+    createInfo.poolSizeCount = u32_cast(sizes.size());
+    createInfo.pPoolSizes = sizes.data();
+
+    VkDescriptorPool retval{ VK_NULL_HANDLE };
+    VkResult result = vkCreateDescriptorPool(m_device, &createInfo, nullptr, &retval);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create descriptor pool.");
+        return VK_NULL_HANDLE;
+    }
+
+    return retval;
+}
+
+void device_vk::destroy_descriptor_pool(descriptor_pool* pool)
+{
+    vkDestroyDescriptorPool(m_device, pool->get_impl<VkDescriptorPool>(), nullptr);
+}
+
+void device_vk::reset_descriptor_pool(descriptor_pool* pool)
+{
+    vkResetDescriptorPool(m_device, pool->get_impl<VkDescriptorPool>(), 0);
+}
+
+void* device_vk::allocate_descriptor_table_impl(descriptor_pool* pool)
+{
+    VkDescriptorPool vkPool = pool->get_impl<VkDescriptorPool>();
+    VkDescriptorSetLayout setLayout = pool->get_table_desc().get_impl<VkDescriptorSetLayout>();
+
+    VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    allocInfo.descriptorPool = vkPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &setLayout;
+
+    VkDescriptorSet retval{ VK_NULL_HANDLE };
+    VkResult result = vkAllocateDescriptorSets(m_device, &allocInfo, &retval);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to allocate descriptor set.");
+        return VK_NULL_HANDLE;
+    }
+    return retval;
 }
 
 void device_vk::write_descriptor_table(descriptor_table* table)

@@ -31,6 +31,12 @@ private:
     T* m_ptr;
 };
 
+template<typename T, typename _allocator = default_allocator>
+inline unique_ptr<T, _allocator> make_unique(T* ptr)
+{
+    return unique_ptr<T, _allocator>(ptr);
+}
+
 template<typename T, typename _allocator = default_allocator, typename... Args>
 inline unique_ptr<T, _allocator> make_unique(Args&&... args)
 {

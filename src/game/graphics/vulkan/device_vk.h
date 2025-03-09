@@ -113,6 +113,11 @@ public:
 
     void destroy_shader_program(program* program) override;
 
+    void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size) override;
+    void destroy_descriptor_pool(descriptor_pool* pool) override;
+    void reset_descriptor_pool(descriptor_pool* pool) override;
+
+    void* allocate_descriptor_table_impl(descriptor_pool* pool) override;
     void write_descriptor_table(descriptor_table* table) override;
 
     // Internal VK functions

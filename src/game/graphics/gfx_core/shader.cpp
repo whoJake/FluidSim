@@ -5,61 +5,24 @@
 namespace gfx
 {
 
-descriptor_table_desc* descriptor_cache::get_descriptor_table_desc(descriptor_table_desc&& desc)
-{
-    u64 desc_hash = desc.calculate_hash();
-
-    auto it = std::lower_bound(
-        get().m_tableDescHashes.cbegin(),
-        get().m_tableDescHashes.cend(),
-        desc_hash);
-
-    bool found = !(it == get().m_tableDescHashes.cend() || *it != desc_hash);
-    u64 index = get().m_tableDescHashes.index_of(it);
-
-    if( !found )
-    {
-        // Insert it into our table_descs and give it an impl.
-        GFX_ASSERT(desc.get_impl<void*>() == nullptr, "Passing in descriptor_table_desc that is new to the descriptor_cache but already has an impl. Is this behaviour intended?");
-        desc.m_pImpl = GFX_CALL(create_descriptor_table_desc_impl, &desc);
-        get().m_tableDescHashes.insert(index, desc_hash);
-        get().m_tableDescs.insert(index, std::move(desc));
-        return &get().m_tableDescs[index];
-    }
-    else
-    {
-        return &get().m_tableDescs[index];
-    }
-}
-
-descriptor_cache& descriptor_cache::get()
-{
-    return *sm_instance;
-}
-
-void descriptor_cache::initialise()
-{
-    GFX_ASSERT(!sm_instance, "Descriptor cache is already initialised.");
-    sm_instance = new descriptor_cache();
-}
-
-void descriptor_cache::shutdown()
-{
-    for( descriptor_table_desc& desc : get().m_tableDescs )
-    {
-        GFX_CALL(destroy_descriptor_table_desc, &desc);
-    }
-    delete sm_instance;
-}
-
 dt::hash_string32 program::get_name() const
 {
     return m_name;
 }
 
+pass& program::get_pass(u64 index)
+{
+    return m_passes[index];
+}
+
 const pass& program::get_pass(u64 index) const
 {
     return m_passes[index];
+}
+
+shader& program::get_shader(u64 index)
+{
+    return m_shaders[index];
 }
 
 const shader& program::get_shader(u64 index) const
@@ -104,9 +67,24 @@ u8 pass::get_compute_shader_index() const
     return m_computeShaderIndex;
 }
 
-const descriptor_table_desc& pass::get_descriptor_table(descriptor_table_type type) const
+descriptor_table_desc* pass::get_descriptor_table(descriptor_table_type type)
 {
     return m_tables[type];
+}
+
+void pass::set_descriptor_table(descriptor_table_desc* desc, descriptor_table_type type)
+{
+    m_tables[type] = desc;
+}
+
+const descriptor_table_desc* pass::get_descriptor_table(descriptor_table_type type) const
+{
+    return m_tables[type];
+}
+
+u32 pass::get_descriptor_table_count() const
+{
+    return m_tableCount;
 }
 
 const pipeline_state& pass::get_pipeline_state() const
@@ -117,6 +95,16 @@ const pipeline_state& pass::get_pipeline_state() const
 const shader_pass_outputs& pass::get_outputs() const
 {
     return m_outputs;
+}
+
+void pass::set_impl(void* pImpl)
+{
+    m_pImpl = pImpl;
+}
+
+void pass::set_layout_impl(void* pImpl)
+{
+    m_pLayoutImpl = pImpl;
 }
 
 void shader::initialise(shader_stage_flag_bits stage)
@@ -137,6 +125,11 @@ const dt::array<u32>& shader::get_code() const
 const char* shader::get_entry_point() const
 {
     return m_entryPoint.try_get_str().data();
+}
+
+void shader::clear_code()
+{
+    m_code = dt::array<u32>(0);
 }
 
 void descriptor_slot_desc::initialise(dt::hash_string32 name, shader_resource_type type, u32 array_size, u32 slot_size, u32 resource_size, shader_stage_flags visibility)
@@ -298,40 +291,9 @@ const dt::array<descriptor_slot_desc>& descriptor_table_desc::get_image_descript
     return m_imageDescs;
 }
 
-void descriptor_table::initialise(descriptor_table_desc* owner, void* pImpl)
+void descriptor_table_desc::set_impl(void* pImpl)
 {
-    GFX_ASSERT(owner, "Descriptor table must be created with an owner.");
-    GFX_ASSERT(pImpl, "Descriptor table must have a pre-computed impl pointer.");
-
-    m_desc = owner;
-    m_bufferViews = dt::array<void*>(owner->get_buffer_descriptions().size());
-    m_imageViews = dt::array<void*>(owner->get_image_descriptions().size());
     m_pImpl = pImpl;
-}
-
-void descriptor_table::set_buffer(dt::hash_string32 name, void* value)
-{
-    m_bufferViews[m_desc->find_buffer_slot(name)] = value;
-}
-
-void descriptor_table::set_image(dt::hash_string32 name, void* value)
-{
-    m_imageViews[m_desc->find_image_slot(name)] = value;
-}
-
-const dt::array<void*>& descriptor_table::get_buffer_views() const
-{
-    return m_bufferViews;
-}
-
-const dt::array<void*>& descriptor_table::get_image_views() const
-{
-    return m_imageViews;
-}
-
-void descriptor_table::write()
-{
-    GFX_CALL(write_descriptor_table, this);
 }
 
 } // gfx

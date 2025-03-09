@@ -86,7 +86,7 @@ private:
     std::vector<std::unique_ptr<RenderFrame>> m_frames;
     uint32_t m_frameIndex{ 0 };
     uint32_t m_activeRenderingFrameIndex{ 0 };
-    bool m_activeRenderFrame;
+    bool m_activeRenderFrame{ false };
 };
 
 } // vk

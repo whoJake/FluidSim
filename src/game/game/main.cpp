@@ -6,7 +6,7 @@
 #include "system/details/log_console.h"
 #include "system/details/basic_log.h"
 #include "gfx_core/Driver.h"
-#include "gfx_core/loaders/loaders.h"
+#include "gfx_ext/program_mgr.h"
 
 #include "cdt/loaders/image_loaders.h"
 #include "vulkan/vkdefines.h"
@@ -69,11 +69,10 @@ int main(int argc, const char* argv[])
 
 	memcpy(buffer.get_memory_info().mapped, img->data(), img->get_size());
 
-	gfx::program prog{ };
-	gfx::loaders::load("../shaderdev/compiled/triangle.fxcp", &prog);
+	gfx::program_mgr::initialise("C:\\Users\\Jake\\Documents\\Projects\\UnnamedGame\\src\\game\\shaderdev\\compiled\\");
 
-	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pLayoutImpl = gfx::Driver::get_device()->create_shader_pass_layout_impl(const_cast<gfx::pass*>(&prog.get_pass(0)));
-	const_cast<gfx::pass*>(&prog.get_pass(0))->m_pImpl = gfx::Driver::get_device()->create_shader_pass_impl(&prog, 0);
+	gfx::program_mgr::load("triangle.fxcp");
+	gfx::program* prog = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("triangle")));
 
 	{
 		gfx::fence swapFence = device->create_fence(false);
@@ -88,7 +87,7 @@ int main(int argc, const char* argv[])
 		// swapchain -> renderable
 		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
-		gfx::Driver::get_device()->begin_pass(&swapList, &prog, 0, swapTexture);
+		gfx::Driver::get_device()->begin_pass(&swapList, prog, 0, swapTexture);
 		swapList.draw(3);
 		gfx::Driver::get_device()->end_pass(&swapList);
 
@@ -144,6 +143,7 @@ int main(int argc, const char* argv[])
 
 	device->free_swapchain(&swapchain);
 
+	gfx::program_mgr::shutdown();
 	gfx::Driver::shutdown();
 
 	AppStartup app;

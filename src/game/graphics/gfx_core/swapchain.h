@@ -27,6 +27,7 @@ public:
     ~swapchain() = default;
 
     void initialise(std::vector<texture>&& textures, void* pImpl);
+
     u32 aquire_next_image(u64 timeout = u64_max);
     void wait_on_present(u32 index, u64 timeout = u64_max);
 
@@ -36,6 +37,8 @@ public:
 
     const texture* get_image(u32 index) const;
     texture* get_image(u32 index);
+
+    fence* get_fence(u32 index);
 
     GFX_HAS_IMPL(m_pImpl);
 private:

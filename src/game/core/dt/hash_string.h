@@ -46,6 +46,16 @@ public:
 
     _underlying get_hash() const;
     std::string_view try_get_str() const;
+
+    std::strong_ordering operator<=>(const basic_hash_string& left, const basic_hash_string& right) const
+    {
+        return left.get_hash() <=> right.get_hash();
+    }
+
+    bool operator!=(const basic_hash_string& left, const basic_hash_string& right)
+    {
+        return left.get_hash() != right.get_hash();
+    }
 private:
     static _underlying calculate(std::string_view str);
     static hash_string_table<_underlying>& get_table();

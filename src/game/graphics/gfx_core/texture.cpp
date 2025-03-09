@@ -6,19 +6,26 @@ namespace gfx
 void texture::initialise(memory_info allocation,
                          texture_info info,
                          void* pImpl,
-                         void* pImplView)
+                         void* pImplView,
+                         bool isSwapchainImage)
 {
     
     resource::initialise(allocation);
     texture_info::initialise(info);
     m_pImpl = pImpl;
     m_pImplView = pImplView;
+    m_isSwapchain = isSwapchainImage;
 }
 
 void texture::set_resource_view_type(resource_view_type type, void* pImplView)
 {
     m_memoryInfo.viewType = u32_cast(type);
     m_pImplView = pImplView;
+}
+
+bool texture::is_swapchain_image() const
+{
+    return m_isSwapchain;
 }
 
 void texture_info::initialise(const texture_info& other)

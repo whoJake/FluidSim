@@ -188,7 +188,7 @@ bool operator!=(const output_blend_states& lhs, const output_blend_states& rhs)
     return false;
 }
 
-bool operator!=(const vertex_input_attributes& lhs, const vertex_input_attributes& rhs)
+bool operator!=(const vertex_input_attribute& lhs, const vertex_input_attribute& rhs)
 {
     return std::tie(lhs.format, lhs.offset)
         != std::tie(rhs.format, rhs.offset);

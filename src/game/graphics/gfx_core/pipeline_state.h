@@ -18,7 +18,7 @@ enum class vertex_input_rate
     count,
 };
 
-struct vertex_input_attributes
+struct vertex_input_attribute
 {
     format format{ format::UNDEFINED };
     u32 offset;
@@ -30,7 +30,7 @@ struct vertex_input_description
     vertex_input_rate input_rate;
 
     u32 attribute_count{ 0 };
-    vertex_input_attributes attributes[GFX_MAX_VERTEX_ATTRIBUTES_PER_CHANNEL];
+    vertex_input_attribute attributes[GFX_MAX_VERTEX_ATTRIBUTES_PER_CHANNEL];
 };
 
 // Ordered to match VkFrontFace
@@ -328,7 +328,7 @@ bool operator!=(const multisample_state& lhs, const multisample_state& rhs);
 bool operator!=(const depth_stencil_state& lhs, const depth_stencil_state& rhs);
 bool operator!=(const output_blend_states& lhs, const output_blend_states& rhs);
 
-bool operator!=(const vertex_input_attributes& lhs, const vertex_input_attributes& rhs);
+bool operator!=(const vertex_input_attribute& lhs, const vertex_input_attribute& rhs);
 bool operator!=(const vertex_input_description& lhs, const vertex_input_description& rhs);
 bool operator==(const depth_bias_mode& lhs, const depth_bias_mode& rhs);
 bool operator==(const stencil_operation_state& lhs, const stencil_operation_state& rhs);

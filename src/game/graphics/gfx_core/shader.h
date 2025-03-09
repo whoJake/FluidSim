@@ -18,54 +18,24 @@ class descriptor_table;
 class descriptor_table_desc;
 class descriptor_slot_desc;
 
-class loaders;
-
-/// Descriptor Cache : Handles both descriptor_table_desc's and descriptor_tables.
-/// In order for a descriptor_table_desc to gain its impl ptr it must pass through the descriptor
-/// cache, which will use a pre-cached descriptor_table_desc if it has already been created.
-/// 
-/// TODO: API could be nicer on this. I like passing in a pre-formed (but without an impl) descriptor_table_desc
-/// into the cache in order to gain an impl ptr but it feels like a weird way of doing it.
-class descriptor_cache
-{
-public:
-    static descriptor_table_desc* get_descriptor_table_desc(descriptor_table_desc&& desc);
-
-    static void initialise();
-    static void shutdown();
-private:
-    inline static descriptor_cache* sm_instance = nullptr;
-    static descriptor_cache& get();
-
-    dt::vector<u64> m_tableDescHashes;
-    dt::vector<descriptor_table_desc> m_tableDescs;
-};
-
-/*
-class program_manager
-{
-public:
-    static const program* find_program(dt::hash_string32 name);
-    static void load(const char* path);
-private:
-    static program_manager& get();
-    dt::vector<dt::unique_ptr<program>> m_loadedPrograms;
-};
-*/
-
 /// Program : A collection of passes that define a rendering sequence. Named after
 /// the OpenGL name of a ShaderProgram.
 class program
 {
 public:
     friend class loaders;
+    // This is in ext ):?
+    friend class program_mgr;
 
     program() = default;
     ~program() = default;
 
     dt::hash_string32 get_name() const;
 
+    pass& get_pass(u64 index);
     const pass& get_pass(u64 index) const;
+
+    shader& get_shader(u64 index);
     const shader& get_shader(u64 index) const;
 
     u64 get_pass_count() const;
@@ -89,7 +59,8 @@ class descriptor_table_desc
 {
 public:
     friend class loaders;
-    friend class descriptor_cache;
+    // This is in ext ):?
+    friend class program_mgr;
 
     descriptor_table_desc() = default;
     ~descriptor_table_desc() = default;
@@ -107,6 +78,8 @@ public:
 
     const dt::array<descriptor_slot_desc>& get_buffer_descriptions() const;
     const dt::array<descriptor_slot_desc>& get_image_descriptions() const;
+
+    void set_impl(void* pImpl);
 
     GFX_HAS_IMPL(m_pImpl);
 private:
@@ -132,8 +105,9 @@ private:
 class pass
 {
 public:
-    friend class program_manager;
     friend class loaders;
+    // This is in ext ):?
+    friend class program_mgr;
 
     pass() = default;
     ~pass() = default;
@@ -144,9 +118,19 @@ public:
     u8 get_fragment_shader_index() const;
     u8 get_compute_shader_index() const;
 
-    const descriptor_table_desc& get_descriptor_table(descriptor_table_type type) const;
+    descriptor_table_desc* get_descriptor_table(descriptor_table_type type);
+    // This is a horrible function. how improve api here?
+    // Its just asking to leak ptrs
+    void set_descriptor_table(descriptor_table_desc* desc, descriptor_table_type type);
+
+    const descriptor_table_desc* get_descriptor_table(descriptor_table_type type) const;
+    u32 get_descriptor_table_count() const;
+
     const pipeline_state& get_pipeline_state() const;
     const shader_pass_outputs& get_outputs() const;
+
+    void set_impl(void* pImpl);
+    void set_layout_impl(void* pImpl);
 
     GFX_HAS_IMPL(m_pImpl);
 
@@ -159,9 +143,6 @@ public:
     {
         return static_cast<T>(m_pLayoutImpl);
     };
-
-    void* m_pImpl; // VkPipeline
-    void* m_pLayoutImpl; // VkPipelineLayout
 private:
     shader_stage_flags m_stageMask;
 
@@ -170,10 +151,16 @@ private:
     u8 m_fragmentShaderIndex;
     u8 m_computeShaderIndex;
 
-    descriptor_table_desc m_tables[DESCRIPTOR_TABLE_COUNT];
+    u32 m_tableCount;
+    u8 m_pad[4];
+
+    descriptor_table_desc* m_tables[DESCRIPTOR_TABLE_COUNT];
     pipeline_state m_pso;
 
     shader_pass_outputs m_outputs;
+
+    void* m_pImpl{ nullptr } ; // VkPipeline
+    void* m_pLayoutImpl{ nullptr }; // VkPipelineLayout
 };
 
 /// Shader : A singular shader program representing a single shader stage. Multiple shaders
@@ -182,8 +169,9 @@ private:
 class shader
 {
 public:
-    friend class program_manager;
     friend class loaders;
+    // This is in ext ):?
+    friend class program_mgr;
 
     shader() = default;
     ~shader() = default;
@@ -193,6 +181,8 @@ public:
     shader_stage_flag_bits get_stage() const;
     const dt::array<u32>& get_code() const;
     const char* get_entry_point() const;
+
+    void clear_code();
 private:
     // TODO: This shouldn't be a hashstring I think.
     dt::hash_string32 m_entryPoint;
@@ -205,7 +195,7 @@ private:
 class descriptor_slot_desc
 {
 public:
-    // friend class loaders;
+    friend class loaders;
 
     descriptor_slot_desc() = default;
     ~descriptor_slot_desc() = default;
@@ -225,45 +215,6 @@ private:
     u32 m_slotSize;
     u32 m_resourceSize;
     shader_stage_flags m_visibility;
-};
-
-/// Descriptor Table : Equal to a descriptor set where the user can bind a set of resources
-/// finalise it to write to the underlying API and then bind this descriptor table to a given
-/// shader when rendering.
-/// TODO: Should this have a concept of being dirty? My thinking is that a descriptor table is
-/// flushed at the point it is bound and if its changed then its written to first? Is synchonization
-/// something to worry about if I do that?
-/// 
-/// In Vulkan, a descriptor_table is roughly equivalent to a DescriptorSet and is what binds resources
-/// into the pipeline.
-class descriptor_table
-{
-public:
-    friend class program_manager;
-
-    descriptor_table() = default;
-    ~descriptor_table() = default;
-
-    void initialise(descriptor_table_desc* owner, void* pImpl);
-
-    void set_buffer(dt::hash_string32 name, void* value);
-    void set_image(dt::hash_string32 name, void* value);
-
-    const dt::array<void*>& get_buffer_views() const;
-    const dt::array<void*>& get_image_views() const;
-
-    /// Write the currently applied views into the underlying
-    /// descriptor table.
-    void write();
-
-    GFX_HAS_IMPL(m_pImpl);
-private:
-    descriptor_table_desc* m_desc;
-
-    dt::array<void*> m_bufferViews;
-    dt::array<void*> m_imageViews;
-
-    void* m_pImpl;
 };
 
 } // gfx

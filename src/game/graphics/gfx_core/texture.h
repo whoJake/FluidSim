@@ -46,9 +46,10 @@ public:
     DEFAULT_MOVE(texture);
     DEFAULT_COPY(texture);
 
-    void initialise(memory_info allocation, texture_info info, void* pImpl, void* pImplView = nullptr);
-
+    void initialise(memory_info allocation, texture_info info, void* pImpl, void* pImplView = nullptr, bool isSwapchainImage = false);
     void set_resource_view_type(resource_view_type type, void* pImplView = nullptr);
+
+    bool is_swapchain_image() const;
 
     GFX_HAS_IMPL(m_pImpl);
 
@@ -60,6 +61,7 @@ public:
 private:
     void* m_pImpl;
     void* m_pImplView;
+    bool m_isSwapchain;
 };
 
 } // gfx
