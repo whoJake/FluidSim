@@ -12,10 +12,14 @@
 #include "vulkan/vkdefines.h"
 #include "platform/windows/window_glfw.h"
 
+#include "system/zone_allocator.h"
+
 static u64 g_frame = 0;
 
 int main(int argc, const char* argv[])
 {
+	sys::allocator::set_underlying_allocator(sys::zone_allocator::get());
+
 	sys::log::details::logger logger;
 	logger.register_target(new sys::log::details::console_target());
 	sys::log::initialise(new sys::log::details::basic_log(std::move(logger), sys::log::level::none));

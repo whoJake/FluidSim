@@ -14,8 +14,9 @@ void* basic_allocator::do_allocate(u64 size, u64 align)
     return _aligned_malloc(size, align);
 }
 
-void basic_allocator::do_free(void* ptr)
+void basic_allocator::do_free(void* ptr, u64 size)
 {
+    (void)size;
     _aligned_free(ptr);
 }
 

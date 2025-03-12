@@ -1,6 +1,6 @@
 #pragma once
 #include "system/assert.h"
-#include "common.h"
+#include "shared.h"
 #include "vector.h"
 
 namespace dt
@@ -30,8 +30,8 @@ public:
 private:
     u64 find(_underlying hash) const;
 private:
-    dt::vector<_underlying, zoned_allocator<MEMZONE_HASHSTR>> m_hashes;
-    dt::vector<std::string, zoned_allocator<MEMZONE_HASHSTR>> m_strings;
+    dt::vector<_underlying> m_hashes;
+    dt::vector<std::string> m_strings;
 };
 
 template<typename _underlying, hash_string_type _type>
@@ -47,14 +47,14 @@ public:
     _underlying get_hash() const;
     std::string_view try_get_str() const;
 
-    std::strong_ordering operator<=>(const basic_hash_string& left, const basic_hash_string& right) const
+    inline std::strong_ordering operator<=>(const basic_hash_string& rhs) const
     {
-        return left.get_hash() <=> right.get_hash();
+        return get_hash() <=> rhs.get_hash();
     }
 
-    bool operator!=(const basic_hash_string& left, const basic_hash_string& right)
+    inline bool operator!=(const basic_hash_string& rhs)
     {
-        return left.get_hash() != right.get_hash();
+        return get_hash() != rhs.get_hash();
     }
 private:
     static _underlying calculate(std::string_view str);

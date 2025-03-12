@@ -77,7 +77,7 @@ void pool<T, _allocator>::initialise_free_list()
 template<typename T, typename _allocator>
 void pool<T, _allocator>::kill()
 {
-    _allocator::free(m_data);
+    _allocator::free(m_data, m_capacity * sizeof(T));
 }
 
 } // dt

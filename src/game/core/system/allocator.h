@@ -1,34 +1,31 @@
 #pragma once
-#include "assert.h"
+#include "system_channel.h"
 
 namespace sys
 {
 
-SYSDECLARE_CHANNEL(memory);
-
-#define MEMASSERT_FATAL(cond, fmt, ...) SYSASSERT(cond, SYSMSG_CHANNEL_FATAL(memory, fmt, __VA_ARGS__))
-
 class allocator
 {
 public:
+    static constexpr u64 minimum_align = 1uLL;
     static constexpr u64 default_align = __STDCPP_DEFAULT_NEW_ALIGNMENT__;
+    static constexpr u64 max_reasonable_allocate = 4_GiB;
 
-    ~allocator() = default;
+    virtual ~allocator() { };
 
-    void* allocate(u64 size, u64 align = default_align);
-    void free(void* ptr);
+    static void* allocate(u64 size, u64 align);
+    static void free(void* ptr, u64 size);
 
     virtual void* do_allocate(u64 size, u64 align) = 0;
-    virtual void do_free(void* ptr) = 0;
+    virtual void do_free(void* ptr, u64 size) = 0;
 protected:
     allocator() = default;
 public:
     // Static interface
-    static allocator* const get_main();
-    static void set_main(allocator* ptr);
+    static allocator* const get_underlying_allocator();
+    static void set_underlying_allocator(allocator* ptr);
 private:
-    static allocator* sm_main;
-
+    static allocator** get_underlying_internal();
 };
 
 } // sys

@@ -52,3 +52,43 @@ using f64 = double;
 #define f64_max std::numeric_limits<f64>::max()
 #define f64_min -f64_max
 #define f64_cast(v) static_cast<f64>(v)
+
+constexpr u64 operator "" _KiB(u64 in)
+{
+    return in * 1024;
+}
+
+constexpr u64 operator "" _KB(u64 in)
+{
+    return in * 1000;
+}
+
+constexpr u64 operator "" _MiB(u64 in)
+{
+    return operator""_KiB(in) * 1024;
+}
+
+constexpr u64 operator "" _MB(u64 in)
+{
+    return operator""_KB(in) * 1000;
+}
+
+constexpr u64 operator "" _GiB(u64 in)
+{
+    return operator""_MiB(in) * 1024;
+}
+
+constexpr u64 operator "" _GB(u64 in)
+{
+    return operator""_MB(in) * 1000;
+}
+
+constexpr u64 operator "" _TiB(u64 in)
+{
+    return operator""_GiB(in) * 1024;
+}
+
+constexpr u64 operator "" _TB(u64 in)
+{
+    return operator""_GB(in) * 1000;
+}

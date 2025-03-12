@@ -7,18 +7,18 @@ template<typename T, typename _allocator>
 vector<T, _allocator>::vector() :
     m_data(nullptr),
     m_size(0),
-    m_capacity(DT_VECTOR_DEFAULT_CAPACITY)
+    m_capacity(0)
 {
-    move_container(m_capacity);
+    move_container(DT_VECTOR_DEFAULT_CAPACITY);
 }
 
 template<typename T, typename _allocator>
 vector<T, _allocator>::vector(u64 initial_capacity) :
     m_data(nullptr),
     m_size(0),
-    m_capacity(initial_capacity)
+    m_capacity(0)
 {
-    move_container(m_capacity);
+    move_container(initial_capacity);
 }
 
 template<typename T, typename _allocator>
@@ -28,7 +28,7 @@ vector<T, _allocator>::~vector()
     {
         destroy_at(i);
     }
-    _allocator::free(m_data);
+    _allocator::free(m_data, m_capacity * sizeof(T));
 }
 
 template<typename T, typename _allocator>
@@ -117,7 +117,6 @@ void vector<T, _allocator>::reserve(u64 new_capacity)
     if( new_capacity <= m_capacity )
         return;
 
-    m_capacity = new_capacity;
     move_container(new_capacity);
 }
 
@@ -182,8 +181,7 @@ void vector<T, _allocator>::push_back()
 {
     if( m_size == m_capacity )
     {
-        m_capacity = DT_VECTOR_DFEAULT_GROWTH_EQUATION(m_capacity);
-        move_container(m_capacity);
+        move_container(DT_VECTOR_DFEAULT_GROWTH_EQUATION(m_capacity));
     }
 
     construct_at(m_size++);
@@ -194,8 +192,7 @@ void vector<T, _allocator>::push_back(const T& value)
 {
     if( m_size == m_capacity )
     {
-        m_capacity = DT_VECTOR_GROWTH_EQUATION(m_capacity);
-        move_container(m_capacity);
+        move_container(DT_VECTOR_GROWTH_EQUATION(m_capacity));
     }
 
     construct_at(m_size++, value);
@@ -206,8 +203,7 @@ void vector<T, _allocator>::push_back(T&& value)
 {
     if( m_size == m_capacity )
     {
-        m_capacity = DT_VECTOR_GROWTH_EQUATION(m_capacity);
-        move_container(m_capacity);
+        move_container(DT_VECTOR_GROWTH_EQUATION(m_capacity));
     }
 
     construct_at(m_size++, std::move(value));
@@ -219,8 +215,7 @@ void vector<T, _allocator>::emplace_back(Args&&... args)
 {
     if( m_size == m_capacity )
     {
-        m_capacity = DT_VECTOR_GROWTH_EQUATION(m_capacity);
-        move_container(m_capacity);
+        move_container(DT_VECTOR_GROWTH_EQUATION(m_capacity));
     }
 
     construct_at(m_size++, std::forward<Args>(args)...);
@@ -282,8 +277,7 @@ void vector<T, _allocator>::shrink_to_size()
     if( m_capacity == m_size )
         return;
 
-    m_capacity = m_size;
-    move_container(m_capacity);
+    move_container(m_size);
 }
 
 template<typename T, typename _allocator>
@@ -301,8 +295,11 @@ u64 vector<T, _allocator>::index_of(const iterator& it) const
 template<typename T, typename _allocator>
 void vector<T, _allocator>::move_container(u64 new_size)
 {
+    u64 old_capacity = m_capacity;
+    m_capacity = new_size;
+
     T* old_data = m_data;
-    m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * new_size, alignof(T)));
+    m_data = static_cast<T*>(_allocator::allocate(sizeof(T) * m_capacity, alignof(T)));
 
     // Move over our old values
     for( u64 i = 0; i < m_size; i++ )
@@ -310,7 +307,7 @@ void vector<T, _allocator>::move_container(u64 new_size)
         construct_at(i, std::move(old_data[i]));
     }
 
-    _allocator::free(old_data);
+    _allocator::free(old_data, old_capacity);
 }
 
 template<typename T, typename _allocator>
@@ -347,8 +344,7 @@ void vector<T, _allocator>::expand(u64 before, u64 after)
 
     if( required_capacity != m_capacity )
     {
-        m_capacity = required_capacity;
-        move_container(m_capacity);
+        move_container(required_capacity);
     }
 
     // Start from the back

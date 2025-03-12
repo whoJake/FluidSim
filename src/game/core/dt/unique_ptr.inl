@@ -56,7 +56,7 @@ void unique_ptr<T, _allocator>::reset(T* replacement)
     if( m_ptr )
     {
         m_ptr->~T();
-        _allocator::free(m_ptr);
+        _allocator::free(m_ptr, sizeof(T));
     }
 
     m_ptr = replacement;

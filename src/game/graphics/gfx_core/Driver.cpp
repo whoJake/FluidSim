@@ -1,5 +1,4 @@
 #include "Driver.h"
-#include "system/tracked_allocator.h"
 
 #ifdef GFX_SUPPORTS_VULKAN
     #include "vulkan/device_vk.h"
@@ -7,8 +6,6 @@
 
 namespace gfx
 {
-
-SYSZONE_REGISTER(MEMZONE_SHADERS, MEMZONE_SHADERS);
 
 u32 default_choose_gpu(const std::vector<gpu>&);
 

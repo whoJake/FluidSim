@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "shared.h"
 #include <type_traits>
 
 namespace dt
@@ -573,7 +573,7 @@ private:
         }
 
         if( deallocate )
-            _allocator::free(m_data);
+            _allocator::free(m_data, m_capacity * sizeof(T));
     }
 private:
     T* m_data;
