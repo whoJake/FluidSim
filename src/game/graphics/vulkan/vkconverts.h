@@ -55,6 +55,16 @@ constexpr VkFormat get_format_cdt_vk(cdt::image_format format)
         return VK_FORMAT_R8G8B8A8_SINT;
     case cdt::image_format::R8G8B8A8_SRGB:
         return VK_FORMAT_R8G8B8A8_SRGB;
+
+    case cdt::image_format::R32_SFLOAT:
+        return VK_FORMAT_R32_SFLOAT;
+    case cdt::image_format::R32G32_SFLOAT:
+        return VK_FORMAT_R32G32_SFLOAT;
+    case cdt::image_format::R32G32B32_SFLOAT:
+        return VK_FORMAT_R32G32B32_SFLOAT;
+    case cdt::image_format::R32G32B32A32_SFLOAT:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+
     case cdt::image_format::A2B10G10R10_UNORM:
         return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
     default:
@@ -158,6 +168,16 @@ constexpr VkFormat get_format_vk(format format)
         return VK_FORMAT_R8G8B8A8_SINT;
     case format::R8G8B8A8_SRGB:
         return VK_FORMAT_R8G8B8A8_SRGB;
+
+    case format::R32_SFLOAT:
+        return VK_FORMAT_R32_SFLOAT;
+    case format::R32G32_SFLOAT:
+        return VK_FORMAT_R32G32_SFLOAT;
+    case format::R32G32B32_SFLOAT:
+        return VK_FORMAT_R32G32B32_SFLOAT;
+    case format::R32G32B32A32_SFLOAT:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+
     case format::A2B10G10R10_UNORM:
         return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
     default:

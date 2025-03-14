@@ -2,18 +2,16 @@
 #include "system/details/log_console.h"
 #include "system/details/basic_log.h"
 
-#include "system/allocator.h"
-#include "system/basic_allocator.h"
-#include "system/zone_allocator.h"
-
 #include "system/assert.h"
 #include "dt/hash_string.h"
+#include "system/memory.h"
 
 SYSDECLARE_CHANNEL(main);
 
 int main(int argc, const char* argv[])
 {
-	sys::allocator::set_underlying_allocator(sys::zone_allocator::get());
+	sys::memory::setup_heap();
+	sys::memory::initialise_system_zones();
 
 	sys::log::details::logger logger;
 	logger.register_target(new sys::log::details::console_target());
@@ -35,24 +33,4 @@ int main(int argc, const char* argv[])
 	SYSMSG_CHANNEL_INFO(main, "{}: {}", str5.get_hash(), str5.try_get_str());
 	SYSMSG_CHANNEL_INFO(main, "{}: {}", str6.get_hash(), str6.try_get_str());
 
-}
-
-void* operator new(u64 size)
-{
-	return sys::allocator::allocate(size, sys::allocator::default_align);
-}
-
-void* operator new(u64 size, u64 align)
-{
-	return sys::allocator::allocate(size, align);
-}
-
-void operator delete(void* ptr)
-{
-	return sys::allocator::free(ptr, 0);
-}
-
-void operator delete(void* ptr, u64 size)
-{
-	return sys::allocator::free(ptr, size);
 }

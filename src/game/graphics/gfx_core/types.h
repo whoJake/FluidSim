@@ -33,6 +33,11 @@ enum class format
     R8G8B8A8_SINT,
     R8G8B8A8_SRGB,
 
+    R32_SFLOAT,
+    R32G32_SFLOAT,
+    R32G32B32_SFLOAT,
+    R32G32B32A32_SFLOAT,
+
     A2B10G10R10_UNORM,
 };
 
@@ -63,8 +68,15 @@ constexpr u32 get_format_stride(format format)
     case format::R8G8B8A8_UINT:
     case format::R8G8B8A8_SINT:
     case format::R8G8B8A8_SRGB:
+    case format::R32_SFLOAT:
     case format::A2B10G10R10_UNORM:
         return 4;
+    case format::R32G32_SFLOAT:
+        return 8;
+    case format::R32G32B32_SFLOAT:
+        return 12;
+    case format::R32G32B32A32_SFLOAT:
+        return 16;
     default:
         return 0;
     }

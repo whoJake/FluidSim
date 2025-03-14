@@ -800,21 +800,19 @@ void device_vk::draw_indexed(command_list* list, u32 index_count, u32 instance_c
     vkCmdDrawIndexed(list->get_impl<VkCommandBuffer>(), index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
-void device_vk::bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index)
+void device_vk::bind_vertex_buffers(command_list* list, const std::vector<buffer*>& buffers, u32 first_vertex_index)
 {
-    VkBuffer* buffers = new VkBuffer[buffer_count];
-    VkDeviceSize* offsets = new VkDeviceSize[buffer_count];
+    std::vector<VkBuffer> bufs;
+    std::vector<VkDeviceSize> offsets;
 
-    for( u32 i = 0; i < buffer_count; i++ )
+    for( u64 i = 0; i < buffers.size(); i++ )
     {
-        buffers[i] = pBuffers->get_impl<VkBuffer>();
+        bufs.push_back(buffers[i]->get_impl<VkBuffer>());
         // TODO offset
-        offsets[i] = 0;
+        offsets.push_back(0);
     }
 
-    vkCmdBindVertexBuffers(list->get_impl<VkCommandBuffer>(), first_vertex_index, buffer_count, buffers, offsets);
-    delete[] buffers;
-    delete[] offsets;
+    vkCmdBindVertexBuffers(list->get_impl<VkCommandBuffer>(), first_vertex_index, u32_cast(buffers.size()), bufs.data(), offsets.data());
 }
 
 void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type index_type)
@@ -936,6 +934,18 @@ void device_vk::copy_buffer_to_texture(command_list* list, buffer* src, texture*
         converters::get_layout_vk(dst->get_layout()),
         1,
         &copy);
+}
+
+void device_vk::copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst)
+{
+    // TOOD add some offsets and sizes here
+    VkBufferCopy region{ 0, 0, src->get_size() };
+    vkCmdCopyBuffer(
+        list->get_impl<VkCommandBuffer>(),
+        src->get_impl<VkBuffer>(),
+        dst->get_impl<VkBuffer>(),
+        1,
+        &region);
 }
 
 void device_vk::texture_barrier(command_list* list, texture* texture, texture_layout dst_layout)

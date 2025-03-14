@@ -27,6 +27,11 @@ enum class image_format
     R8G8B8A8_SINT,
     R8G8B8A8_SRGB,
 
+    R32_SFLOAT,
+    R32G32_SFLOAT,
+    R32G32B32_SFLOAT,
+    R32G32B32A32_SFLOAT,
+
     A2B10G10R10_UNORM,
 };
 
@@ -39,24 +44,28 @@ constexpr u32 get_channel_count(image_format format)
     case image_format::R8_UINT:
     case image_format::R8_SINT:
     case image_format::R8_SRGB:
+    case image_format::R32_SFLOAT:
         return 1;
     case image_format::R8G8_UNORM:
     case image_format::R8G8_SNORM:
     case image_format::R8G8_UINT:
     case image_format::R8G8_SINT:
     case image_format::R8G8_SRGB:
+    case image_format::R32G32_SFLOAT:
         return 2;
     case image_format::R8G8B8_UNORM:
     case image_format::R8G8B8_SNORM:
     case image_format::R8G8B8_UINT:
     case image_format::R8G8B8_SINT:
     case image_format::R8G8B8_SRGB:
+    case image_format::R32G32B32_SFLOAT:
         return 3;
     case image_format::R8G8B8A8_UNORM:
     case image_format::R8G8B8A8_SNORM:
     case image_format::R8G8B8A8_UINT:
     case image_format::R8G8B8A8_SINT:
     case image_format::R8G8B8A8_SRGB:
+    case image_format::R32G32B32A32_SFLOAT:
     case image_format::A2B10G10R10_UNORM:
         return 4;
     default:
@@ -128,6 +137,7 @@ constexpr bool has_alpha(image_format format)
     case image_format::R8G8B8A8_UINT:
     case image_format::R8G8B8A8_SINT:
     case image_format::R8G8B8A8_SRGB:
+    case image_format::R32G32B32A32_SFLOAT:
     case image_format::A2B10G10R10_UNORM:
         return true;
     default:

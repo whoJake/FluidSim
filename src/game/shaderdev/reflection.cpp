@@ -326,7 +326,7 @@ bool reflector::reflect_pass(gfx::program_def* pProgram, u64 passIdx, dt::vector
             if( resource.type == gfx::SHADER_RESOURCE_INPUT )
             {
                 inputResources.push_back(resource);
-                buffer_stride += resource.vecSize * resource.arraySize;
+                buffer_stride += resource.vecSize * resource.arraySize * sizeof(f32); // assume its a 32bit float?
             }
         }
 
@@ -357,20 +357,20 @@ bool reflector::reflect_pass(gfx::program_def* pProgram, u64 passIdx, dt::vector
                 shader_resource& resource = inputResources[idx];
                 vertex_buffer_desc.attributes[idx].offset = offset;
 
-                u32 resource_stride = resource.vecSize * resource.arraySize;
+                u32 resource_stride = resource.vecSize * resource.arraySize * sizeof(f32);
                 offset += resource_stride;
 
-                if( resource_stride == 2 )
+                if( resource_stride == 2 * sizeof(f32) )
                 {
-                    vertex_buffer_desc.attributes[idx].format = gfx::format::R8G8_SNORM;
+                    vertex_buffer_desc.attributes[idx].format = gfx::format::R32G32_SFLOAT;
                 }
-                else if( resource_stride == 3 )
+                else if( resource_stride == 3 * sizeof(f32) )
                 {
-                    vertex_buffer_desc.attributes[idx].format = gfx::format::R8G8B8_SNORM;
+                    vertex_buffer_desc.attributes[idx].format = gfx::format::R32G32B32_SFLOAT;
                 }
-                else if( resource_stride == 4 )
+                else if( resource_stride == 4 * sizeof(f32) )
                 {
-                    vertex_buffer_desc.attributes[idx].format = gfx::format::R8G8B8A8_SNORM;
+                    vertex_buffer_desc.attributes[idx].format = gfx::format::R32G32B32A32_SFLOAT;
                 }
             }
 

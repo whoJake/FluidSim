@@ -7,6 +7,9 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+//#define STBI_MALLOC(sz) do_stbi_malloc(sz)
+//#define STBI_REALLOC(p, newsz) do_stbi_realloc(p, newsz)
+//#define STBI_FREE(p) do_stbi_free(p)
 #include "stb_image.h"
 #include "stb_image_write.h"
 
@@ -42,7 +45,9 @@ std::unique_ptr<image> image_loader::from_file_png(sys::path path)
     u8* data = new u8[filesize];
     device.read(data, filesize);
     device.close();
-    return image_loader::from_memory_png(data, filesize);
+
+    std::unique_ptr<image> retval = image_loader::from_memory_png(data, filesize);
+    return retval;
 }
 
 } // cdt

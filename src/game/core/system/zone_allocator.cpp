@@ -3,7 +3,7 @@
 namespace sys
 {
 
-void memory_zone::initialise(dt::hash_string32 name, zone_id zone, zone_budget budget)
+void memory_zone::initialise(const char* name, zone_id zone, zone_budget budget)
 {
     m_name = name;
     m_id = zone;
@@ -24,11 +24,12 @@ bool memory_zone::is_initialised() const
 
 void memory_zone::track_allocation(u64 size)
 {
-    if( will_exceed_budget(size) )
+    if( m_budget.budget != 0
+     && will_exceed_budget(size) )
     {
         if( m_budget.failure_type == budget_failure_type::fatal )
         {
-            MEM_ASSERT(false, "Memory zone '{}' cannot allocate {} bytes. Currently allocated: {} Budget: {}", m_name.try_get_str(), size, m_activeAllocatedMemory.load(), m_budget.budget);
+            MEM_ASSERT(false, "Memory zone '{}' cannot allocate {} bytes. Currently allocated: {} Budget: {}", m_name, size, m_activeAllocatedMemory.load(), m_budget.budget);
         }
     }
 
@@ -47,7 +48,7 @@ void memory_zone::track_allocation(u64 size)
     m_totalAllocations++;
 }
 
-const dt::hash_string32& memory_zone::get_name() const
+const char* memory_zone::get_name() const
 {
     return m_name;
 }
@@ -71,7 +72,7 @@ void memory_zone::track_free(u64 size)
 {
     u64 old_active = m_activeAllocatedMemory.fetch_sub(size);
     if( old_active < size )
-        MEM_ASSERT(false, "Memory freed from zone {} which was not allocated from this zone.", m_name.try_get_str());
+        MEM_ASSERT(false, "Memory freed from zone {} which was not allocated from this zone.", m_name);
 
     m_activeAllocations--;
     m_totalFreedAllocations++;
@@ -89,17 +90,22 @@ void zone_allocator::do_free(void* ptr, u64 size)
     find_memory_zone(get_current_zone())->track_free(size);
 }
 
-void zone_allocator::register_zone(dt::hash_string32 name, zone_id zone, zone_budget budget)
+void zone_allocator::register_zone(const char* name, zone_id zone, zone_budget budget)
 {
     get()->register_zone_internal(name, zone, budget);
 }
 
 memory_zone* zone_allocator::find_memory_zone(zone_id zone)
 {
-    if( get()->m_zones.size() <= zone )
+    if( zone == MEMZONE_DEFAULT )
+        return &get()->m_defaultZone;
+
+    u64 zoneIdx = u64_cast(zone) - 1;
+
+    if( get()->m_zones.size() <= zoneIdx )
         return nullptr;
 
-    memory_zone* retzone = &(get()->m_zones[zone]);
+    memory_zone* retzone = &(get()->m_zones[zoneIdx]);
     if( !retzone->is_initialised() )
         return nullptr;
 
@@ -116,20 +122,21 @@ zone_id zone_allocator::get_current_zone()
     return sm_currentZone;
 }
 
-void zone_allocator::initialise_system_zones()
+void zone_allocator::register_zone_internal(const char* name, zone_id zone, zone_budget budget)
 {
-    // Id like to do this in the constructor, but we're calling into types that do dynamic allocations (dt::vector / dt::hash_string)
-    // which means their constructors will happen before ours and when we destruct, it'll happen AFTER we've destructed the allocator.
-    get()->m_zones.initialise(max_zones);
-    get()->register_zone_internal(dt::hash_string32("system.default"), MEMZONE_SYSTEM_DEFAULT, { });
-}
+    if( zone == 0 && !m_defaultZone.is_initialised() ) [[unlikely]]
+    {
+        m_defaultZone.initialise(name, zone, budget);
+        return;
+    }
 
-void zone_allocator::register_zone_internal(dt::hash_string32 name, zone_id zone, zone_budget budget)
-{
-    MEM_ASSERT(zone <= m_zones.size(), "Zone is outside of valid zone range. Make sure that zone_allocator::max_zones is set to the correct amount before initialising.");
-    MEM_ASSERT(!m_zones[zone].is_initialised(), "Double registration of zone {} with id {}", name.try_get_str(), zone);
+    MEM_ASSERT(zone != 0, "Double registration of default zone.");
+    u64 zoneIdx = u64_cast(zone) - 1;
 
-    m_zones[zone].initialise(name, zone, budget);
+    MEM_ASSERT(zoneIdx <= m_zones.size(), "Zone is outside of valid zone range. Make sure that zone_allocator::max_zones is set to the correct amount before initialising.");
+    MEM_ASSERT(!m_zones[zoneIdx].is_initialised(), "Double registration of zone {} with id {}", name, zone);
+
+    m_zones[zoneIdx].initialise(name, zone, budget);
 }
 
 zone_allocator* zone_allocator::get()
@@ -140,7 +147,7 @@ zone_allocator* zone_allocator::get()
     if( !initialised ) [[unlikely]]
     {
         initialised = true;
-        instance.initialise_system_zones();
+        instance.m_zones.initialise(max_zones);
     }
 
     return &instance;

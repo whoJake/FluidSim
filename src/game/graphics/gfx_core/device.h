@@ -82,7 +82,7 @@ public:
     virtual void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance) = 0;
     virtual void draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance) = 0;
 
-    virtual void bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index) = 0;
+    virtual void bind_vertex_buffers(command_list* list, const std::vector<buffer*>& buffers, u32 first_vertex_index) = 0;
     virtual void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) = 0;
 
     // TEMPORARY
@@ -92,6 +92,7 @@ public:
     // virtual void copy_texture(texture* src, texture_layout src_layout, texture* dst, texture_layout dst_layout, texture_region? region);
     virtual void copy_texture_to_texture(command_list* list, texture* src, texture* dst) = 0;
     virtual void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) = 0;
+    virtual void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst) = 0;
     virtual void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) = 0;
 
     // virtual void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index = 0, void* pAux = nullptr) = 0;

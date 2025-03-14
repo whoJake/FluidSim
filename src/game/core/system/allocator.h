@@ -8,7 +8,6 @@ class allocator
 {
 public:
     static constexpr u64 minimum_align = 1uLL;
-    static constexpr u64 default_align = __STDCPP_DEFAULT_NEW_ALIGNMENT__;
     static constexpr u64 max_reasonable_allocate = 4_GiB;
 
     virtual ~allocator() { };

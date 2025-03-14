@@ -94,7 +94,7 @@ public:
     void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance) override;
     void draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance) override;
 
-    void bind_vertex_buffers(command_list* list, buffer* pBuffers, u32 buffer_count, u32 first_vertex_index) override;
+    void bind_vertex_buffers(command_list* list, const std::vector<buffer*>& buffers, u32 first_vertex_index) override;
     void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) override;
 
     void begin_pass(command_list* list, program* program, u64 passIdx, texture* output) override;
@@ -102,6 +102,7 @@ public:
 
     void copy_texture_to_texture(command_list* list, texture* src, texture* dst) override;
     void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) override;
+    void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst) override;
     void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) override;
 
     // Shader things

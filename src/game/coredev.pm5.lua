@@ -32,6 +32,8 @@
     "%{prj.name}/**.cpp",
     "%{prj.name}/**.hpp",
 
+    "%{prj.name}/**.natvis",
+
     "coredev.pm5.lua",
   }
 

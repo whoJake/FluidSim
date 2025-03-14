@@ -348,9 +348,10 @@ void vector<T, _allocator>::expand(u64 before, u64 after)
     }
 
     // Start from the back
-    for( u64 i = 0; i < diff; i++ )
+    u64 elems_to_move = m_size - before;
+    for( u64 elem = 1; elem <= elems_to_move; elem++ )
     {
-        u64 cur_index = m_size - 1 - i;
+        u64 cur_index = m_size - elem;
         construct_at(cur_index + diff, std::move(m_data[cur_index]));
     }
 
