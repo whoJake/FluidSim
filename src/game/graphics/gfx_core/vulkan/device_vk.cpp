@@ -20,25 +20,21 @@ void destroy_debug_utils_messenger(VkInstance,
                                    VkDebugUtilsMessengerEXT,
                                    const VkAllocationCallbacks*);
 
-device_vk::device_vk()
+u32 VK_DEVICE::initialise(u32 gpuIdx, surface_create_func surface_func)
 {
-    create_instance();
-}
+    m_deviceImpl = new device_state_vk{ };
+    device_state_vk& deviceState = get_impl<device_state_vk>();
+    deviceState.create_instance(m_debugger);
 
-device_vk::~device_vk()
-{
-    VkDebugUtilsMessengerEXT dbgMessenger = (VkDebugUtilsMessengerEXT)m_debugger.get_impl_ptr();
-    if( dbgMessenger )
+    VkSurfaceKHR surface{ VK_NULL_HANDLE };
+    if( !surface_func(deviceState.instance, &surface) )
     {
-        destroy_debug_utils_messenger(m_instance, dbgMessenger, nullptr);
+        GFX_ASSERT(false, "Failed to create vulkan surface.");
+        return -1;
     }
+    m_surface = surface;
 
-    vkDestroyInstance(m_instance, nullptr);
-}
-
-u32 device_vk::initialise(u32 gpuIdx, void* surface)
-{
-    GFX_ASSERT(m_instance, "Cannot initialise device, there is no instance.");
+    GFX_ASSERT(deviceState.instance, "Cannot initialise device, there is no instance.");
     m_gpu = enumerate_gpus()[gpuIdx];
 
     VkPhysicalDevice physicalDevice = m_gpu.get_impl<VkPhysicalDevice>();
@@ -52,11 +48,11 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
 
     std::vector<VkDeviceQueueCreateInfo> queueInfos(familyCount, { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO });
     std::vector<std::vector<float>> queuePriorities(familyCount);
-    m_queueFamilies = std::vector<queue_family>(familyCount);
+    deviceState.queue_families = std::vector<queue_family>(familyCount);
 
     for( u32 familyIdx = 0; familyIdx < familyCount; familyIdx++ )
     {
-        queue_family& family = m_queueFamilies[familyIdx];
+        queue_family& family = deviceState.queue_families[familyIdx];
         family.properties = familyProperties[familyIdx];
         family.index = familyIdx;
         family.queues = std::vector<VkQueue>(family.properties.queueCount);
@@ -86,23 +82,23 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
     u32 extCount = 0;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
     std::vector<VkExtensionProperties> extensions(extCount);
-    m_availableDeviceExtensions.resize(extCount);
+    deviceState.available_device_extensions.resize(extCount);
 
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, extensions.data());
 
     for( u64 i = 0; i < extensions.size(); i++ )
     {
-        m_availableDeviceExtensions[i] = extensions[i].extensionName;
+        deviceState.available_device_extensions[i] = extensions[i].extensionName;
     }
 
-    for( const char* reqExt : get_device_extensions() )
+    for( const char* reqExt : vulkan_get_device_extensions() )
     {
         bool enabled = false;
-        for( std::string& ext : m_availableDeviceExtensions )
+        for( std::string& ext : deviceState.available_device_extensions )
         {
             if( !strcmp(reqExt, ext.c_str()) )
             {
-                m_enabledDeviceExtensions.push_back(reqExt);
+                deviceState.enabled_device_extensions.push_back(reqExt);
                 enabled = true;
                 break;
             }
@@ -119,15 +115,15 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
     createInfo.pNext = &dynamicRenderingFeatures;
     createInfo.queueCreateInfoCount = u32_cast(queueInfos.size());
     createInfo.pQueueCreateInfos = queueInfos.data();
-    createInfo.enabledExtensionCount = u32_cast(m_enabledDeviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = m_enabledDeviceExtensions.data();
+    createInfo.enabledExtensionCount = u32_cast(deviceState.enabled_device_extensions.size());
+    createInfo.ppEnabledExtensionNames = deviceState.enabled_device_extensions.data();
 
     VkPhysicalDeviceFeatures features{ };
     features.wideLines = true;
     features.fillModeNonSolid = true;
     createInfo.pEnabledFeatures = &features; // TODO
 
-    VkResult deviceResult = vkCreateDevice(physicalDevice, &createInfo, nullptr, &m_device);
+    VkResult deviceResult = vkCreateDevice(physicalDevice, &createInfo, nullptr, &deviceState.device);
     switch( deviceResult )
     {
         case VK_SUCCESS:
@@ -140,50 +136,63 @@ u32 device_vk::initialise(u32 gpuIdx, void* surface)
     m_surface = surfaceKHR;
 
     // Create the queues.
-    for( queue_family& family : m_queueFamilies )
+    for( queue_family& family : deviceState.queue_families )
     {
         for( u32 idx = 0; idx < u32_cast(family.queues.size()); idx++ )
         {
-            vkGetDeviceQueue(m_device, family.index, idx, &family.queues[idx]);
+            vkGetDeviceQueue(deviceState.device, family.index, idx, &family.queues[idx]);
         }
     }
 
     // Create allocator
 #ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.initialise(m_instance, m_gpu.get_impl<VkPhysicalDevice>(), m_device);
+    deviceState.allocator.initialise(deviceState.instance, m_gpu.get_impl<VkPhysicalDevice>(), deviceState.device);
 #endif
 
     // Create command pools
-    m_commandPool.initialise();
+    deviceState.command_pool.initialise(&deviceState);
 
     return 0;
 }
 
-u32 device_vk::initialise(u32 gpuIdx)
+u32 VK_DEVICE::initialise(u32 gpuIdx)
 {
-    return initialise(gpuIdx, nullptr);
+    return initialise(gpuIdx, [](VkInstance, VkSurfaceKHR* out_surface) -> bool
+        {
+            *out_surface = VK_NULL_HANDLE;
+            return true;
+        });
 }
 
-void device_vk::shutdown()
+void VK_DEVICE::shutdown()
 {
-    m_allocator.shutdown();
-    m_commandPool.shutdown();
+    device_state_vk& deviceState = get_impl<device_state_vk>();
+
+    deviceState.allocator.shutdown();
+    deviceState.command_pool.shutdown();
 
     if( m_surface )
     {
-        vkDestroySurfaceKHR(m_instance, (VkSurfaceKHR)m_surface, nullptr);
+        vkDestroySurfaceKHR(deviceState.instance, (VkSurfaceKHR)m_surface, nullptr);
     }
 
-    vkDestroyDevice(m_device, nullptr);
+    vkDestroyDevice(deviceState.device, nullptr);
 
-    return;
+    VkDebugUtilsMessengerEXT dbgMessenger = (VkDebugUtilsMessengerEXT)m_debugger.get_impl_ptr();
+    if( dbgMessenger )
+    {
+        destroy_debug_utils_messenger(deviceState.instance, dbgMessenger, nullptr);
+    }
+
+    vkDestroyInstance(deviceState.instance, nullptr);
+    delete static_cast<device_state_vk*>(m_deviceImpl);
 }
 
 #ifdef GFX_EXT_SWAPCHAIN
-surface_capabilities device_vk::get_surface_capabilities() const
+surface_capabilities VK_DEVICE::get_surface_capabilities() const
 {
     GFX_ASSERT(m_surface, "Surface was not provided when creating graphics device.");
-
+    const device_state_vk& deviceState = get_impl<device_state_vk>();
     VkSurfaceKHR surface = (VkSurfaceKHR)m_surface;
 
     VkSurfaceCapabilitiesKHR surfaceCapabilities{ };
@@ -227,7 +236,7 @@ surface_capabilities device_vk::get_surface_capabilities() const
     };
 }
 
-swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, present_mode present)
+swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, present_mode present)
 {
     VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     createInfo.oldSwapchain = previous
@@ -251,16 +260,17 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
     
     VkSwapchainKHR retSwapchain{ VK_NULL_HANDLE };
 
-    VkResult result = vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &retSwapchain);
+    device_state_vk& deviceState = get_impl<device_state_vk>();
+    VkResult result = vkCreateSwapchainKHR(deviceState.device, &createInfo, nullptr, &retSwapchain);
     GFX_ASSERT(result != VK_ERROR_INITIALIZATION_FAILED, "Failed to create graphics swapchain. Ensure that '{}' device extension is enabled.", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     GFX_ASSERT(result == VK_SUCCESS, "Failed to create graphics swapchain.");
 
     u32 imageCount{ 0 };
-    vkGetSwapchainImagesKHR(m_device, retSwapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(deviceState.device, retSwapchain, &imageCount, nullptr);
 
     std::vector<VkImage> images;
     images.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_device, retSwapchain, &imageCount, images.data());
+    vkGetSwapchainImagesKHR(deviceState.device, retSwapchain, &imageCount, images.data());
 
     std::vector<texture> textures;
     textures.reserve(imageCount);
@@ -287,7 +297,7 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
 
         viewInfo.subresourceRange = range;
 
-        VkResult result = vkCreateImageView(m_device, &viewInfo, nullptr, &pViewImpl);
+        VkResult result = vkCreateImageView(deviceState.device, &viewInfo, nullptr, &pViewImpl);
         switch( result )
         {
         case VK_SUCCESS:
@@ -307,7 +317,7 @@ swapchain device_vk::create_swapchain(swapchain* previous, texture_info info, pr
     return retval;
 }
 
-void device_vk::free_swapchain(swapchain* swapchain)
+void VK_DEVICE::free_swapchain(swapchain* swapchain)
 {
     u32 imageCount = swapchain->get_image_count();
     for( u32 idx = 0; idx < imageCount; idx++ )
@@ -316,19 +326,20 @@ void device_vk::free_swapchain(swapchain* swapchain)
         free_fence(swapchain->get_fence(idx));
     }
 
-    vkDestroySwapchainKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), nullptr);
+    vkDestroySwapchainKHR(get_impl<device_state_vk>().device, swapchain->get_impl<VkSwapchainKHR>(), nullptr);
 }
 #endif // GFX_EXT_SWAPCHAIN
 
-std::vector<gpu> device_vk::enumerate_gpus() const
+std::vector<gpu> VK_DEVICE::enumerate_gpus() const
 {
-    GFX_ASSERT(m_instance, "VkInstance is not valid.");
+    const device_state_vk& deviceState = get_impl<device_state_vk>();
+    GFX_ASSERT(deviceState.instance, "VkInstance is not valid.");
 
     u32 count = 0;
-    vkEnumeratePhysicalDevices(m_instance, &count, nullptr);
+    vkEnumeratePhysicalDevices(deviceState.instance, &count, nullptr);
 
     std::vector<VkPhysicalDevice> devices(count);
-    vkEnumeratePhysicalDevices(m_instance, &count, devices.data());
+    vkEnumeratePhysicalDevices(deviceState.instance, &count, devices.data());
 
     std::vector<gpu> out;
     for( u32 i = 0; i < count; i++ )
@@ -358,8 +369,10 @@ std::vector<gpu> device_vk::enumerate_gpus() const
     return out;
 }
 
-buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant)
+buffer VK_DEVICE::create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant)
 {
+    device_state_vk& deviceState = get_impl<device_state_vk>();
+
     memory_info memoryInfo{ };
     memoryInfo.size = size;
     memoryInfo.type = u32_cast(mem_type);
@@ -368,7 +381,7 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
 
     void* pImpl = nullptr;
 #ifdef GFX_VK_VMA_ALLOCATOR
-    vma_allocation<VkBuffer> allocation = m_allocator.allocate_buffer(size, usage, mem_type);
+    vma_allocation<VkBuffer> allocation = deviceState.allocator.allocate_buffer(size, usage, mem_type);
     memoryInfo.backing_memory = allocation.allocation;
     pImpl = allocation.resource;
 #endif
@@ -376,7 +389,7 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
     if( persistant )
     {
     #ifdef GFX_VK_VMA_ALLOCATOR
-        memoryInfo.mapped = m_allocator.map((VmaAllocation)memoryInfo.backing_memory);
+        memoryInfo.mapped = deviceState.allocator.map((VmaAllocation)memoryInfo.backing_memory);
     #endif
     }
 
@@ -385,24 +398,26 @@ buffer device_vk::create_buffer(u64 size, buffer_usage usage, memory_type mem_ty
     return retval;
 }
 
-void device_vk::free_buffer(buffer* buf)
+void VK_DEVICE::free_buffer(buffer* buf)
 {
     GFX_ASSERT(buf->is_persistant() || !buf->is_mapped(), "Buffer should be unmapped before freeing.");
 
     if( buf->is_persistant() )
     {
     #ifdef GFX_VK_VMA_ALLOCATOR
-        m_allocator.unmap(buf->get_backing_memory<VmaAllocation>());
+        get_impl<device_state_vk>().allocator.unmap(buf->get_backing_memory<VmaAllocation>());
     #endif
     }
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.free_buffer({ buf->get_impl<VkBuffer>(), buf->get_backing_memory<VmaAllocation>() });
+    get_impl<device_state_vk>().allocator.free_buffer({ buf->get_impl<VkBuffer>(), buf->get_backing_memory<VmaAllocation>() });
 #endif
 }
 
-texture device_vk::create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant)
+texture VK_DEVICE::create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant)
 {
+    device_state_vk& deviceState = get_impl<device_state_vk>();
+
     memory_info memoryInfo{ };
     memoryInfo.size = info.get_size();
     memoryInfo.type = u32_cast(mem_type);
@@ -411,7 +426,7 @@ texture device_vk::create_texture(texture_info info, resource_view_type view_typ
 
     void* pImpl = nullptr;
 #ifdef GFX_VK_VMA_ALLOCATOR
-    vma_allocation<VkImage> allocation = m_allocator.allocate_image(info, view_type, mem_type);
+    vma_allocation<VkImage> allocation = deviceState.allocator.allocate_image(info, view_type, mem_type);
     memoryInfo.backing_memory = allocation.allocation;
     pImpl = allocation.resource;
 #endif
@@ -419,7 +434,7 @@ texture device_vk::create_texture(texture_info info, resource_view_type view_typ
     if( persistant )
     {
     #ifdef GFX_VK_VMA_ALLOCATOR
-        memoryInfo.mapped = m_allocator.map((VmaAllocation)memoryInfo.backing_memory);
+        memoryInfo.mapped = deviceState.allocator.map((VmaAllocation)memoryInfo.backing_memory);
     #endif
     }
 
@@ -443,7 +458,7 @@ texture device_vk::create_texture(texture_info info, resource_view_type view_typ
 
     viewInfo.subresourceRange = range;
 
-    VkResult result = vkCreateImageView(m_device, &viewInfo, nullptr, &pViewImpl);
+    VkResult result = vkCreateImageView(deviceState.device, &viewInfo, nullptr, &pViewImpl);
     switch( result )
     {
     case VK_SUCCESS:
@@ -457,34 +472,35 @@ texture device_vk::create_texture(texture_info info, resource_view_type view_typ
     return retval;
 }
 
-void device_vk::free_texture(texture* tex)
+void VK_DEVICE::free_texture(texture* tex)
 {
     GFX_ASSERT(tex->is_persistant() || !tex->is_mapped(), "Image should be unmapped before freeing.");
+    device_state_vk& deviceState = get_impl<device_state_vk>();
 
     if( tex->is_persistant() )
     {
     #ifdef GFX_VK_VMA_ALLOCATOR
-        m_allocator.unmap(tex->get_backing_memory<VmaAllocation>());
+        deviceState.allocator.unmap(tex->get_backing_memory<VmaAllocation>());
     #endif
     }
 
-    vkDestroyImageView(m_device, tex->get_view_impl<VkImageView>(), nullptr);
+    vkDestroyImageView(deviceState.device, tex->get_view_impl<VkImageView>(), nullptr);
 
 #ifdef GFX_VK_VMA_ALLOCATOR
     if( !tex->is_swapchain_image() )
     {
-        m_allocator.free_image({ tex->get_impl<VkImage>(), tex->get_backing_memory<VmaAllocation>() });
+        deviceState.allocator.free_image({ tex->get_impl<VkImage>(), tex->get_backing_memory<VmaAllocation>() });
     }
 #endif
 }
 
-fence device_vk::create_fence(bool signaled)
+fence VK_DEVICE::create_fence(bool signaled)
 {
     VkFence impl{ VK_NULL_HANDLE };
     VkFenceCreateInfo createInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     createInfo.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
 
-    VkResult result = vkCreateFence(m_device, &createInfo, nullptr, &impl);
+    VkResult result = vkCreateFence(get_impl<device_state_vk>().device, &createInfo, nullptr, &impl);
 
     switch( result )
     {
@@ -497,18 +513,18 @@ fence device_vk::create_fence(bool signaled)
     return fence(impl);
 }
 
-void device_vk::free_fence(fence* fence)
+void VK_DEVICE::free_fence(fence* fence)
 {
-    vkDestroyFence(m_device, fence->get_impl<VkFence>(), nullptr);
+    vkDestroyFence(get_impl<device_state_vk>().device, fence->get_impl<VkFence>(), nullptr);
 }
 
-dependency device_vk::create_dependency(const char* debug_name)
+dependency VK_DEVICE::create_dependency(const char* debug_name)
 {
     dependency retval{ };
     VkSemaphore retSemaphore{ VK_NULL_HANDLE };
 
     VkSemaphoreCreateInfo createInfo{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    VkResult result = vkCreateSemaphore(m_device, &createInfo, nullptr, &retSemaphore);
+    VkResult result = vkCreateSemaphore(get_impl<device_state_vk>().device, &createInfo, nullptr, &retSemaphore);
     switch( result )
     {
     case VK_SUCCESS:
@@ -521,20 +537,20 @@ dependency device_vk::create_dependency(const char* debug_name)
     return retval;
 }
 
-void device_vk::free_dependency(dependency* dep)
+void VK_DEVICE::free_dependency(dependency* dep)
 {
-    vkDestroySemaphore(m_device, dep->get_impl<VkSemaphore>(), nullptr);
+    vkDestroySemaphore(get_impl<device_state_vk>().device, dep->get_impl<VkSemaphore>(), nullptr);
 }
 
-graphics_command_list device_vk::allocate_graphics_command_list()
+graphics_command_list VK_DEVICE::allocate_graphics_command_list()
 {
-    VkCommandBuffer buffer = m_commandPool.allocate_buffer_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    VkCommandBuffer buffer = get_impl<device_state_vk>().command_pool.allocate_buffer_by_flags(VK_QUEUE_GRAPHICS_BIT);
     graphics_command_list retval{ };
     retval.init(buffer);
     return retval;
 }
 
-void device_vk::free_command_list(command_list* list)
+void VK_DEVICE::free_command_list(command_list* list)
 {
     VkQueueFlags flags{ };
     switch( list->get_type() )
@@ -546,56 +562,57 @@ void device_vk::free_command_list(command_list* list)
         break;
     }
 
-    m_commandPool.free_buffer_by_flags(list->get_impl<VkCommandBuffer>(), flags);
+    get_impl<device_state_vk>().command_pool.free_buffer_by_flags(list->get_impl<VkCommandBuffer>(), flags);
 }
 
-void device_vk::map(buffer* buf)
+static void vulkan_map_impl(memory_info* mem_info, device_state_vk& device_state)
 {
-    map_impl(&buf->get_memory_info());
-}
 
-void device_vk::map(texture* tex)
-{
-    map_impl(&tex->get_memory_info());
-}
+    GFX_ASSERT(!mem_info->persistant, "Persistant memory cannot be manually mapped.");
+    GFX_ASSERT(static_cast<memory_type>(mem_info->type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
 
-void device_vk::unmap(buffer* buf)
-{
-    unmap_impl(&buf->get_memory_info());
-}
-
-void device_vk::unmap(texture* tex)
-{
-    unmap_impl(&tex->get_memory_info());
-}
-
-void device_vk::map_impl(memory_info* memInfo)
-{
-    GFX_ASSERT(!memInfo->persistant, "Persistant memory cannot be manually mapped.");
-    GFX_ASSERT(static_cast<memory_type>(memInfo->type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
-    
 #ifdef GFX_VK_VMA_ALLOCATOR
-    memInfo->mapped = m_allocator.map((VmaAllocation)memInfo->backing_memory);
+    mem_info->mapped = device_state.allocator.map((VmaAllocation)mem_info->backing_memory);
 #endif
 }
 
-void device_vk::unmap_impl(memory_info* memInfo)
+static void vulkan_unmap_impl(memory_info* mem_info, device_state_vk& device_state)
 {
-    GFX_ASSERT(!memInfo->persistant, "Persistant memory cannot be manually unmapped.");
-    GFX_ASSERT(!memInfo->mapped, "Buffer that isn't mapped cannot be unmapped.");
+    GFX_ASSERT(!mem_info->persistant, "Persistant memory cannot be manually unmapped.");
+    GFX_ASSERT(!mem_info->mapped, "Buffer that isn't mapped cannot be unmapped.");
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    m_allocator.unmap((VmaAllocation)memInfo->backing_memory);
+    device_state.allocator.unmap((VmaAllocation)mem_info->backing_memory);
 #endif
 }
 
-void device_vk::wait_idle()
+void VK_DEVICE::map(buffer* buf)
 {
-    vkDeviceWaitIdle(m_device);
+    vulkan_map_impl(&buf->get_memory_info(), get_impl<device_state_vk>());
+}
+
+void VK_DEVICE::map(texture* tex)
+{
+    vulkan_map_impl(&tex->get_memory_info(), get_impl<device_state_vk>());
+}
+
+void VK_DEVICE::unmap(buffer* buf)
+{
+    vulkan_unmap_impl(&buf->get_memory_info(), get_impl<device_state_vk>());
+}
+
+void VK_DEVICE::unmap(texture* tex)
+{
+    vulkan_unmap_impl(&tex->get_memory_info(), get_impl<device_state_vk>());
+}
+
+void VK_DEVICE::wait_idle()
+{
+    vkDeviceWaitIdle(get_impl<device_state_vk>().device);
 }
 
 #ifdef GFX_EXT_SWAPCHAIN
-u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout)
+u32 VK_DEVICE::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout)
 {
     VkFence signalFence{ VK_NULL_HANDLE };
     if( fence )
@@ -604,7 +621,7 @@ u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeou
     }
 
     u32 retval{ 0 };
-    VkResult result = vkAcquireNextImageKHR(m_device, swapchain->get_impl<VkSwapchainKHR>(), timeout, VK_NULL_HANDLE, signalFence, &retval);
+    VkResult result = vkAcquireNextImageKHR(get_impl<device_state_vk>().device, swapchain->get_impl<VkSwapchainKHR>(), timeout, VK_NULL_HANDLE, signalFence, &retval);
 
     switch( result )
     {
@@ -617,7 +634,7 @@ u32 device_vk::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeou
     return retval;
 }
 
-void device_vk::present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies)
+void VK_DEVICE::present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies)
 {
     VkSwapchainKHR sc = swapchain->get_impl<VkSwapchainKHR>();
     VkResult result;
@@ -641,7 +658,7 @@ void device_vk::present(swapchain* swapchain, u32 image_index, const std::vector
         presentInfo.pWaitSemaphores = waitSema.data();
     }
 
-    vkQueuePresentKHR(get_queue_by_present(), &presentInfo);
+    vkQueuePresentKHR(get_impl<device_state_vk>().get_queue_by_present(), &presentInfo);
     switch( result )
     {
     case VK_SUCCESS:
@@ -653,7 +670,7 @@ void device_vk::present(swapchain* swapchain, u32 image_index, const std::vector
 }
 #endif // GFX_EXT_SWAPCHAIN
 
-bool device_vk::wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const
+bool VK_DEVICE::wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const
 {
     VkFence* fences = new VkFence[count];
     for( u32 i = 0; i < count; i++ )
@@ -661,13 +678,13 @@ bool device_vk::wait_for_fences(const fence* pFences, u32 count, bool wait_for_a
         fences[i] = pFences[i].get_impl<VkFence>();
     }
 
-    VkResult result = vkWaitForFences(m_device, count, fences, wait_for_all, timeout);
+    VkResult result = vkWaitForFences(get_impl<device_state_vk>().device, count, fences, wait_for_all, timeout);
     delete[] fences;
 
     return result == VK_SUCCESS;
 }
 
-bool device_vk::reset_fences(fence* pFences, u32 count)
+bool VK_DEVICE::reset_fences(fence* pFences, u32 count)
 {
     VkFence* fences = new VkFence[count];
     for( u32 i = 0; i < count; i++ )
@@ -675,19 +692,19 @@ bool device_vk::reset_fences(fence* pFences, u32 count)
         fences[i] = pFences[i].get_impl<VkFence>();
     }
 
-    VkResult result = vkResetFences(m_device, count, fences);
+    VkResult result = vkResetFences(get_impl<device_state_vk>().device, count, fences);
     delete[] fences;
 
     return result == VK_SUCCESS;
 }
 
-bool device_vk::check_fence(const fence* fence) const
+bool VK_DEVICE::check_fence(const fence* fence) const
 {
-    VkResult result = vkGetFenceStatus(m_device, fence->get_impl<VkFence>());
+    VkResult result = vkGetFenceStatus(get_impl<device_state_vk>().device, fence->get_impl<VkFence>());
     return result == VK_SUCCESS;
 }
 
-void device_vk::reset(command_list* list)
+void VK_DEVICE::reset(command_list* list)
 {
     VkCommandBufferResetFlags flags{ };
     // flags |= VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT;
@@ -695,7 +712,7 @@ void device_vk::reset(command_list* list)
     vkResetCommandBuffer(list->get_impl<VkCommandBuffer>(), flags);
 }
 
-void device_vk::begin(command_list* list)
+void VK_DEVICE::begin(command_list* list)
 {
     VkCommandBufferBeginInfo begin{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
     // FLAGS?
@@ -703,54 +720,12 @@ void device_vk::begin(command_list* list)
     vkBeginCommandBuffer(list->get_impl<VkCommandBuffer>(), &begin);
 }
 
-void device_vk::end(command_list* list)
+void VK_DEVICE::end(command_list* list)
 {
     vkEndCommandBuffer(list->get_impl<VkCommandBuffer>());
 }
 
-void device_vk::submit(const std::vector<graphics_command_list*>& lists, fence* fence)
-{
-    VkQueue queue = get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT);
-    std::vector<command_list*> castLists;
-    castLists.reserve(lists.size());
-
-    for( graphics_command_list* list : lists )
-    {
-        castLists.push_back(reinterpret_cast<command_list*>(list));
-    }
-
-    submit_impl(queue, castLists, fence);
-}
-
-void device_vk::submit(const std::vector<compute_command_list*>& lists, fence* fence)
-{
-    VkQueue queue = get_queue_by_flags(VK_QUEUE_COMPUTE_BIT);
-    std::vector<command_list*> castLists;
-    castLists.reserve(lists.size());
-
-    for( compute_command_list* list : lists )
-    {
-        castLists.push_back(reinterpret_cast<command_list*>(list));
-    }
-
-    submit_impl(queue, castLists, fence);
-}
-
-void device_vk::submit(const std::vector<present_command_list*>& lists, fence* fence)
-{
-    VkQueue queue = get_queue_by_present();
-    std::vector<command_list*> castLists;
-    castLists.reserve(lists.size());
-
-    for( present_command_list* list : lists )
-    {
-        castLists.push_back(reinterpret_cast<command_list*>(list));
-    }
-
-    submit_impl(queue, castLists, fence);
-}
-
-void device_vk::submit_impl(VkQueue queue, const std::vector<command_list*>& lists, fence* fence)
+static void vulkan_submit_impl(VkQueue queue, const std::vector<command_list*>& lists, fence* fence)
 {
     VkSubmitInfo info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
     info.commandBufferCount = u32_cast(lists.size());
@@ -790,32 +765,74 @@ void device_vk::submit_impl(VkQueue queue, const std::vector<command_list*>& lis
     vkQueueSubmit(queue, 1, &info, submitFence);
 }
 
-void device_vk::draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
+void VK_DEVICE::submit(const std::vector<graphics_command_list*>& lists, fence* fence)
+{
+    VkQueue queue = get_impl<device_state_vk>().get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    std::vector<command_list*> castLists;
+    castLists.reserve(lists.size());
+
+    for( graphics_command_list* list : lists )
+    {
+        castLists.push_back(reinterpret_cast<command_list*>(list));
+    }
+
+    vulkan_submit_impl(queue, castLists, fence);
+}
+
+void VK_DEVICE::submit(const std::vector<compute_command_list*>& lists, fence* fence)
+{
+    VkQueue queue = get_impl<device_state_vk>().get_queue_by_flags(VK_QUEUE_COMPUTE_BIT);
+    std::vector<command_list*> castLists;
+    castLists.reserve(lists.size());
+
+    for( compute_command_list* list : lists )
+    {
+        castLists.push_back(reinterpret_cast<command_list*>(list));
+    }
+
+    vulkan_submit_impl(queue, castLists, fence);
+}
+
+void VK_DEVICE::submit(const std::vector<present_command_list*>& lists, fence* fence)
+{
+    VkQueue queue = get_impl<device_state_vk>().get_queue_by_present();
+    std::vector<command_list*> castLists;
+    castLists.reserve(lists.size());
+
+    for( present_command_list* list : lists )
+    {
+        castLists.push_back(reinterpret_cast<command_list*>(list));
+    }
+
+    vulkan_submit_impl(queue, castLists, fence);
+}
+
+void VK_DEVICE::draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
 {
     vkCmdDraw(list->get_impl<VkCommandBuffer>(), vertex_count, instance_count, first_vertex, first_instance);
 }
 
-void device_vk::draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance)
+void VK_DEVICE::draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance)
 {
     vkCmdDrawIndexed(list->get_impl<VkCommandBuffer>(), index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
-void device_vk::bind_vertex_buffers(command_list* list, const std::vector<buffer*>& buffers, u32 first_vertex_index)
+void VK_DEVICE::bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index)
 {
     std::vector<VkBuffer> bufs;
     std::vector<VkDeviceSize> offsets;
 
-    for( u64 i = 0; i < buffers.size(); i++ )
+    for( u32 i = 0; i < buffer_count; i++ )
     {
-        bufs.push_back(buffers[i]->get_impl<VkBuffer>());
+        bufs.push_back(pBuffers[i]->get_impl<VkBuffer>());
         // TODO offset
         offsets.push_back(0);
     }
 
-    vkCmdBindVertexBuffers(list->get_impl<VkCommandBuffer>(), first_vertex_index, u32_cast(buffers.size()), bufs.data(), offsets.data());
+    vkCmdBindVertexBuffers(list->get_impl<VkCommandBuffer>(), first_vertex_index, buffer_count, bufs.data(), offsets.data());
 }
 
-void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type index_type)
+void VK_DEVICE::bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type index_type)
 {
     VkIndexType type;
     switch( index_type )
@@ -835,7 +852,63 @@ void device_vk::bind_index_buffer(command_list* list, buffer* buffer, index_buff
     vkCmdBindIndexBuffer(list->get_impl<VkCommandBuffer>(), buffer->get_impl<VkBuffer>(), offset, type);
 }
 
-void device_vk::begin_pass(command_list* list, program* program, u64 passIdx, texture* output)
+void VK_DEVICE::begin_rendering(command_list* list, texture** color_outputs, u32 color_output_count, texture* depth_output)
+{
+    GFX_ASSERT(color_outputs || depth_output, "Atleast one color output or a depth output must be provided.");
+
+    VkRect2D renderSize{ };
+    if( color_output_count > 0 )
+    {
+        texture* first = color_outputs[0];
+        renderSize = { 0, 0, first->get_width(), first->get_height() };
+    }
+    else
+    {
+        renderSize = { 0, 0, depth_output->get_width(), depth_output->get_height() };
+    }
+
+    VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+    VkRenderingAttachmentInfo depthAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+
+    std::vector<VkRenderingAttachmentInfo> color_attachments;
+    color_attachments.reserve(color_output_count);
+
+    for( u32 idx = 0; idx < color_output_count; idx++ )
+    {
+        texture* output = color_outputs[idx];
+        VkRenderingAttachmentInfo attachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        attachment.imageView = output->get_view_impl<VkImageView>();
+        attachment.imageLayout = converters::get_layout_vk(output->get_layout());
+        attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+        color_attachments.push_back(attachment);
+    }
+
+    if( depth_output )
+    {
+        depthAttachment.imageView = depth_output->get_view_impl<VkImageView>();
+        depthAttachment.imageLayout = converters::get_layout_vk(depth_output->get_layout());
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+        renderInfo.pDepthAttachment = &depthAttachment;
+    }
+
+    renderInfo.colorAttachmentCount = color_output_count;
+    renderInfo.pColorAttachments = color_attachments.data();
+
+    renderInfo.renderArea = renderSize;
+    renderInfo.layerCount = 1;
+    vkCmdBeginRendering(list->get_impl<VkCommandBuffer>(), &renderInfo);
+}
+
+void VK_DEVICE::end_rendering(command_list* list)
+{
+    vkCmdEndRendering(list->get_impl<VkCommandBuffer>());
+}
+
+void VK_DEVICE::begin_pass(command_list* list, program* program, u64 passIdx, texture* output)
 {
     VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
     
@@ -869,12 +942,12 @@ void device_vk::begin_pass(command_list* list, program* program, u64 passIdx, te
     vkCmdSetScissor(list->get_impl<VkCommandBuffer>(), 0, 1, &scissor);
 }
 
-void device_vk::end_pass(command_list* list)
+void VK_DEVICE::end_pass(command_list* list)
 {
     vkCmdEndRendering(list->get_impl<VkCommandBuffer>());
 }
 
-void device_vk::copy_texture_to_texture(command_list* list, texture* src, texture* dst)
+void VK_DEVICE::copy_texture_to_texture(command_list* list, texture* src, texture* dst)
 {
     VkImageSubresourceLayers srcSubresource{ };
     srcSubresource.aspectMask = cdt::is_depth_format(src->get_format())
@@ -909,7 +982,7 @@ void device_vk::copy_texture_to_texture(command_list* list, texture* src, textur
         &defaultRegion);
 }
 
-void device_vk::copy_buffer_to_texture(command_list* list, buffer* src, texture* dst)
+void VK_DEVICE::copy_buffer_to_texture(command_list* list, buffer* src, texture* dst)
 {
     VkImageSubresourceLayers dstSubresource{ };
     dstSubresource.aspectMask = cdt::is_depth_format(dst->get_format())
@@ -936,7 +1009,7 @@ void device_vk::copy_buffer_to_texture(command_list* list, buffer* src, texture*
         &copy);
 }
 
-void device_vk::copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst)
+void VK_DEVICE::copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst)
 {
     // TOOD add some offsets and sizes here
     VkBufferCopy region{ 0, 0, src->get_size() };
@@ -948,7 +1021,7 @@ void device_vk::copy_buffer_to_buffer(command_list* list, buffer* src, buffer* d
         &region);
 }
 
-void device_vk::texture_barrier(command_list* list, texture* texture, texture_layout dst_layout)
+void VK_DEVICE::texture_barrier(command_list* list, texture* texture, texture_layout dst_layout)
 {
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     // Aspect masks?
@@ -979,7 +1052,7 @@ void device_vk::texture_barrier(command_list* list, texture* texture, texture_la
         &barrier);
 }
 
-VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passIdx)
+static VkPipeline vulkan_create_graphics_pipeline_impl(VkDevice device, program* program, u64 passIdx)
 {
     GFX_ASSERT(program->get_pass_count() > passIdx, "Program {} ({}) does not have a pass index {}", program->get_name().get_hash(), program->get_name().try_get_str(), passIdx);
     const pass& rPass = program->get_pass(passIdx);
@@ -1026,7 +1099,7 @@ VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passId
         stageCreateInfo.stage = (VkShaderStageFlagBits)converters::get_shader_stage_flags_vk(eStage);
         stageCreateInfo.pName = rShader.get_entry_point();
 
-        VkResult modResult = vkCreateShaderModule(m_device, &modCreateInfo, nullptr, &stageCreateInfo.module);
+        VkResult modResult = vkCreateShaderModule(device, &modCreateInfo, nullptr, &stageCreateInfo.module);
         switch( modResult )
         {
         case VK_SUCCESS:
@@ -1206,7 +1279,7 @@ VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passId
     pipelineCreateInfo.subpass = 0; // ?
 
     VkPipeline retval{ VK_NULL_HANDLE };
-    VkResult pipelineResult = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &retval);
+    VkResult pipelineResult = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &retval);
     switch( pipelineResult )
     {
     case VK_SUCCESS:
@@ -1219,18 +1292,18 @@ VkPipeline device_vk::create_graphics_pipeline_impl(program* program, u64 passId
     // ShaderModules can just be destroyed after we've made the pipeline.
     for( VkShaderModule module : modules )
     {
-        vkDestroyShaderModule(m_device, module, nullptr);
+        vkDestroyShaderModule(device, module, nullptr);
     }
 
     return retval;
 }
 
-void* device_vk::create_shader_pass_impl(program* program, u64 passIdx)
+void* VK_DEVICE::create_shader_pass_impl(program* program, u64 passIdx)
 {
-    return create_graphics_pipeline_impl(program, passIdx);
+    return vulkan_create_graphics_pipeline_impl(get_impl<device_state_vk>().device, program, passIdx);
 }
 
-void* device_vk::create_shader_pass_layout_impl(pass* pass)
+void* VK_DEVICE::create_shader_pass_layout_impl(pass* pass)
 {
     dt::vector<VkDescriptorSetLayout> layouts;
     layouts.reserve(DESCRIPTOR_TABLE_COUNT);
@@ -1244,7 +1317,7 @@ void* device_vk::create_shader_pass_layout_impl(pass* pass)
     createInfo.pSetLayouts = layouts.data();
 
     VkPipelineLayout retval{ VK_NULL_HANDLE };
-    VkResult result = vkCreatePipelineLayout(m_device, &createInfo, nullptr, &retval);
+    VkResult result = vkCreatePipelineLayout(get_impl<device_state_vk>().device, &createInfo, nullptr, &retval);
     switch( result )
     {
     case VK_SUCCESS:
@@ -1256,7 +1329,7 @@ void* device_vk::create_shader_pass_layout_impl(pass* pass)
     return retval;
 }
 
-void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
+void* VK_DEVICE::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
 {
     // Implicitly ordered buffer descriptors -> image descriptors
     const dt::array<descriptor_slot_desc>& bufferSlots = desc->get_buffer_descriptions();
@@ -1293,7 +1366,7 @@ void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
     createInfo.pBindings = bindings.data();
 
     VkDescriptorSetLayout retval{ VK_NULL_HANDLE };
-    VkResult result = vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &retval);
+    VkResult result = vkCreateDescriptorSetLayout(get_impl<device_state_vk>().device, &createInfo, nullptr, &retval);
     switch( result )
     {
     case VK_SUCCESS:
@@ -1304,13 +1377,15 @@ void* device_vk::create_descriptor_table_desc_impl(descriptor_table_desc* desc)
     return retval;
 }
 
-void device_vk::destroy_descriptor_table_desc(descriptor_table_desc* desc)
+void VK_DEVICE::destroy_descriptor_table_desc(descriptor_table_desc* desc)
 {
-    vkDestroyDescriptorSetLayout(m_device, desc->get_impl<VkDescriptorSetLayout>(), nullptr);
+    vkDestroyDescriptorSetLayout(get_impl<device_state_vk>().device, desc->get_impl<VkDescriptorSetLayout>(), nullptr);
 }
 
-void device_vk::destroy_shader_program(program* program)
+void VK_DEVICE::destroy_shader_program(program* program)
 {
+    device_state_vk& deviceState = get_impl<device_state_vk>();
+
     for( u64 passIdx = 0; passIdx < program->get_pass_count(); passIdx++ )
     {
         const pass& pass = program->get_pass(passIdx);
@@ -1319,16 +1394,16 @@ void device_vk::destroy_shader_program(program* program)
         for( u64 tableIdx = 0; tableIdx < pass.get_descriptor_table_count(); tableIdx++ )
         {
             const descriptor_table_desc* table = pass.get_descriptor_table((descriptor_table_type)tableIdx);
-            vkDestroyDescriptorSetLayout(m_device, table->get_impl<VkDescriptorSetLayout>(), nullptr);
+            vkDestroyDescriptorSetLayout(deviceState.device, table->get_impl<VkDescriptorSetLayout>(), nullptr);
         }
 
         // These two doesn't really matter what order
-        vkDestroyPipelineLayout(m_device, pass.get_layout_impl<VkPipelineLayout>(), nullptr);
-        vkDestroyPipeline(m_device, pass.get_impl<VkPipeline>(), nullptr);
+        vkDestroyPipelineLayout(deviceState.device, pass.get_layout_impl<VkPipelineLayout>(), nullptr);
+        vkDestroyPipeline(deviceState.device, pass.get_impl<VkPipeline>(), nullptr);
     }
 }
 
-void* device_vk::create_descriptor_pool_impl(descriptor_table_desc* base, u32 size)
+void* VK_DEVICE::create_descriptor_pool_impl(descriptor_table_desc* base, u32 size)
 {
     dt::vector<VkDescriptorPoolSize> sizes;
     // Just do this slow as fuck who cares
@@ -1386,7 +1461,7 @@ void* device_vk::create_descriptor_pool_impl(descriptor_table_desc* base, u32 si
     createInfo.pPoolSizes = sizes.data();
 
     VkDescriptorPool retval{ VK_NULL_HANDLE };
-    VkResult result = vkCreateDescriptorPool(m_device, &createInfo, nullptr, &retval);
+    VkResult result = vkCreateDescriptorPool(get_impl<device_state_vk>().device, &createInfo, nullptr, &retval);
     switch( result )
     {
     case VK_SUCCESS:
@@ -1399,17 +1474,17 @@ void* device_vk::create_descriptor_pool_impl(descriptor_table_desc* base, u32 si
     return retval;
 }
 
-void device_vk::destroy_descriptor_pool(descriptor_pool* pool)
+void VK_DEVICE::destroy_descriptor_pool(descriptor_pool* pool)
 {
-    vkDestroyDescriptorPool(m_device, pool->get_impl<VkDescriptorPool>(), nullptr);
+    vkDestroyDescriptorPool(get_impl<device_state_vk>().device, pool->get_impl<VkDescriptorPool>(), nullptr);
 }
 
-void device_vk::reset_descriptor_pool(descriptor_pool* pool)
+void VK_DEVICE::reset_descriptor_pool(descriptor_pool* pool)
 {
-    vkResetDescriptorPool(m_device, pool->get_impl<VkDescriptorPool>(), 0);
+    vkResetDescriptorPool(get_impl<device_state_vk>().device, pool->get_impl<VkDescriptorPool>(), 0);
 }
 
-void* device_vk::allocate_descriptor_table_impl(descriptor_pool* pool)
+void* VK_DEVICE::allocate_descriptor_table_impl(descriptor_pool* pool)
 {
     VkDescriptorPool vkPool = pool->get_impl<VkDescriptorPool>();
     VkDescriptorSetLayout setLayout = pool->get_table_desc().get_impl<VkDescriptorSetLayout>();
@@ -1420,7 +1495,7 @@ void* device_vk::allocate_descriptor_table_impl(descriptor_pool* pool)
     allocInfo.pSetLayouts = &setLayout;
 
     VkDescriptorSet retval{ VK_NULL_HANDLE };
-    VkResult result = vkAllocateDescriptorSets(m_device, &allocInfo, &retval);
+    VkResult result = vkAllocateDescriptorSets(get_impl<device_state_vk>().device, &allocInfo, &retval);
     switch( result )
     {
     case VK_SUCCESS:
@@ -1432,7 +1507,7 @@ void* device_vk::allocate_descriptor_table_impl(descriptor_pool* pool)
     return retval;
 }
 
-void device_vk::write_descriptor_table(descriptor_table* table)
+void VK_DEVICE::write_descriptor_table(descriptor_table* table)
 {
     const dt::array<void*>& bufferViews = table->get_buffer_views();
     const dt::array<void*>& imageViews = table->get_image_views();
@@ -1449,19 +1524,19 @@ void device_vk::write_descriptor_table(descriptor_table* table)
     }
 }
 
-VkQueue device_vk::get_queue(u32 familyIdx, u32 idx) const
+VkQueue device_state_vk::get_queue(u32 familyIdx, u32 idx) const
 {
-    GFX_ASSERT(u32_cast(m_queueFamilies.size()) > familyIdx, "Family index is invalid.");
+    GFX_ASSERT(u32_cast(queue_families.size()) > familyIdx, "Family index is invalid.");
 
-    const queue_family& family = m_queueFamilies[familyIdx];
+    const queue_family& family = queue_families[familyIdx];
     GFX_ASSERT(u32_cast(family.queues.size()) > idx, "Queue index is invalid.");
 
     return family.queues[idx];
 }
 
-VkQueue device_vk::get_queue_by_flags(VkQueueFlags flags, u32 idx) const
+VkQueue device_state_vk::get_queue_by_flags(VkQueueFlags flags, u32 idx) const
 {
-    for( const queue_family& family : m_queueFamilies )
+    for( const queue_family& family : queue_families )
     {
         if( (family.properties.queueFlags & flags) == flags )
         {
@@ -1474,9 +1549,9 @@ VkQueue device_vk::get_queue_by_flags(VkQueueFlags flags, u32 idx) const
     return VK_NULL_HANDLE;
 }
 
-VkQueue device_vk::get_queue_by_present(u32 idx) const
+VkQueue device_state_vk::get_queue_by_present(u32 idx) const
 {
-    for( const queue_family& family : m_queueFamilies )
+    for( const queue_family& family : queue_families )
     {
         if( family.flags & queue_family_flag_bit::supports_present )
         {
@@ -1489,16 +1564,16 @@ VkQueue device_vk::get_queue_by_present(u32 idx) const
     return VK_NULL_HANDLE;
 }
 
-u32 device_vk::get_queue_family_count() const
+u32 device_state_vk::get_queue_family_count() const
 {
-    return u32_cast(m_queueFamilies.size());
+    return u32_cast(queue_families.size());
 }
 
-u32 device_vk::get_family_index_by_flags(VkQueueFlags flags) const
+u32 device_state_vk::get_family_index_by_flags(VkQueueFlags flags) const
 {
-    for( u64 i = 0; i < m_queueFamilies.size(); i++ )
+    for( u64 i = 0; i < queue_families.size(); i++ )
     {
-        const queue_family& family = m_queueFamilies[i];
+        const queue_family& family = queue_families[i];
         if( (family.properties.queueFlags & flags) == flags )
         {
             return u32_cast(i);
@@ -1508,25 +1583,15 @@ u32 device_vk::get_family_index_by_flags(VkQueueFlags flags) const
     return u32_max;
 }
 
-bool device_vk::queue_family_supports_present(u32 familyIdx) const
+bool device_state_vk::queue_family_supports_present(u32 familyIdx) const
 {
-    GFX_ASSERT(u32_cast(m_queueFamilies.size()) < familyIdx, "Family index is invalid.");
-    return m_queueFamilies[familyIdx].flags & queue_family_flag_bit::supports_present;
+    GFX_ASSERT(u32_cast(queue_families.size()) < familyIdx, "Family index is invalid.");
+    return queue_families[familyIdx].flags & queue_family_flag_bit::supports_present;
 }
 
-VkDevice device_vk::get_impl_device() const
+void device_state_vk::create_instance(debugger& debugger)
 {
-    return m_device;
-}
-
-VkInstance device_vk::get_impl_instance() const
-{
-    return m_instance;
-}
-
-void device_vk::create_instance()
-{
-    m_debugger.attach_callback([](debugger::severity level, const char* message)
+    debugger.attach_callback([](debugger::severity level, const char* message)
         {
             switch( level )
             {
@@ -1553,20 +1618,20 @@ void device_vk::create_instance()
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
     std::vector<VkLayerProperties> layers(layerCount);
-    m_availableInstanceLayers.resize(layerCount);
+    available_instance_layers.resize(layerCount);
 
     vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
 
     for( u64 i = 0; i < layers.size(); i++ )
     {
-        m_availableInstanceLayers[i] = layers[i].layerName;
+        available_instance_layers[i] = layers[i].layerName;
     }
 
     std::vector<const char*> enabledLayers;
-    for( const char* reqLayer : get_instance_layers() )
+    for( const char* reqLayer : vulkan_get_instance_layers() )
     {
         bool enabled = false;
-        for( std::string& lyr : m_availableInstanceLayers )
+        for( std::string& lyr : available_instance_layers )
         {
             if( !strcmp(reqLayer, lyr.c_str()) )
             {
@@ -1584,20 +1649,20 @@ void device_vk::create_instance()
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
 
     std::vector<VkExtensionProperties> extensions(extCount);
-    m_availableInstanceExtensions.resize(extCount);
+    available_instance_extensions.resize(extCount);
 
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, extensions.data());
 
     for( u64 i = 0; i < extensions.size(); i++ )
     {
-        m_availableInstanceExtensions[i] = extensions[i].extensionName;
+        available_instance_extensions[i] = extensions[i].extensionName;
     }
 
     std::vector<const char*> enableExtensions;
-    for( const char* reqExt : get_instance_extensions() )
+    for( const char* reqExt : vulkan_get_instance_extensions() )
     {
         bool enabled = false;
-        for( std::string& ext : m_availableInstanceExtensions )
+        for( std::string& ext : available_instance_extensions )
         {
             if( !strcmp(reqExt, ext.c_str()) )
             {
@@ -1624,7 +1689,7 @@ void device_vk::create_instance()
         | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
 
     dbgCreateInfo.pfnUserCallback = &debug_utils_callback;
-    dbgCreateInfo.pUserData = &m_debugger;
+    dbgCreateInfo.pUserData = &debugger;
 
     VkApplicationInfo appInfo{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
     appInfo.pApplicationName = "gfxLib";
@@ -1643,7 +1708,7 @@ void device_vk::create_instance()
 
     // Validation layers.
 
-    VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
+    VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
     switch( result )
     {
         case VK_SUCCESS:
@@ -1652,11 +1717,11 @@ void device_vk::create_instance()
             break;
     }
 
-    m_enabledInstanceExtensions = std::move(enableExtensions);
-    m_enabledInstanceLayers = std::move(enabledLayers);
+    enabled_instance_extensions = std::move(enableExtensions);
+    enabled_instance_layers = std::move(enabledLayers);
 
     VkDebugUtilsMessengerEXT dbgMessenger{ };
-    VkResult dbgResult = create_debug_utils_messenger(m_instance, &dbgCreateInfo, nullptr, &dbgMessenger);
+    VkResult dbgResult = create_debug_utils_messenger(instance, &dbgCreateInfo, nullptr, &dbgMessenger);
     switch( dbgResult )
     {
         case VK_SUCCESS:
@@ -1665,35 +1730,27 @@ void device_vk::create_instance()
             break;
     }
 
-    m_debugger.set_impl_ptr(dbgMessenger);
+    debugger.set_impl_ptr(dbgMessenger);
 }
 
-std::vector<const char*> device_vk::get_instance_extensions() const
+VkInstance VK_DEVICE::get_vulkan_instance() const
 {
-    return { VK_EXT_DEBUG_UTILS_EXTENSION_NAME, "VK_KHR_surface", "VK_KHR_win32_surface" };
+    return get_impl<device_state_vk>().instance;
 }
 
-std::vector<const char*> device_vk::get_instance_layers() const
+void VK_DEVICE::dump_info() const
 {
-    return { "VK_LAYER_KHRONOS_validation", "VK_LAYER_KHRONOS_synchronization2" };
-}
+    const device_state_vk& deviceState = get_impl<device_state_vk>();
 
-std::vector<const char*> device_vk::get_device_extensions() const
-{
-    return { "VK_KHR_swapchain", "VK_KHR_dynamic_rendering" };
-}
-
-void device_vk::dump_info() const
-{
     GFX_VERBOSE("Instance extensions:");
-    for( const char* ext : m_enabledInstanceExtensions )
+    for( const char* ext : deviceState.enabled_instance_extensions )
     {
         GFX_VERBOSE("\t*{}", ext);
     }
-    for( const std::string& ext : m_availableInstanceExtensions )
+    for( const std::string& ext : deviceState.available_instance_extensions )
     {
         bool output = true;
-        for( const char* ext2 : m_enabledInstanceExtensions )
+        for( const char* ext2 : deviceState.enabled_instance_extensions )
         {
             if( !strcmp(ext.c_str(), ext2) )
             {
@@ -1710,14 +1767,14 @@ void device_vk::dump_info() const
 
 
     GFX_VERBOSE("Instance layers:");
-    for( const char* lyr : m_enabledInstanceLayers )
+    for( const char* lyr : deviceState.enabled_instance_layers )
     {
         GFX_VERBOSE("\t*{}", lyr);
     }
-    for( const std::string& lyr : m_availableInstanceLayers )
+    for( const std::string& lyr : deviceState.available_instance_layers )
     {
         bool output = true;
-        for( const char* lyr2 : m_enabledInstanceLayers )
+        for( const char* lyr2 : deviceState.enabled_instance_layers )
         {
             if( !strcmp(lyr.c_str(), lyr2) )
             {
@@ -1734,14 +1791,14 @@ void device_vk::dump_info() const
 
 
     GFX_VERBOSE("Device extensions:");
-    for( const char* ext : m_enabledDeviceExtensions )
+    for( const char* ext : deviceState.enabled_device_extensions )
     {
         GFX_VERBOSE("\t*{}", ext);
     }
-    for( const std::string& ext : m_availableDeviceExtensions )
+    for( const std::string& ext : deviceState.available_device_extensions )
     {
         bool output = true;
-        for( const char* ext2 : m_enabledDeviceExtensions )
+        for( const char* ext2 : deviceState.enabled_device_extensions )
         {
             if( !strcmp(ext.c_str(), ext2) )
             {
@@ -1806,7 +1863,6 @@ void destroy_debug_utils_messenger(VkInstance instance,
         func(instance, debugMessenger, pAllocator);
     }
 }
-
 
 } // gfx
 #endif // GFX_SUPPORTS_VULKAN

@@ -160,9 +160,9 @@ void graphics_command_list::draw_indexed(u32 index_count, u32 instance_count, u3
     GFX_CALL(draw_indexed, reinterpret_cast<command_list*>(this), index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
-void graphics_command_list::bind_vertex_buffers(const std::vector<buffer*>& buffers, u32 first_vertex_index)
+void graphics_command_list::bind_vertex_buffers(buffer** pBuffers, u32 buffer_count, u32 first_vertex_index)
 {
-    GFX_CALL(bind_vertex_buffers, reinterpret_cast<command_list*>(this), buffers, first_vertex_index);
+    GFX_CALL(bind_vertex_buffers, reinterpret_cast<command_list*>(this), pBuffers, buffer_count, first_vertex_index);
 }
 
 void graphics_command_list::bind_index_buffer(buffer* buffer, index_buffer_type index_type)

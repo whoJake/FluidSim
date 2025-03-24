@@ -36,13 +36,13 @@ u32 Driver::initialise(DriverMode mode, surface_create_func surface_func)
     #ifdef GFX_SUPPORTS_VULKAN
         case DriverMode::vulkan:
         {
-            GFX_INFO("Creating vulkan graphics device");
+        #if GFX_VIRTUAL_DEVICE
+            GFX_INFO("Creating virtual vulkan graphics device");
             sm_device = new device_vk();
-            device_vk* vkdevice = (device_vk*)sm_device;
-            VkSurfaceKHR vkSurface = (VkSurfaceKHR)surface;
-            bool surfaceSuccess = surface_func(vkdevice->get_impl_instance(), &vkSurface);
-            surface = vkSurface;
-            GFX_ASSERT(surfaceSuccess, "Failed to create surface for graphics device.");
+        #else
+            GFX_INFO("Creating vulkan graphics device");
+            sm_device = new device();
+        #endif
             break;
         }
     #endif // GFX_SUPPORTS_VULKAN
@@ -50,8 +50,9 @@ u32 Driver::initialise(DriverMode mode, surface_create_func surface_func)
 
     GFX_ASSERT(sm_device, "Graphics device initialisation failed.");
 
-    u32 gpuIdx = sm_gpuSelector(sm_device->enumerate_gpus());
-    return sm_device->initialise(gpuIdx, surface);
+    // DO NOT SUBMIT
+    // gpuIdx = sm_gpuSelector(sm_device->enumerate_gpus());
+    return sm_device->initialise(0, surface_func);
 }
 
 void Driver::shutdown()

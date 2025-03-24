@@ -6,18 +6,20 @@
 namespace gfx
 {
 
-void command_pool_vk::initialise()
+void command_pool_vk::initialise(device_state_vk* state)
 {
+    GFX_ASSERT(state, "Vk Device State must be supplied.");
     GFX_ASSERT(!m_pools, "Command pool has already been initialised.");
     GFX_ASSERT(!m_locks, "Command pool has already been initialised.");
     GFX_ASSERT(m_poolCount == 0, "Command pool has already been initialised.");
 
-    m_poolCount = u64_cast(get_device()->get_queue_family_count());
+    m_state = state;
+    m_poolCount = u64_cast(state->get_queue_family_count());
     m_pools = new VkCommandPool[m_poolCount];
     m_buffersActive = new u64[m_poolCount];
     m_locks = new std::mutex[m_poolCount];
     
-    VkDevice device = get_device()->get_impl_device();
+    VkDevice device = m_state->device;
 
     for( u64 poolIdx = 0; poolIdx < m_poolCount; poolIdx++ )
     {
@@ -44,7 +46,7 @@ void command_pool_vk::shutdown()
     GFX_ASSERT(m_locks, "Command pool has not been initialised.");
     GFX_ASSERT(m_poolCount != 0, "Command pool has not been initialised.");
 
-    VkDevice device = get_device()->get_impl_device();
+    VkDevice device = m_state->device;
 
     // TODO add some "nothing is allocating/freeing currently" checks.
     // On shutdown this is very unlikely but some asserts can't hurt.
@@ -63,7 +65,7 @@ VkCommandBuffer command_pool_vk::allocate_buffer(u32 family_index)
 {
     GFX_ASSERT(family_index < m_poolCount, "Family Index is invalid.");
 
-    VkDevice device = get_device()->get_impl_device();
+    VkDevice device = m_state->device;
 
     VkCommandBufferAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
     allocInfo.commandPool = m_pools[family_index];
@@ -93,7 +95,7 @@ VkCommandBuffer command_pool_vk::allocate_buffer(u32 family_index)
 
 VkCommandBuffer command_pool_vk::allocate_buffer_by_flags(VkQueueFlags flags)
 {
-    return allocate_buffer(get_device()->get_family_index_by_flags(flags));
+    return allocate_buffer(m_state->get_family_index_by_flags(flags));
 }
 
 void command_pool_vk::free_buffer(VkCommandBuffer buffer, u32 family_index)
@@ -101,7 +103,7 @@ void command_pool_vk::free_buffer(VkCommandBuffer buffer, u32 family_index)
     GFX_ASSERT(buffer != VK_NULL_HANDLE, "Command buffer is invalid.");
     GFX_ASSERT(family_index < m_poolCount, "Family Index is invalid.");
 
-    VkDevice device = get_device()->get_impl_device();
+    VkDevice device = m_state->device;
     {
         std::unique_lock<std::mutex> lock(m_locks[family_index]);
         vkFreeCommandBuffers(device, m_pools[family_index], 1, &buffer);
@@ -111,12 +113,7 @@ void command_pool_vk::free_buffer(VkCommandBuffer buffer, u32 family_index)
 
 void command_pool_vk::free_buffer_by_flags(VkCommandBuffer buffer, VkQueueFlags flags)
 {
-    free_buffer(buffer, get_device()->get_family_index_by_flags(flags));
-}
-
-device_vk* command_pool_vk::get_device() const
-{
-    return reinterpret_cast<device_vk*>(Driver::get_device());
+    free_buffer(buffer, m_state->get_family_index_by_flags(flags));
 }
 
 } // gfx

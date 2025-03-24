@@ -1,12 +1,18 @@
 #pragma once
 
-#include "gfx_core/device.h"
-#include "gfx_core/gpu.h"
-#include "gfx_core/buffer.h"
-#include "gfx_core/command_list.h"
+#include "../device.h"
+#include "../gpu.h"
+#include "../buffer.h"
+#include "../command_list.h"
 
 #include "vma_allocator.h"
 #include "command_pool_vk.h"
+
+#if GFX_VIRTUAL_DEVICE
+    #define VK_DEVICE device_vk
+#else
+    #define VK_DEVICE device
+#endif
 
 namespace gfx
 {
@@ -27,13 +33,11 @@ struct queue_family
     u64 unused;
 };
 
+#if GFX_VIRTUAL_DEVICE
 class device_vk : public device
 {
 public:
-    device_vk();
-    ~device_vk() override;
-
-    u32 initialise(u32 gpuIdx, void* surface) override;
+    u32 initialise(u32 gpuIdx, surface_create_func surface_func) override;
     u32 initialise(u32 gpuIdx) override;
     void shutdown() override;
 
@@ -94,8 +98,11 @@ public:
     void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance) override;
     void draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance) override;
 
-    void bind_vertex_buffers(command_list* list, const std::vector<buffer*>& buffers, u32 first_vertex_index) override;
+    void bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index) override;
     void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) override;
+
+    void begin_rendering(command_list* list, texture** color_outputs, u32 color_output_count, texture* depth_output) override;
+    void end_rendering(command_list* list) override;
 
     void begin_pass(command_list* list, program* program, u64 passIdx, texture* output) override;
     void end_pass(command_list* list) override;
@@ -121,7 +128,35 @@ public:
     void* allocate_descriptor_table_impl(descriptor_pool* pool) override;
     void write_descriptor_table(descriptor_table* table) override;
 
-    // Internal VK functions
+    VkInstance get_vulkan_instance() const override;
+    void dump_info() const override;
+};
+#endif // GFX_VIRTUAL_DEVICE
+
+struct device_state_vk
+{
+    VkInstance instance;
+
+    std::vector<std::string> available_instance_extensions;
+    std::vector<const char*> enabled_instance_extensions;
+
+    std::vector<std::string> available_instance_layers;
+    std::vector<const char*> enabled_instance_layers;
+
+    VkDevice device;
+
+    std::vector<std::string> available_device_extensions;
+    std::vector<const char*> enabled_device_extensions;
+
+    std::vector<queue_family> queue_families;
+
+    command_pool_vk command_pool;
+#ifdef GFX_VK_VMA_ALLOCATOR
+    vma_allocator allocator;
+#endif
+
+    void create_instance(debugger& debugger);
+
     VkQueue get_queue(u32 familyIdx, u32 idx = 0) const;
     VkQueue get_queue_by_flags(VkQueueFlags flags, u32 idx = 0) const;
     VkQueue get_queue_by_present(u32 idx = 0) const;
@@ -129,49 +164,23 @@ public:
     u32 get_family_index_by_flags(VkQueueFlags flags) const;
     bool queue_family_supports_present(u32 familyIdx) const;
 
-    bool has_instance_extension(const char* name);
-    bool has_device_extension(const char* name);
-
-    VkInstance get_impl_instance() const;
-    VkDevice get_impl_device() const;
-
-    void dump_info() const override;
-private:
-    void create_instance();
-
-    std::vector<const char*> get_instance_extensions() const;
-    std::vector<const char*> get_instance_layers() const;
-    std::vector<const char*> get_device_extensions() const;
-
-    void map_impl(memory_info* memInfo);
-    void unmap_impl(memory_info* memInfo);
-
-    // TODO fence?
-    void submit_impl(VkQueue queue, const std::vector<command_list*>& lists, fence* fence);
-
-    VkPipeline create_graphics_pipeline_impl(program* program, u64 passIdx);
-    VkPipeline create_compute_pipeline_impl(program* program, u64 passIdx);
-private:
-    VkInstance m_instance;
-
-    std::vector<std::string> m_availableInstanceExtensions;
-    std::vector<const char*> m_enabledInstanceExtensions;
-
-    std::vector<std::string> m_availableInstanceLayers;
-    std::vector<const char*> m_enabledInstanceLayers;
-    
-    gpu m_gpu;
-    VkDevice m_device;
-
-    std::vector<std::string> m_availableDeviceExtensions;
-    std::vector<const char*> m_enabledDeviceExtensions;
-
-    std::vector<queue_family> m_queueFamilies;
-
-    command_pool_vk m_commandPool;
-#ifdef GFX_VK_VMA_ALLOCATOR
-    vma_allocator m_allocator;
-#endif
+    // bool has_instance_extension(const char* name);
+    // bool has_device_extension(const char* name);
 };
+
+constexpr std::vector<const char*> vulkan_get_instance_extensions()
+{
+    return { VK_EXT_DEBUG_UTILS_EXTENSION_NAME, "VK_KHR_surface", "VK_KHR_win32_surface" };
+}
+
+constexpr std::vector<const char*> vulkan_get_instance_layers()
+{
+    return { "VK_LAYER_KHRONOS_validation", "VK_LAYER_KHRONOS_synchronization2" };
+}
+
+constexpr std::vector<const char*> vulkan_get_device_extensions()
+{
+    return { "VK_KHR_swapchain", "VK_KHR_dynamic_rendering" };
+}
 
 } // gfx

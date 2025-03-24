@@ -86,7 +86,7 @@ public:
     void draw(u32 vertex_count, u32 instance_count = 1, u32 first_vertex = 0, u32 first_instance = 0);
     void draw_indexed(u32 index_count, u32 instance_count = 1, u32 first_index = 0, u32 vertex_offset = 0, u32 first_instance = 0);
 
-    void bind_vertex_buffers(const std::vector<buffer*>& buffers, u32 first_vertex_index = 0);
+    void bind_vertex_buffers(buffer** pBuffers, u32 buffer_count, u32 first_vertex_index = 0);
     void bind_index_buffer(buffer* buffer, index_buffer_type index_type = index_buffer_type::INDEX_TYPE_U16);
 };
 

@@ -14,6 +14,16 @@
 
 #include "swapchain.h"
 
+#if GFX_VIRTUAL_DEVICE
+    #define GFX_DEVICE_VIRTUAL_PREFIX virtual
+    #define GFX_DEVICE_VIRTUAL_SUFFIX = 0
+#else
+    #define GFX_DEVICE_VIRTUAL_PREFIX
+    #define GFX_DEVICE_VIRTUAL_SUFFIX
+#endif
+
+#define GFX_DEVICE_CALL(...) GFX_DEVICE_VIRTUAL_PREFIX __VA_ARGS__ GFX_DEVICE_VIRTUAL_SUFFIX
+
 namespace gfx
 {
 
@@ -21,107 +31,128 @@ class device
 {
 public:
     device() = default;
-    virtual ~device() = default;
+    GFX_DEVICE_VIRTUAL_PREFIX ~device() = default;
 
     DELETE_COPY(device);
     DELETE_MOVE(device);
 
-    virtual u32 initialise(u32 gpuIdx, void* surface) = 0;
-    virtual u32 initialise(u32 gpuIdx) = 0;
-    virtual void shutdown() = 0;
+    GFX_DEVICE_CALL(u32 initialise(u32 gpuIdx, surface_create_func surface_func));
+    GFX_DEVICE_CALL(u32 initialise(u32 gpuIdx));
+    GFX_DEVICE_CALL(void shutdown());
 
 #ifdef GFX_EXT_SWAPCHAIN
-    virtual surface_capabilities get_surface_capabilities() const = 0;
+    GFX_DEVICE_CALL(surface_capabilities get_surface_capabilities() const);
 
-    virtual swapchain create_swapchain(swapchain* previous, texture_info info, present_mode present_mode) = 0;
-    virtual void free_swapchain(swapchain* swapchain) = 0;
+    GFX_DEVICE_CALL(swapchain create_swapchain(swapchain* previous, texture_info info, present_mode present_mode));
+    GFX_DEVICE_CALL(void free_swapchain(swapchain* swapchain));
 
-    virtual u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) = 0;
+    GFX_DEVICE_CALL(u32 acquire_next_image(swapchain* sc, fence* fence, u64 timeout = u64_max));
 
-    virtual void present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies = { }) = 0;
+    GFX_DEVICE_CALL(void present(swapchain* sc, u32 image_index, const std::vector<dependency*>& dependencies = { }));
 #endif // GFX_EXT_SWAPCHAIN
 
-    virtual std::vector<gpu> enumerate_gpus() const = 0;
+    GFX_DEVICE_CALL(std::vector<gpu> enumerate_gpus() const);
 
-    virtual buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant) = 0;
-    virtual void free_buffer(buffer* buf) = 0;
+    GFX_DEVICE_CALL(buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant));
+    GFX_DEVICE_CALL(void free_buffer(buffer* buf));
 
-    virtual texture create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant) = 0;
-    virtual void free_texture(texture* tex) = 0;
+    GFX_DEVICE_CALL(texture create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant));
+    GFX_DEVICE_CALL(void free_texture(texture* tex));
 
-    virtual fence create_fence(bool signaled = false) = 0;
-    virtual void free_fence(fence* fence) = 0;
+    GFX_DEVICE_CALL(fence create_fence(bool signaled = false));
+    GFX_DEVICE_CALL(void free_fence(fence* fence));
 
-    virtual dependency create_dependency(const char* debug_name = nullptr) = 0;
-    virtual void free_dependency(dependency* dep) = 0;
+    GFX_DEVICE_CALL(dependency create_dependency(const char* debug_name = nullptr));
+    GFX_DEVICE_CALL(void free_dependency(dependency* dep));
 
-    virtual graphics_command_list allocate_graphics_command_list() = 0;
-    virtual void free_command_list(command_list* list) = 0;
+    GFX_DEVICE_CALL(graphics_command_list allocate_graphics_command_list());
+    GFX_DEVICE_CALL(void free_command_list(command_list* list));
 
-    virtual void map(buffer* buf) = 0;
-    virtual void map(texture* tex) = 0;
-    virtual void unmap(texture* tex) = 0;
-    virtual void unmap(buffer* buf) = 0;
+    GFX_DEVICE_CALL(void map(buffer* buf));
+    GFX_DEVICE_CALL(void map(texture* tex));
+    GFX_DEVICE_CALL(void unmap(texture* tex));
+    GFX_DEVICE_CALL(void unmap(buffer* buf));
 
-    virtual void wait_idle() = 0;
+    GFX_DEVICE_CALL(void wait_idle());
 
-    virtual bool wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const = 0;
-    virtual bool reset_fences(fence* pFences, u32 count) = 0;
-    virtual bool check_fence(const fence* fence) const = 0;
+    GFX_DEVICE_CALL(bool wait_for_fences(const fence* pFences, u32 count, bool wait_for_all, u64 timeout) const);
+    GFX_DEVICE_CALL(bool reset_fences(fence* pFences, u32 count));
+    GFX_DEVICE_CALL(bool check_fence(const fence* fence) const);
 
     // Command Lists
-    virtual void reset(command_list* list) = 0;
-    virtual void begin(command_list* list) = 0;
-    virtual void end(command_list* list) = 0;
+    GFX_DEVICE_CALL(void reset(command_list* list));
+    GFX_DEVICE_CALL(void begin(command_list* list));
+    GFX_DEVICE_CALL(void end(command_list* list));
 
-    virtual void submit(const std::vector<graphics_command_list*>& lists, fence* fence = nullptr) = 0;
-    virtual void submit(const std::vector<compute_command_list*>& lists, fence* fence = nullptr) = 0;
-    virtual void submit(const std::vector<present_command_list*>& lists, fence* fence = nullptr) = 0;
+    GFX_DEVICE_CALL(void submit(const std::vector<graphics_command_list*>& lists, fence* fence = nullptr));
+    GFX_DEVICE_CALL(void submit(const std::vector<compute_command_list*>& lists, fence* fence = nullptr));
+    GFX_DEVICE_CALL(void submit(const std::vector<present_command_list*>& lists, fence* fence = nullptr));
 
     // Commands
-    virtual void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance) = 0;
-    virtual void draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance) = 0;
+    GFX_DEVICE_CALL(void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance));
+    GFX_DEVICE_CALL(void draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance));
 
-    virtual void bind_vertex_buffers(command_list* list, const std::vector<buffer*>& buffers, u32 first_vertex_index) = 0;
-    virtual void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) = 0;
+    GFX_DEVICE_CALL(void bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index));
+    GFX_DEVICE_CALL(void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type));
+
+    GFX_DEVICE_CALL(void begin_rendering(command_list* list, texture** color_outputs, u32 color_output_count, texture* depth_output));
+    GFX_DEVICE_CALL(void end_rendering(command_list* list));
 
     // TEMPORARY
-    virtual void begin_pass(command_list* list, program* program, u64 passIdx, texture* output) = 0;
-    virtual void end_pass(command_list* list) = 0;
+    GFX_DEVICE_CALL(void begin_pass(command_list* list, program* program, u64 passIdx, texture* output));
+    GFX_DEVICE_CALL(void end_pass(command_list* list));
 
-    // virtual void copy_texture(texture* src, texture_layout src_layout, texture* dst, texture_layout dst_layout, texture_region? region);
-    virtual void copy_texture_to_texture(command_list* list, texture* src, texture* dst) = 0;
-    virtual void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) = 0;
-    virtual void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst) = 0;
-    virtual void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) = 0;
+    // GFX_DEVICE_CALL(void copy_texture(texture* src, texture_layout src_layout, texture* dst, texture_layout dst_layout, texture_region? region);
+    GFX_DEVICE_CALL(void copy_texture_to_texture(command_list* list, texture* src, texture* dst));
+    GFX_DEVICE_CALL(void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst));
+    GFX_DEVICE_CALL(void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst));
+    GFX_DEVICE_CALL(void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout));
 
-    // virtual void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index = 0, void* pAux = nullptr) = 0;
+    // GFX_DEVICE_CALL(void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index), void* pAux = nullptr));
 
     // Shader things
-    virtual void* create_shader_pass_impl(program* program, u64 pass) = 0;
-    virtual void* create_shader_pass_layout_impl(pass* pass) = 0;
+    GFX_DEVICE_CALL(void* create_shader_pass_impl(program* program, u64 pass));
+    GFX_DEVICE_CALL(void* create_shader_pass_layout_impl(pass* pass));
 
-    virtual void* create_descriptor_table_desc_impl(descriptor_table_desc* desc) = 0;
-    virtual void destroy_descriptor_table_desc(descriptor_table_desc* desc) = 0;
+    GFX_DEVICE_CALL(void* create_descriptor_table_desc_impl(descriptor_table_desc* desc));
+    GFX_DEVICE_CALL(void destroy_descriptor_table_desc(descriptor_table_desc* desc));
 
-    virtual void destroy_shader_program(program* program) = 0;
+    GFX_DEVICE_CALL(void destroy_shader_program(program* program));
 
-    virtual void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size) = 0;
-    virtual void destroy_descriptor_pool(descriptor_pool* pool) = 0;
-    virtual void reset_descriptor_pool(descriptor_pool* pool) = 0;
+    GFX_DEVICE_CALL(void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size));
+    GFX_DEVICE_CALL(void destroy_descriptor_pool(descriptor_pool* pool));
+    GFX_DEVICE_CALL(void reset_descriptor_pool(descriptor_pool* pool));
 
-    virtual void* allocate_descriptor_table_impl(descriptor_pool* pool) = 0;
-    virtual void write_descriptor_table(descriptor_table* table) = 0;
+    GFX_DEVICE_CALL(void* allocate_descriptor_table_impl(descriptor_pool* pool));
+    GFX_DEVICE_CALL(void write_descriptor_table(descriptor_table* table));
 
     inline debugger& get_debugger()
     {
         return m_debugger;
     }
 
-    virtual void dump_info() const = 0;
+#ifdef GFX_SUPPORTS_VULKAN
+    GFX_DEVICE_CALL(VkInstance get_vulkan_instance() const);
+#endif
+
+    GFX_DEVICE_CALL(void dump_info() const);
+protected:
+    template<typename T>
+    T& get_impl()
+    {
+        return *static_cast<T*>(m_deviceImpl);
+    }
+
+    template<typename T>
+    const T& get_impl() const
+    {
+        return *static_cast<T*>(m_deviceImpl);
+    }
 protected:
     debugger m_debugger{ };
+    gpu m_gpu;
     void* m_surface{ };
+    void* m_deviceImpl{ };
 };
 
 } // gfx

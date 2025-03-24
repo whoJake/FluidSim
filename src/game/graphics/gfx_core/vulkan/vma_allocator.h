@@ -1,10 +1,10 @@
 #pragma once
 
-#include "gfx_core/gfxdefines.h"
+#include "../gfxdefines.h"
 #include "vkdefines.h"
 
-#include "gfx_core/buffer.h"
-#include "gfx_core/texture.h"
+#include "../buffer.h"
+#include "../texture.h"
 
 namespace gfx
 {

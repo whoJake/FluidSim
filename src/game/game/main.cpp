@@ -7,10 +7,10 @@
 #include "system/details/basic_log.h"
 #include "gfx_core/Driver.h"
 #include "memory_zone.h"
-#include "gfx_ext/program_mgr.h"
+#include "gfx_fw/program_mgr.h"
 
 #include "cdt/loaders/image_loaders.h"
-#include "vulkan/vkdefines.h"
+#include "gfx_core/vulkan/vkdefines.h"
 #include "platform/windows/window_glfw.h"
 
 #include "system/memory.h"
@@ -265,7 +265,7 @@ void debug_vbuffer(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swa
 
 		device->begin_pass(&swapList, prog, 0, swapTexture);
 
-		swapList.bind_vertex_buffers(bufs);
+		swapList.bind_vertex_buffers(bufs.data(), u32_cast(bufs.size()));
 		swapList.draw(6);
 		device->end_pass(&swapList);
 

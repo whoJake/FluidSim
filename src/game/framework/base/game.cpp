@@ -11,7 +11,7 @@
 #include "gfx_core/Driver.h"
 
 #include "cdt/loaders/image_loaders.h"
-#include "vulkan/vkdefines.h"
+#include "gfx_core/vulkan/vkdefines.h"
 
 MAKEPARAM(no_vk_debug);
 
