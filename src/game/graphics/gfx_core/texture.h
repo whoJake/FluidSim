@@ -1,7 +1,6 @@
 #pragma once
 
 #include "resource.h"
-#include "cdt/imageformats.h"
 #include "types.h"
 #include "gfxdefines.h"
 
@@ -12,27 +11,24 @@ class texture_info
 {
 public:
     texture_info() = default;
+    texture_info(u16 width, u16 height, u16 depth_or_layers, u16 mip_count);
     ~texture_info() = default;
 
     DEFAULT_MOVE(texture_info);
     DEFAULT_COPY(texture_info);
 
-    void initialise(const texture_info& other);
-    void initialise(cdt::image_format format, texture_usage_flags usage, u32 width, u32 height, u32 depthOrLayers);
+    void initialise(u16 width, u16 height, u16 depth_or_layers, u16 mip_count);
 
-    cdt::image_format get_format() const;
-    u32 get_width() const;
-    u32 get_height() const;
-    u32 get_depth() const;
-    texture_usage_flags get_usage() const;
-
-    u64 get_size() const;
-protected:
-    cdt::image_format m_format;
-    u32 m_width;
-    u32 m_height;
-    u32 m_depthOrLayers;
-    texture_usage_flags m_usage;
+    u16 get_width() const;
+    u16 get_height() const;
+    u16 get_depth() const;
+    u16 get_layer_count() const;
+    u16 get_mip_count() const;
+private:
+    u16 m_width;
+    u16 m_height;
+    u16 m_depthOrLayers;
+    u16 m_mipCount;
 };
 
 class texture :
@@ -40,28 +36,31 @@ class texture :
     public texture_info
 {
 public:
+    friend class driver;
+    friend class command_list; // TODO TEMPORARY
+
+    // Texture requires view_type to create.. ):
+    static texture create(const memory_info& memory_info, const texture_info& texture_info, texture_layout layout, resource_view_type view_type);
+    static void destroy(texture* texture);
+
     texture() = default;
+    texture(const texture_info& info);
     ~texture() = default;
 
     DEFAULT_MOVE(texture);
-    DEFAULT_COPY(texture);
+    DEFAULT_COPY(texture); // TODO can this be deleted?
 
-    void initialise(memory_info allocation, texture_info info, void* pImpl, void* pImplView = nullptr, bool isSwapchainImage = false);
-    void set_resource_view_type(resource_view_type type, void* pImplView = nullptr);
+    texture_view create_view(format format, resource_view_type type, texture_view_range range) const;
 
-    bool is_swapchain_image() const;
+    texture_layout get_layout() const;
+    bool is_swapchain_owned() const;
 
     GFX_HAS_IMPL(m_pImpl);
-
-    template<typename T>
-    T get_view_impl()
-    {
-        return static_cast<T>(m_pImplView);
-    }
 private:
     void* m_pImpl;
-    void* m_pImplView;
-    bool m_isSwapchain;
+    texture_layout m_layout;
+    u32 m_isSwapchain : 1;
+    u32 m_unused : 31;
 };
 
 } // gfx

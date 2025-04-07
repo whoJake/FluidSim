@@ -44,7 +44,7 @@ public:
 #ifdef GFX_EXT_SWAPCHAIN
     surface_capabilities get_surface_capabilities() const override;
 
-    swapchain create_swapchain(swapchain* previous, texture_info info, present_mode present_mode) override;
+    swapchain create_swapchain(swapchain* previous, texture_info info, texture_usage_flags usage, format format, present_mode present_mode) override;
     void free_swapchain(swapchain* swapchain) override;
 
     u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) override;
@@ -54,11 +54,20 @@ public:
 
     std::vector<gpu> enumerate_gpus() const override;
 
-    buffer create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant) override;
+    void* allocate_buffer(resource* resource, const memory_info& memory_info) override;
     void free_buffer(buffer* buf) override;
 
-    texture create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant) override;
+    void* create_buffer_view_impl(buffer_view* view, buffer_view_range range) override;
+    void destroy_buffer_view_impl(buffer_view* view) override;
+
+    void* allocate_texture(texture* texture, const memory_info& memory_info, resource_view_type view_type) override;
     void free_texture(texture* tex) override;
+
+    void* create_texture_view_impl(texture_view* view, texture_view_range range) override;
+    void destroy_texture_view_impl(texture_view* view) override;
+
+    u8* map_resource(const resource* resouce) override;
+    void unmap_resource(const resource* resource) override;
 
     fence create_fence(bool signaled = false) override;
     void free_fence(fence* fence) override;
@@ -68,11 +77,6 @@ public:
 
     graphics_command_list allocate_graphics_command_list() override;
     void free_command_list(command_list* list) override;
-
-    void map(buffer* buf) override;
-    void map(texture* tex) override;
-    void unmap(buffer* buf) override;
-    void unmap(texture* tex) override;
 
     void wait_idle() override;
 
@@ -101,10 +105,10 @@ public:
     void bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index) override;
     void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) override;
 
-    void begin_rendering(command_list* list, texture** color_outputs, u32 color_output_count, texture* depth_output) override;
+    void begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output) override;
     void end_rendering(command_list* list) override;
 
-    void begin_pass(command_list* list, program* program, u64 passIdx, texture* output) override;
+    void begin_pass(command_list* list, program* program, u64 passIdx, texture_view* output) override;
     void end_pass(command_list* list) override;
 
     void copy_texture_to_texture(command_list* list, texture* src, texture* dst) override;

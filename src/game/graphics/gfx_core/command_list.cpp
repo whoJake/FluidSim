@@ -83,7 +83,7 @@ void command_list::submit(fence* fence)
 void command_list::texture_memory_barrier(texture* texture, texture_layout dst_layout)
 {
     GFX_CALL(texture_barrier, this, texture, dst_layout);
-    texture->set_layout(dst_layout);
+    texture->m_layout = dst_layout;
 }
 
 const command_list_type& command_list::get_type() const

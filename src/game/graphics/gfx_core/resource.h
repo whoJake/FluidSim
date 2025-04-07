@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "gfxdefines.h"
 #include "types.h"
+#include "resource_view.h"
 
 namespace gfx
 {
@@ -10,88 +11,45 @@ namespace gfx
 class resource
 {
 public:
+    friend class driver;
+
     resource() = default;
     ~resource() = default;
 
     DEFAULT_MOVE(resource);
     DEFAULT_COPY(resource);
 
-    inline void initialise(memory_info info)
-    {
-        m_memoryInfo = info;
-    }
+    void initialise(const memory_info& info, void* backing_memory);
+
+    u64 get_size() const;
+    memory_type get_memory_type() const;
+    resource_type get_resource_type() const;
+    u8* get_mapped() const;
+
+    u8* map();
+    void unmap();
+
+    bool is_buffer() const;
+    bool is_texture() const;
+    bool is_mapped() const;
 
     template<typename T>
     T get_backing_memory()
     {
-        return static_cast<T>(m_memoryInfo.backing_memory);
+        return static_cast<T>(m_backingMemory);
     }
 
-    inline memory_info& get_memory_info()
+    template<typename T>
+    T get_backing_memory() const
     {
-        return m_memoryInfo;
+        return static_cast<T>(m_backingMemory);
     }
-
-    inline const memory_info& get_memory_info() const
-    {
-        return m_memoryInfo;
-    }
-
-    inline u64 get_size() const
-    {
-        return m_memoryInfo.size;
-    }
-
-    inline u32 get_stride() const
-    {
-        return m_memoryInfo.stride;
-    }
-
-    inline resource_view_type get_type() const
-    {
-        return static_cast<resource_view_type>(m_memoryInfo.type);
-    }
-
-    inline bool is_buffer() const
-    {
-        return get_type() == resource_view_type::buffer;
-    }
-
-    inline bool is_texture() const
-    {
-        return !is_buffer() && (get_type() != resource_view_type::undefined);
-    }
-
-    inline bool is_mapped() const
-    {
-        return m_memoryInfo.mapped != nullptr;
-    }
-
-    inline memory_type get_memory_type() const
-    {
-        return static_cast<memory_type>(m_memoryInfo.type);
-    }
-
-    inline bool is_persistant() const
-    {
-        return m_memoryInfo.persistant;
-    }
-
-    inline texture_layout get_layout() const
-    {
-        return static_cast<texture_layout>(m_memoryInfo.layout);
-    }
-
-    // Should not be done outside of command lists
-    // TODO how can this be clearer
-    inline void set_layout(texture_layout dst_layout)
-    {
-        GFX_ASSERT(is_texture(), "Setting a texture layout for memory that is not a texture.");
-
-        m_memoryInfo.layout = u32_cast(dst_layout);
-    }
-protected:
-    memory_info m_memoryInfo;
+private:
+    void* m_backingMemory;
+    u64 m_size;
+    u8* m_mapped;
+    memory_type m_memoryType;
+    resource_type m_resourceType;
 };
 
 } // gfx

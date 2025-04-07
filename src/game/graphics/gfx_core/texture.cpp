@@ -1,78 +1,84 @@
 #include "texture.h"
+#include "driver.h"
 
 namespace gfx
 {
 
-void texture::initialise(memory_info allocation,
-                         texture_info info,
-                         void* pImpl,
-                         void* pImplView,
-                         bool isSwapchainImage)
+texture_info::texture_info(u16 width, u16 height, u16 depth_or_layers, u16 mip_count)
 {
-    
-    resource::initialise(allocation);
-    texture_info::initialise(info);
-    m_pImpl = pImpl;
-    m_pImplView = pImplView;
-    m_isSwapchain = isSwapchainImage;
+    initialise(width, height, depth_or_layers, mip_count);
 }
 
-void texture::set_resource_view_type(resource_view_type type, void* pImplView)
+void texture_info::initialise(u16 width, u16 height, u16 depth_or_layers, u16 mip_count)
 {
-    m_memoryInfo.viewType = u32_cast(type);
-    m_pImplView = pImplView;
-}
-
-bool texture::is_swapchain_image() const
-{
-    return m_isSwapchain;
-}
-
-void texture_info::initialise(const texture_info& other)
-{
-    initialise(other.m_format, other.m_usage, other.m_width, other.m_height, other.m_depthOrLayers);
-}
-
-void texture_info::initialise(cdt::image_format format, texture_usage_flags usage, u32 width, u32 height, u32 depthOrLayers)
-{
-    m_format = format;
     m_width = width;
     m_height = height;
-    m_depthOrLayers = depthOrLayers;
-    m_usage = usage;
+    m_depthOrLayers = depth_or_layers;
+    m_mipCount = mip_count;
 }
 
-cdt::image_format texture_info::get_format() const
-{
-    return m_format;
-}
-
-u32 texture_info::get_width() const
+u16 texture_info::get_width() const
 {
     return m_width;
 }
 
-u32 texture_info::get_height() const
+u16 texture_info::get_height() const
 {
     return m_height;
 }
 
-u32 texture_info::get_depth() const
+u16 texture_info::get_depth() const
 {
     return m_depthOrLayers;
 }
 
-texture_usage_flags texture_info::get_usage() const
+u16 texture_info::get_layer_count() const
 {
-    return m_usage;
+    return m_depthOrLayers;
 }
 
-u64 texture_info::get_size() const
+u16 texture_info::get_mip_count() const
 {
-    return u64_cast(m_width)
-        * m_height
-        * m_depthOrLayers
-        * cdt::get_bits_per_pixel(m_format);
+    return m_mipCount;
+}
+
+texture texture::create(const memory_info& memory_info, const texture_info& texture_info, texture_layout layout, resource_view_type view_type)
+{
+    texture retval(texture_info);
+    retval.m_layout = layout;
+    retval.m_isSwapchain = memory_info.get_texture_usage() & TEXTURE_USAGE_SWAPCHAIN_OWNED;
+    driver::create_texture(&retval, memory_info, view_type);
+    return retval;
+}
+
+void texture::destroy(texture* texture)
+{
+    if( !texture->is_swapchain_owned() )
+        driver::destroy_texture(texture);
+}
+
+texture::texture(const texture_info& info) :
+    resource(),
+    texture_info(info),
+    m_pImpl(nullptr),
+    m_layout(texture_layout::TEXTURE_LAYOUT_UNDEFINED),
+    m_isSwapchain(0),
+    m_unused(0)
+{ }
+
+texture_view texture::create_view(format format, resource_view_type type, texture_view_range range) const
+{
+    return texture_view::create(this, range, format, type);
+}
+
+texture_layout texture::get_layout() const
+{
+    return m_layout;
+}
+
+bool texture::is_swapchain_owned() const
+{
+    return m_isSwapchain;
 }
 
 } // gfx

@@ -11,23 +11,41 @@
 namespace gfx
 {
 
-#define GFX_CALL(func, ...) gfx::Driver::get_device()->func(__VA_ARGS__)
+#define GFX_CALL(func, ...) gfx::driver::get_device()->func(__VA_ARGS__)
 
-enum class DriverMode
+enum driver_mode
 {
 #ifdef GFX_SUPPORTS_VULKAN
-    vulkan,
+    DRIVER_MODE_VULKAN,
 #endif
 };
 
-class Driver
+class driver
 {
 public:
-    static u32 initialise(DriverMode mode);
-    static u32 initialise(DriverMode mode, surface_create_func surface_func);
+    static u32 initialise(driver_mode mode);
+    static u32 initialise(driver_mode mode, surface_create_func surface_func);
     static void shutdown();
 
+    static void create_buffer(buffer* buffer, const memory_info& memory_info);
+    static void destroy_buffer(buffer* buffer);
+
+    static void create_buffer_view(buffer_view* view, const buffer* buffer, buffer_view_range range, format format, resource_view_type type);
+    static void destroy_buffer_view(buffer_view* view);
+
+    static void create_texture(texture* texture, const memory_info& memory_info, resource_view_type view_type);
+    static void create_swapchain_texture(texture* texture, const memory_info& memory_info, void* pImpl);
+    static void destroy_texture(texture* texture);
+
+    static void create_texture_view(texture_view* view, const texture* texture, texture_view_range range, format format, resource_view_type type);
+    static void destroy_texture_view(texture_view* view);
+
+    static void map_resource(resource* resource);
+    static void unmap_resource(resource* resource);
+
     static device* get_device();
+private:
+    static void fill_initial_data(resource* resource, const memory_info& memory_info);
 private:
     static device* sm_device;
     static std::function<u32(const std::vector<gpu>&)> sm_gpuSelector;

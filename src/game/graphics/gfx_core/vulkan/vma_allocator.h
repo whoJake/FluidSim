@@ -31,10 +31,10 @@ public:
     u8* map(VmaAllocation allocation);
     void unmap(VmaAllocation allocation);
 
-    vma_allocation<VkBuffer> allocate_buffer(u64 size, buffer_usage usage, memory_type mem_type);
+    vma_allocation<VkBuffer> allocate_buffer(const memory_info& memory_info);
     void free_buffer(vma_allocation<VkBuffer> allocation);
 
-    vma_allocation<VkImage> allocate_image(texture_info info, resource_view_type type, memory_type mem_type);
+    vma_allocation<VkImage> allocate_image(const memory_info& memory_info, const texture_info& info, format format, resource_view_type view_type);
     void free_image(vma_allocation<VkImage> allocation);
 private:
     VmaAllocator m_handle;

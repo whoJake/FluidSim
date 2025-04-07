@@ -5,7 +5,7 @@
 #include <chrono>
 #include "system/details/log_console.h"
 #include "system/details/basic_log.h"
-#include "gfx_core/Driver.h"
+#include "gfx_core/driver.h"
 #include "memory_zone.h"
 #include "gfx_fw/program_mgr.h"
 
@@ -18,9 +18,9 @@
 
 static u64 g_frame = 0;
 
-void debug_image(gfx::texture* swapImage, gfx::swapchain* swapchain, u32 swapIndex);
-void debug_triangle(gfx::texture* swapImage, gfx::swapchain* swapchain, u32 swapIndex);
-void debug_vbuffer(gfx::texture* swapImage, gfx::swapchain* swapchain, u32 swapIndex);
+void debug_image(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex);
+void debug_triangle(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex);
+void debug_vbuffer(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex);
 
 int main(int argc, const char* argv[])
 {
@@ -45,8 +45,8 @@ int main(int argc, const char* argv[])
 
 	fw::window_glfw window(state);
 
-	u32 result = gfx::Driver::initialise(
-		gfx::DriverMode::vulkan,
+	u32 result = gfx::driver::initialise(
+		gfx::DRIVER_MODE_VULKAN,
 		std::bind(
 			&fw::window::create_vulkan_surface,
 			&window,
@@ -55,27 +55,33 @@ int main(int argc, const char* argv[])
 
 	gfx::program_mgr::initialise("C:\\Users\\Jake\\Documents\\Projects\\UnnamedGame\\src\\game\\shaderdev\\compiled\\");
 
-	gfx::device* device = gfx::Driver::get_device();
-	gfx::Driver::get_device()->dump_info();
+	gfx::device* device = gfx::driver::get_device();
+	gfx::driver::get_device()->dump_info();
 
 	gfx::surface_capabilities sc = device->get_surface_capabilities();
 
 	gfx::texture_info tInfo{ };
 	tInfo.initialise(
-		cdt::image_format::R8G8B8A8_SRGB,
-		gfx::texture_usage_flag_bits::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_COLOR,
 		window.get_extent().x,
 		window.get_extent().y,
+		1,
 		1);
 
-	gfx::swapchain swapchain = device->create_swapchain(nullptr, tInfo, gfx::present_mode::PRESENT_MODE_IMMEDIATE);
+	gfx::swapchain swapchain = device->create_swapchain(
+		nullptr,
+		tInfo,
+		gfx::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_COLOR,
+		gfx::format::R8G8B8A8_SRGB,
+		gfx::present_mode::PRESENT_MODE_IMMEDIATE);
+
 	u32 swapIndex = swapchain.aquire_next_image();
 	gfx::texture* swapTexture = swapchain.get_image(swapIndex);
+	gfx::texture_view swap_view = swapTexture->create_view(gfx::format::R8G8B8A8_SRGB, gfx::RESOURCE_VIEW_2D, { 0, 1, 0, 1 });
 	swapchain.wait_on_present(swapIndex);
 
-	// debug_image(swapTexture, &swapchain, swapIndex);
-	// debug_triangle(swapTexture, &swapchain, swapIndex);
-	debug_vbuffer(swapTexture, &swapchain, swapIndex);
+	debug_image(&swap_view, &swapchain, swapIndex);
+	// debug_triangle(&swap_view, &swapchain, swapIndex);
+	// debug_vbuffer(&swap_view, &swapchain, swapIndex);
 
 	sys::moment lastupdate = sys::now();
 	u64 frames = 0;
@@ -102,27 +108,35 @@ int main(int argc, const char* argv[])
 		g_frame++;
 	}
 
+	gfx::texture_view::destroy(&swap_view);
 	device->free_swapchain(&swapchain);
 
 	gfx::program_mgr::shutdown();
-	gfx::Driver::shutdown();
+	gfx::driver::shutdown();
 	
 	// AppStartup app;
 	// return app.run(argc, argv);
 	return 0;
 }
 
-void debug_image(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swapIndex)
+void debug_image(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex)
 {
-	gfx::device* device = gfx::Driver::get_device();
+	gfx::device* device = gfx::driver::get_device();
 
 	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("assets/images/new_years.png");
-	gfx::buffer buffer = device->create_buffer(img->get_size(), gfx::buffer_usage_bits::BUFFER_USAGE_TRANSFER_SRC, gfx::memory_type::cpu_accessible, true);
 
-	gfx::texture_info texInfo;
-	texInfo.initialise(img->get_metadata().format, gfx::TEXTURE_USAGE_SAMPLED | gfx::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_TRANSFER_DST, img->get_metadata().width, img->get_metadata().height, img->get_metadata().depth);
-	gfx::texture texture = device->create_texture(texInfo, gfx::resource_view_type::texture_2d, gfx::memory_type::gpu_only, false);
-	memcpy(buffer.get_memory_info().mapped, img->data(), img->get_size());
+	gfx::memory_info buf_mem_info = gfx::memory_info::create_as_buffer(img->data(), img->get_size(), gfx::format::R8G8B8A8_SRGB, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::TEXTURE_USAGE_TRANSFER_SRC);
+	gfx::buffer buffer = gfx::buffer::create(buf_mem_info);
+
+	gfx::texture_info tex_info;
+	tex_info.initialise(img->get_metadata().width, img->get_metadata().height, img->get_metadata().depth, 1);
+
+	gfx::memory_info tex_mem_info = gfx::memory_info::create_as_texture(
+		tex_info.get_width() * tex_info.get_height() * tex_info.get_depth(),
+		gfx::format::R8G8B8A8_SRGB,
+		gfx::MEMORY_TYPE_GPU_ONLY,
+		gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_TRANSFER_SRC);
+	gfx::texture img_texture = gfx::texture::create(tex_mem_info, tex_info, gfx::texture_layout::TEXTURE_LAYOUT_GENERAL, gfx::RESOURCE_VIEW_2D);
 
 	gfx::fence swapFence = device->create_fence(false);
 	gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
@@ -135,15 +149,17 @@ void debug_image(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swapI
 		swapList.begin();
 
 		// buffer -> image
-		swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
-		swapList.copy_to_texture(&buffer, &texture);
+		swapList.texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		swapList.copy_to_texture(&buffer, &img_texture);
 
 		//// image -> swapchain
-		swapList.texture_memory_barrier(&texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
-		swapList.copy_to_texture(&texture, swapTexture);
+		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+		swapList.texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
+		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		swapList.copy_to_texture(&img_texture, swap_tex);
+
+		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		swapList.end();
 	}
 
@@ -156,13 +172,13 @@ void debug_image(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swapI
 	device->free_dependency(&dep);
 	device->free_fence(&swapFence);
 
-	device->free_texture(&texture);
+	device->free_texture(&img_texture);
 	device->free_buffer(&buffer);
 }
 
-void debug_triangle(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swapIndex)
+void debug_triangle(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex)
 {
-	gfx::device* device = gfx::Driver::get_device();
+	gfx::device* device = gfx::driver::get_device();
 
 	gfx::program_mgr::load("triangle.fxcp");
 	gfx::program* prog = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("triangle")));
@@ -176,15 +192,16 @@ void debug_triangle(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 sw
 		swapList.set_signal_dependency(&dep);
 
 		swapList.begin();
+		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
 		// swapchain -> renderable
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
-		gfx::Driver::get_device()->begin_pass(&swapList, prog, 0, swapTexture);
+		gfx::driver::get_device()->begin_pass(&swapList, prog, 0, swap_view);
 		swapList.draw(3);
-		gfx::Driver::get_device()->end_pass(&swapList);
+		gfx::driver::get_device()->end_pass(&swapList);
 
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		swapList.end();
 	}
 	swapList.submit(&swapFence);
@@ -197,9 +214,10 @@ void debug_triangle(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 sw
 	device->free_fence(&swapFence);
 }
 
-void debug_vbuffer(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swapIndex)
+void debug_vbuffer(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex)
 {
-	gfx::device* device = gfx::Driver::get_device();
+	gfx::device* device = gfx::driver::get_device();
+	gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
 	gfx::program_mgr::load("basic_vertex_2d.fxcp");
 	gfx::program* prog = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("basic_vertex_2d")));
@@ -239,10 +257,22 @@ void debug_vbuffer(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swa
 		{ {  0.5f + 0.03, -0.5f + 0.03, 0.0f }, { 0.f, 1.f, 0.f } }, // 5
 	};
 
-	gfx::buffer staging = device->create_buffer(sizeof(vertex) * 6, gfx::BUFFER_USAGE_TRANSFER_SRC, gfx::memory_type::cpu_accessible, true);
-	memcpy(staging.get_memory_info().mapped, vertices, sizeof(vertex) * 6);
+	gfx::memory_info staging_mem_info = gfx::memory_info::create_as_buffer(
+		vertices,
+		sizeof(vertex) * 6,
+		gfx::format::UNDEFINED,
+		gfx::MEMORY_TYPE_CPU_VISIBLE,
+		gfx::BUFFER_USAGE_TRANSFER_SRC);
 
-	gfx::buffer buffer = device->create_buffer(sizeof(vertex) * 6, gfx::BUFFER_USAGE_TRANSFER_DST | gfx::BUFFER_USAGE_VERTEX, gfx::memory_type::gpu_only, false);
+	gfx::buffer staging_buf = gfx::buffer::create(staging_mem_info);
+
+	gfx::memory_info buf_mem_info = gfx::memory_info::create_as_buffer(
+		sizeof(vertex) * 6,
+		gfx::format::UNDEFINED,
+		gfx::MEMORY_TYPE_GPU_ONLY,
+		gfx::BUFFER_USAGE_TRANSFER_DST | gfx::BUFFER_USAGE_VERTEX);
+
+	gfx::buffer buffer = gfx::buffer::create(buf_mem_info);
 
 	gfx::fence swapFence = device->create_fence(false);
 	gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
@@ -255,21 +285,21 @@ void debug_vbuffer(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swa
 		swapList.begin();
 
 		// swapchain -> renderable
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
 		// staging -> local
-		swapList.copy_buffer(&staging, &buffer);
+		swapList.copy_buffer(&staging_buf, &buffer);
 
 		std::vector<gfx::buffer*> bufs;
 		bufs.push_back(&buffer);
 
-		device->begin_pass(&swapList, prog, 0, swapTexture);
+		device->begin_pass(&swapList, prog, 0, swap_view);
 
 		swapList.bind_vertex_buffers(bufs.data(), u32_cast(bufs.size()));
 		swapList.draw(6);
 		device->end_pass(&swapList);
 
-		swapList.texture_memory_barrier(swapTexture, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		swapList.end();
 	}
 	swapList.submit(&swapFence);
@@ -281,6 +311,6 @@ void debug_vbuffer(gfx::texture* swapTexture, gfx::swapchain* swapchain, u32 swa
 	device->free_dependency(&dep);
 	device->free_fence(&swapFence);
 
-	device->free_buffer(&staging);
+	device->free_buffer(&staging_buf);
 	device->free_buffer(&buffer);
 }

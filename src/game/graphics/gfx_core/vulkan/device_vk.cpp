@@ -3,6 +3,8 @@
 #ifdef GFX_SUPPORTS_VULKAN
 #include "vkconverts.h"
 
+#include "../driver.h"
+
 namespace gfx
 {
 
@@ -236,7 +238,7 @@ surface_capabilities VK_DEVICE::get_surface_capabilities() const
     };
 }
 
-swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, present_mode present)
+swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, texture_usage_flags usage, format format, present_mode present)
 {
     VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     createInfo.oldSwapchain = previous
@@ -247,9 +249,9 @@ swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, pr
 
     // TODO
     createInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
-    createInfo.imageFormat = converters::get_format_cdt_vk(info.get_format());
+    createInfo.imageFormat = converters::get_format_vk(format);
     createInfo.imageArrayLayers = info.get_depth();
-    createInfo.imageUsage = info.get_usage();
+    createInfo.imageUsage = (VkImageUsageFlags)usage;
 
     //TODO
     createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
@@ -275,41 +277,16 @@ swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, pr
     std::vector<texture> textures;
     textures.reserve(imageCount);
 
-    for( VkImage image : images )
+    for( u32 idx = 0; idx < imageCount; idx++ )
     {
-        // Make a full view for now?
-        VkImageView pViewImpl{ VK_NULL_HANDLE };
+        VkImage swapchainImage = images[idx];
 
-        VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-        viewInfo.image = image;
-        viewInfo.format = converters::get_format_cdt_vk(info.get_format());
-        viewInfo.viewType = converters::get_view_type_vk(resource_view_type::texture_2d);
+        texture& swapchainTexture = textures.emplace_back(info);
 
-        VkImageSubresourceRange range{ };
-        if( cdt::is_depth_format(info.get_format()) )
-            range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        else
-            range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        range.baseMipLevel = 0;
-        range.baseArrayLayer = 0;
-        range.levelCount = 1;
-        range.layerCount = 1;
-
-        viewInfo.subresourceRange = range;
-
-        VkResult result = vkCreateImageView(deviceState.device, &viewInfo, nullptr, &pViewImpl);
-        switch( result )
-        {
-        case VK_SUCCESS:
-            break;
-        default:
-            GFX_ASSERT(false, "Image view creation failed.");
-        }
-
-        textures.emplace_back();
-
-        memory_info blankInfo{ };
-        textures.back().initialise(blankInfo, info, image, pViewImpl, true);
+        driver::create_swapchain_texture(
+            &swapchainTexture,
+            memory_info::create_as_texture(info.get_width() * info.get_height() * info.get_depth(), format, MEMORY_TYPE_GPU_ONLY, usage),
+            swapchainImage);
     }
 
     swapchain retval;
@@ -369,129 +346,123 @@ std::vector<gpu> VK_DEVICE::enumerate_gpus() const
     return out;
 }
 
-buffer VK_DEVICE::create_buffer(u64 size, buffer_usage usage, memory_type mem_type, bool persistant)
+void* VK_DEVICE::allocate_buffer(resource* resource, const memory_info& memory_info)
 {
-    device_state_vk& deviceState = get_impl<device_state_vk>();
-
-    memory_info memoryInfo{ };
-    memoryInfo.size = size;
-    memoryInfo.type = u32_cast(mem_type);
-    memoryInfo.persistant = u32_cast(persistant);
-    memoryInfo.viewType = u32_cast(resource_view_type::buffer);
-
-    void* pImpl = nullptr;
-#ifdef GFX_VK_VMA_ALLOCATOR
-    vma_allocation<VkBuffer> allocation = deviceState.allocator.allocate_buffer(size, usage, mem_type);
-    memoryInfo.backing_memory = allocation.allocation;
-    pImpl = allocation.resource;
-#endif
-
-    if( persistant )
-    {
-    #ifdef GFX_VK_VMA_ALLOCATOR
-        memoryInfo.mapped = deviceState.allocator.map((VmaAllocation)memoryInfo.backing_memory);
-    #endif
-    }
-
-    buffer retval;
-    retval.initialise(memoryInfo, usage, pImpl);
-    return retval;
-}
-
-void VK_DEVICE::free_buffer(buffer* buf)
-{
-    GFX_ASSERT(buf->is_persistant() || !buf->is_mapped(), "Buffer should be unmapped before freeing.");
-
-    if( buf->is_persistant() )
-    {
-    #ifdef GFX_VK_VMA_ALLOCATOR
-        get_impl<device_state_vk>().allocator.unmap(buf->get_backing_memory<VmaAllocation>());
-    #endif
-    }
+    GFX_ASSERT(resource, "Resource must not be nullptr.");
+    GFX_ASSERT(resource->get_backing_memory<void*>() == nullptr, "Resource has already been allocated.");
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    get_impl<device_state_vk>().allocator.free_buffer({ buf->get_impl<VkBuffer>(), buf->get_backing_memory<VmaAllocation>() });
+    vma_allocation<VkBuffer> allocation =
+        get_impl<device_state_vk>().allocator.allocate_buffer(memory_info);
+    resource->initialise(memory_info, allocation.allocation);
+    return allocation.resource;
 #endif
 }
 
-texture VK_DEVICE::create_texture(texture_info info, resource_view_type view_type, memory_type mem_type, bool persistant)
+void VK_DEVICE::free_buffer(buffer* buffer)
 {
+    VmaAllocation allocation = buffer->get_backing_memory<VmaAllocation>();
+    VkBuffer vk_buffer = buffer->get_impl<VkBuffer>();
+    if( allocation == nullptr && vk_buffer == VK_NULL_HANDLE )
+        return;
+
+    GFX_ASSERT(!buffer->is_mapped(), "Buffer should be unmapped before freeing.");
     device_state_vk& deviceState = get_impl<device_state_vk>();
 
-    memory_info memoryInfo{ };
-    memoryInfo.size = info.get_size();
-    memoryInfo.type = u32_cast(mem_type);
-    memoryInfo.persistant = u32_cast(persistant);
-    memoryInfo.viewType = u32_cast(view_type);
-
-    void* pImpl = nullptr;
 #ifdef GFX_VK_VMA_ALLOCATOR
-    vma_allocation<VkImage> allocation = deviceState.allocator.allocate_image(info, view_type, mem_type);
-    memoryInfo.backing_memory = allocation.allocation;
-    pImpl = allocation.resource;
+    deviceState.allocator.free_buffer({ vk_buffer, allocation });
 #endif
+}
 
-    if( persistant )
-    {
-    #ifdef GFX_VK_VMA_ALLOCATOR
-        memoryInfo.mapped = deviceState.allocator.map((VmaAllocation)memoryInfo.backing_memory);
-    #endif
-    }
+void* VK_DEVICE::create_buffer_view_impl(buffer_view* view,  buffer_view_range range)
+{
+    VkBufferViewCreateInfo createInfo{ VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
+    createInfo.buffer = view->get_resource()->get_impl<VkBuffer>();
+    createInfo.format = converters::get_format_vk(view->get_format());
+    createInfo.offset = range.offset;
+    createInfo.range = range.size;
 
-    // Make a full view for now?
-    VkImageView pViewImpl{ VK_NULL_HANDLE };
-
-    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    viewInfo.image = static_cast<VkImage>(pImpl);
-    viewInfo.format = converters::get_format_cdt_vk(info.get_format());
-    viewInfo.viewType = converters::get_view_type_vk(view_type);
-    
-    VkImageSubresourceRange range{ };
-    if( cdt::is_depth_format(info.get_format()) )
-        range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    else
-        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    range.baseMipLevel = 0;
-    range.baseArrayLayer = 0;
-    range.levelCount = 1;
-    range.layerCount = 1;
-
-    viewInfo.subresourceRange = range;
-
-    VkResult result = vkCreateImageView(deviceState.device, &viewInfo, nullptr, &pViewImpl);
+    VkBufferView retval{ VK_NULL_HANDLE };
+    VkResult result = vkCreateBufferView(get_impl<device_state_vk>().device, &createInfo, nullptr, &retval);
     switch( result )
     {
     case VK_SUCCESS:
         break;
     default:
-        GFX_ASSERT(false, "Image view creation failed.");
+        GFX_ASSERT(false, "Failed to create Buffer View.");
+        break;
     }
 
-    texture retval;
-    retval.initialise(memoryInfo, info, pImpl, pViewImpl);
     return retval;
 }
 
-void VK_DEVICE::free_texture(texture* tex)
+void VK_DEVICE::destroy_buffer_view_impl(buffer_view* view)
 {
-    GFX_ASSERT(tex->is_persistant() || !tex->is_mapped(), "Image should be unmapped before freeing.");
-    device_state_vk& deviceState = get_impl<device_state_vk>();
+    vkDestroyBufferView(get_impl<device_state_vk>().device, view->get_impl<VkBufferView>(), nullptr);
+}
 
-    if( tex->is_persistant() )
-    {
-    #ifdef GFX_VK_VMA_ALLOCATOR
-        deviceState.allocator.unmap(tex->get_backing_memory<VmaAllocation>());
-    #endif
-    }
-
-    vkDestroyImageView(deviceState.device, tex->get_view_impl<VkImageView>(), nullptr);
+void* VK_DEVICE::allocate_texture(texture* texture, const memory_info& memory_info, resource_view_type view_type)
+{
+    GFX_ASSERT(texture, "Resource must not be nullptr.");
+    GFX_ASSERT(texture->get_backing_memory<void*>() == nullptr, "Texture has already been allocated.");
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    if( !tex->is_swapchain_image() )
-    {
-        deviceState.allocator.free_image({ tex->get_impl<VkImage>(), tex->get_backing_memory<VmaAllocation>() });
-    }
+    vma_allocation<VkImage> allocation = 
+        get_impl<device_state_vk>().allocator.allocate_image(memory_info, *static_cast<texture_info*>(texture), memory_info.get_format(), view_type);
+    static_cast<resource*>(texture)->initialise(memory_info, allocation.allocation);
+    return allocation.resource;
 #endif
+}
+
+void VK_DEVICE::free_texture(texture* texture)
+{
+    VmaAllocation allocation = texture->get_backing_memory<VmaAllocation>();
+    VkImage vk_image = texture->get_impl<VkImage>();
+    if( texture->is_swapchain_owned() || (allocation == nullptr && vk_image == VK_NULL_HANDLE) )
+        return;
+
+    GFX_ASSERT(!texture->is_mapped(), "Texture should be unmapped before freeing.");
+
+#ifdef GFX_VK_VMA_ALLOCATOR
+    get_impl<device_state_vk>().allocator.free_image({ vk_image, allocation });
+#endif
+}
+
+void* VK_DEVICE::create_texture_view_impl(texture_view* view, texture_view_range range)
+{
+    VkImageView pImpl{ VK_NULL_HANDLE };
+    VkImageViewCreateInfo createInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    createInfo.image = view->get_resource()->get_impl<VkImage>();
+    createInfo.format = converters::get_format_vk(view->get_format());
+    createInfo.viewType = converters::get_view_type_vk(view->get_type());
+
+    VkImageSubresourceRange subresource{ };
+    subresource.aspectMask = has_depth_channel(view->get_format())
+        ? VK_IMAGE_ASPECT_DEPTH_BIT
+        : VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource.baseMipLevel = u32_cast(range.base_mip);
+    subresource.baseArrayLayer = u32_cast(range.base_layer);
+    subresource.levelCount = u32_cast(range.mip_count);
+    subresource.layerCount = u32_cast(range.layer_count);
+
+    createInfo.subresourceRange = subresource;
+
+    VkResult result = vkCreateImageView(get_impl<device_state_vk>().device, &createInfo, nullptr, &pImpl);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create Image View.");
+        break;
+    }
+
+    return pImpl;
+}
+
+void VK_DEVICE::destroy_texture_view_impl(texture_view* view)
+{
+    vkDestroyImageView(get_impl<device_state_vk>().device, view->get_impl<VkImageView>(), nullptr);
 }
 
 fence VK_DEVICE::create_fence(bool signaled)
@@ -565,45 +536,22 @@ void VK_DEVICE::free_command_list(command_list* list)
     get_impl<device_state_vk>().command_pool.free_buffer_by_flags(list->get_impl<VkCommandBuffer>(), flags);
 }
 
-static void vulkan_map_impl(memory_info* mem_info, device_state_vk& device_state)
+u8* VK_DEVICE::map_resource(const resource* resource)
 {
-
-    GFX_ASSERT(!mem_info->persistant, "Persistant memory cannot be manually mapped.");
-    GFX_ASSERT(static_cast<memory_type>(mem_info->type) == memory_type::cpu_accessible, "Cannot map non-cpu accessible memory.");
+    GFX_ASSERT(resource->get_memory_type() == MEMORY_TYPE_CPU_VISIBLE, "Cannot map non-cpu accessible memory.");
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    mem_info->mapped = device_state.allocator.map((VmaAllocation)mem_info->backing_memory);
+    return get_impl<device_state_vk>().allocator.map(resource->get_backing_memory<VmaAllocation>());
 #endif
 }
 
-static void vulkan_unmap_impl(memory_info* mem_info, device_state_vk& device_state)
+void VK_DEVICE::unmap_resource(const resource* resource)
 {
-    GFX_ASSERT(!mem_info->persistant, "Persistant memory cannot be manually unmapped.");
-    GFX_ASSERT(!mem_info->mapped, "Buffer that isn't mapped cannot be unmapped.");
+    GFX_ASSERT(resource->is_mapped(), "Resource that isn't mapped cannot be unmapped.");
 
 #ifdef GFX_VK_VMA_ALLOCATOR
-    device_state.allocator.unmap((VmaAllocation)mem_info->backing_memory);
+    get_impl<device_state_vk>().allocator.unmap(resource->get_backing_memory<VmaAllocation>());
 #endif
-}
-
-void VK_DEVICE::map(buffer* buf)
-{
-    vulkan_map_impl(&buf->get_memory_info(), get_impl<device_state_vk>());
-}
-
-void VK_DEVICE::map(texture* tex)
-{
-    vulkan_map_impl(&tex->get_memory_info(), get_impl<device_state_vk>());
-}
-
-void VK_DEVICE::unmap(buffer* buf)
-{
-    vulkan_unmap_impl(&buf->get_memory_info(), get_impl<device_state_vk>());
-}
-
-void VK_DEVICE::unmap(texture* tex)
-{
-    vulkan_unmap_impl(&tex->get_memory_info(), get_impl<device_state_vk>());
 }
 
 void VK_DEVICE::wait_idle()
@@ -852,19 +800,19 @@ void VK_DEVICE::bind_index_buffer(command_list* list, buffer* buffer, index_buff
     vkCmdBindIndexBuffer(list->get_impl<VkCommandBuffer>(), buffer->get_impl<VkBuffer>(), offset, type);
 }
 
-void VK_DEVICE::begin_rendering(command_list* list, texture** color_outputs, u32 color_output_count, texture* depth_output)
+void VK_DEVICE::begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output)
 {
     GFX_ASSERT(color_outputs || depth_output, "Atleast one color output or a depth output must be provided.");
 
     VkRect2D renderSize{ };
     if( color_output_count > 0 )
     {
-        texture* first = color_outputs[0];
-        renderSize = { 0, 0, first->get_width(), first->get_height() };
+        texture_view* first = color_outputs[0];
+        renderSize = { 0, 0, first->get_resource()->get_width(), first->get_resource()->get_height() };
     }
     else
     {
-        renderSize = { 0, 0, depth_output->get_width(), depth_output->get_height() };
+        renderSize = { 0, 0, depth_output->get_resource()->get_width(), depth_output->get_resource()->get_height() };
     }
 
     VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
@@ -875,10 +823,10 @@ void VK_DEVICE::begin_rendering(command_list* list, texture** color_outputs, u32
 
     for( u32 idx = 0; idx < color_output_count; idx++ )
     {
-        texture* output = color_outputs[idx];
+        texture_view* output = color_outputs[idx];
         VkRenderingAttachmentInfo attachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        attachment.imageView = output->get_view_impl<VkImageView>();
-        attachment.imageLayout = converters::get_layout_vk(output->get_layout());
+        attachment.imageView = output->get_impl<VkImageView>();
+        attachment.imageLayout = converters::get_layout_vk(output->get_resource()->get_layout());
         attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -887,8 +835,8 @@ void VK_DEVICE::begin_rendering(command_list* list, texture** color_outputs, u32
 
     if( depth_output )
     {
-        depthAttachment.imageView = depth_output->get_view_impl<VkImageView>();
-        depthAttachment.imageLayout = converters::get_layout_vk(depth_output->get_layout());
+        depthAttachment.imageView = depth_output->get_impl<VkImageView>();
+        depthAttachment.imageLayout = converters::get_layout_vk(depth_output->get_resource()->get_layout());
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -908,13 +856,13 @@ void VK_DEVICE::end_rendering(command_list* list)
     vkCmdEndRendering(list->get_impl<VkCommandBuffer>());
 }
 
-void VK_DEVICE::begin_pass(command_list* list, program* program, u64 passIdx, texture* output)
+void VK_DEVICE::begin_pass(command_list* list, program* program, u64 passIdx, texture_view* output)
 {
     VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
     
     VkRenderingAttachmentInfo attachmentInfo{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    attachmentInfo.imageView = output->get_view_impl<VkImageView>();
-    attachmentInfo.imageLayout = converters::get_layout_vk(output->get_layout());
+    attachmentInfo.imageView = output->get_impl<VkImageView>();
+    attachmentInfo.imageLayout = converters::get_layout_vk(output->get_resource()->get_layout());
     attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -950,17 +898,13 @@ void VK_DEVICE::end_pass(command_list* list)
 void VK_DEVICE::copy_texture_to_texture(command_list* list, texture* src, texture* dst)
 {
     VkImageSubresourceLayers srcSubresource{ };
-    srcSubresource.aspectMask = cdt::is_depth_format(src->get_format())
-        ? VK_IMAGE_ASPECT_DEPTH_BIT
-        : VK_IMAGE_ASPECT_COLOR_BIT;
+    srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // TODO
     srcSubresource.mipLevel = 0;
     srcSubresource.baseArrayLayer = 0;
     srcSubresource.layerCount = 1;
 
     VkImageSubresourceLayers dstSubresource{ };
-    dstSubresource.aspectMask = cdt::is_depth_format(dst->get_format())
-        ? VK_IMAGE_ASPECT_DEPTH_BIT
-        : VK_IMAGE_ASPECT_COLOR_BIT;
+    dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // TODO
     dstSubresource.mipLevel = 0;
     dstSubresource.baseArrayLayer = 0;
     dstSubresource.layerCount = 1;
@@ -985,9 +929,7 @@ void VK_DEVICE::copy_texture_to_texture(command_list* list, texture* src, textur
 void VK_DEVICE::copy_buffer_to_texture(command_list* list, buffer* src, texture* dst)
 {
     VkImageSubresourceLayers dstSubresource{ };
-    dstSubresource.aspectMask = cdt::is_depth_format(dst->get_format())
-        ? VK_IMAGE_ASPECT_DEPTH_BIT
-        : VK_IMAGE_ASPECT_COLOR_BIT;
+    dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // TODO
     dstSubresource.mipLevel = 0;
     dstSubresource.baseArrayLayer = 0;
     dstSubresource.layerCount = 1;

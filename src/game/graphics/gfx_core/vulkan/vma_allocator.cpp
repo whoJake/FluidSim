@@ -51,22 +51,22 @@ void vma_allocator::unmap(VmaAllocation allocation)
     vmaUnmapMemory(m_handle, allocation);
 }
 
-vma_allocation<VkBuffer> vma_allocator::allocate_buffer(u64 size, buffer_usage usage, memory_type mem_type)
+vma_allocation<VkBuffer> vma_allocator::allocate_buffer(const memory_info& memory_info)
 {
     vma_allocation<VkBuffer> retval{ };
 
     VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-    bufferInfo.size = size;
-    bufferInfo.usage = static_cast<VkBufferUsageFlags>(usage);
+    bufferInfo.size = memory_info.get_size();
+    bufferInfo.usage = static_cast<VkBufferUsageFlags>(memory_info.get_buffer_usage());
 
     VmaAllocationCreateInfo allocInfo{ };
-    switch( mem_type )
+    switch( memory_info.get_memory_type() )
     {
-    case memory_type::cpu_accessible:
+    case MEMORY_TYPE_CPU_VISIBLE:
         allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
         break;
-    case memory_type::gpu_only:
+    case MEMORY_TYPE_GPU_ONLY:
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
         break;
     }
@@ -88,14 +88,14 @@ void vma_allocator::free_buffer(vma_allocation<VkBuffer> allocation)
     vmaDestroyBuffer(m_handle, allocation.resource, allocation.allocation);
 }
 
-vma_allocation<VkImage> vma_allocator::allocate_image(texture_info info, resource_view_type type, memory_type mem_type)
+vma_allocation<VkImage> vma_allocator::allocate_image(const memory_info& memory_info, const texture_info& texture_info, format format, resource_view_type view_type)
 {
     vma_allocation<VkImage> retval{ };
 
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-    imageInfo.extent = { info.get_width(), info.get_height(), info.get_depth() };
-    imageInfo.usage = static_cast<VkImageUsageFlags>(info.get_usage());
-    imageInfo.format = converters::get_format_cdt_vk(info.get_format());
+    imageInfo.extent = { texture_info.get_width(), texture_info.get_height(), texture_info.get_depth() };
+    imageInfo.usage = static_cast<VkImageUsageFlags>(memory_info.get_texture_usage());
+    imageInfo.format = converters::get_format_vk(format);
 
     // TODO
     imageInfo.mipLevels = 1;
@@ -108,32 +108,32 @@ vma_allocation<VkImage> vma_allocator::allocate_image(texture_info info, resourc
     imageInfo.arrayLayers = 1;
     // imageInfo.initialLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
-    switch( type )
+    switch( view_type )
     {
-    case resource_view_type::texture_1d:
+    case RESOURCE_VIEW_1D:
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         break;
-    case resource_view_type::texture_2d:
+    case RESOURCE_VIEW_2D:
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         break;
-    case resource_view_type::texture_3d:
+    case RESOURCE_VIEW_3D:
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
         break;
-    case resource_view_type::cube:
+    case RESOURCE_VIEW_CUBE:
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent.depth = 0;
-        imageInfo.arrayLayers = info.get_depth();
+        imageInfo.arrayLayers = texture_info.get_layer_count();
         break;
     }
 
     VmaAllocationCreateInfo allocInfo{ };
-    switch( mem_type )
+    switch( memory_info.get_memory_type() )
     {
-    case memory_type::cpu_accessible:
+    case MEMORY_TYPE_CPU_VISIBLE:
         allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
         break;
-    case memory_type::gpu_only:
+    case MEMORY_TYPE_GPU_ONLY:
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
         break;
     }

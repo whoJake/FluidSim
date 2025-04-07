@@ -82,6 +82,39 @@ constexpr u32 get_format_stride(format format)
     }
 }
 
+constexpr bool has_depth_channel(format format)
+{
+    switch( format )
+    {
+    case format::UNDEFINED:
+    default:
+        return false;
+    }
+}
+
+enum memory_type : u32
+{
+    MEMORY_TYPE_CPU_VISIBLE = 0,
+    MEMORY_TYPE_GPU_ONLY,
+};
+
+enum resource_type : u32
+{
+    RESOURCE_TYPE_BUFFER = 0,
+    RESOURCE_TYPE_TEXTURE,
+
+};
+
+enum resource_view_type : u32
+{
+    RESOURCE_VIEW_1D = 0,
+    RESOURCE_VIEW_2D,
+    RESOURCE_VIEW_3D,
+    RESOURCE_VIEW_CUBE,
+
+    RESOURCE_VIEW_INHERIT,
+};
+
 // Ordered to match VkBufferUsageFlagBits
 enum buffer_usage_bits : u32
 {
@@ -96,7 +129,7 @@ enum buffer_usage_bits : u32
     BUFFER_USAGE_INDIRECT = 1 << 8,
 };
 
-using buffer_usage = std::underlying_type_t<buffer_usage_bits>;
+using buffer_usage_flags = std::underlying_type_t<buffer_usage_bits>;
 
 enum class index_buffer_type : u32
 {
@@ -117,7 +150,7 @@ enum class vertex_type : u32
 };
 
 // Ordered to match VkImageUsageFlagBits
-enum texture_usage_flag_bits : u32
+enum texture_usage_bits : u32
 {
     TEXTURE_USAGE_TRANSFER_SRC = 1 << 0,
     TEXTURE_USAGE_TRANSFER_DST = 1 << 1,
@@ -125,9 +158,11 @@ enum texture_usage_flag_bits : u32
     TEXTURE_USAGE_STORAGE = 1 << 3,
     TEXTURE_USAGE_COLOR = 1 << 4,
     TEXTURE_USAGE_DEPTH_STENCIL = 1 << 5,
+
+    TEXTURE_USAGE_SWAPCHAIN_OWNED = 1 << 30,
 };
 
-using texture_usage_flags = std::underlying_type_t<texture_usage_flag_bits>;
+using texture_usage_flags = std::underlying_type_t<texture_usage_bits>;
 
 enum class texture_layout : u32
 {

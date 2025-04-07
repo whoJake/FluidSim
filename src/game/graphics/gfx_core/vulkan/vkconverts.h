@@ -189,13 +189,13 @@ constexpr VkImageViewType get_view_type_vk(resource_view_type type, bool isArray
 {
     switch( type )
     {
-    case resource_view_type::texture_1d:
+    case RESOURCE_VIEW_1D:
         return isArray ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
-    case resource_view_type::texture_2d:
+    case RESOURCE_VIEW_2D:
         return isArray ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
-    case resource_view_type::texture_3d:
+    case RESOURCE_VIEW_3D:
         return VK_IMAGE_VIEW_TYPE_3D;
-    case resource_view_type::cube:
+    case RESOURCE_VIEW_CUBE:
         return isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
     default:
         return VK_IMAGE_VIEW_TYPE_2D;
