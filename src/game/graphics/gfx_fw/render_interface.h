@@ -28,8 +28,8 @@ public:
 
     static void set_target_swapchain_extents(u32 width, u32 height);
 
-    static u32 get_active_frame_index();
-    static u32 get_last_active_frame_index();
+    static u32 get_current_frame_index();
+    static u32 get_last_frame_index();
 
     // Do the names really have to be this bad?
     static texture_view* get_swapchain_texture_view(u32 index);
@@ -47,9 +47,9 @@ private:
     static u32 sm_swapchainWidth, sm_swapchainHeight;
 
     static bool sm_isFrameActive;
-    static u32 sm_frameIndex;
+    static u32 sm_currentFrameIndex;
     static u32 sm_frameCount;
-    static u32 sm_activeFrameIndex;
+    static u32 sm_activeSwapchainImageIndex;
 
     static texture_view sm_swapchainViews[GFX_RI_FRAMES_IN_FLIGHT];
 

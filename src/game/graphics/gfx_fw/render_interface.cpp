@@ -36,7 +36,7 @@ void render_interface::initialise()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            present_mode::PRESENT_MODE_IMMEDIATE);
+            PRESENT_MODE_IMMEDIATE);
 
     sm_swapchainWidth = swapchain_width;
     sm_swapchainHeight = swapchain_height;
@@ -86,13 +86,13 @@ void render_interface::begin_frame()
     handle_swapchain_changes();
 
     // Wait on the frame if its not done.
-    sm_frameInFlightFences[sm_frameIndex].wait();
-    sm_frameInFlightFences[sm_frameIndex].reset();
+    sm_frameInFlightFences[sm_currentFrameIndex].wait();
+    sm_frameInFlightFences[sm_currentFrameIndex].reset();
 
     // Bad?
-    sm_currentSwapchainReadyDep = &sm_swapchainImageReady[sm_frameIndex];
+    sm_currentSwapchainReadyDep = &sm_swapchainImageReady[sm_currentFrameIndex];
     swapchain_acquire_result acquire_result =
-        GFX_CALL(acquire_next_image, &sm_swapchain, &sm_activeFrameIndex, sm_currentSwapchainReadyDep, nullptr);
+        GFX_CALL(acquire_next_image, &sm_swapchain, &sm_activeSwapchainImageIndex, sm_currentSwapchainReadyDep, nullptr);
 
     if( acquire_result != SWAPCHAIN_ACQUIRE_SUCCESS )
     {
@@ -101,30 +101,37 @@ void render_interface::begin_frame()
         if( swapchain_changed )
         {
             acquire_result =
-                GFX_CALL(acquire_next_image, &sm_swapchain, &sm_activeFrameIndex, sm_currentSwapchainReadyDep, nullptr);
+                GFX_CALL(acquire_next_image, &sm_swapchain, &sm_activeSwapchainImageIndex, sm_currentSwapchainReadyDep, nullptr);
         }
     }
 
     GFX_ASSERT(acquire_result == SWAPCHAIN_ACQUIRE_SUCCESS, "Failed to begin frame as next swapchain image could not be acquired.");
     sm_isFrameActive = true;
 
-    sm_commandLists[sm_frameIndex].reset(false);
-    sm_commandLists[sm_frameIndex].begin();
+    sm_commandLists[sm_currentFrameIndex].reset(false);
+    sm_commandLists[sm_currentFrameIndex].begin();
 }
 
 void render_interface::end_frame()
 {
     GFX_ASSERT(sm_isFrameActive, "Frame must be active in order to end it.");
-    graphics_command_list* list = &sm_commandLists[sm_frameIndex];
-    list->end();
-    list->set_signal_dependency(&sm_frameInFlightDeps[sm_frameIndex]);
-    list->add_wait_dependency(sm_currentSwapchainReadyDep);
-    list->submit(&sm_frameInFlightFences[sm_frameIndex]);
 
-    sm_swapchain.present(sm_activeFrameIndex, { &sm_frameInFlightDeps[sm_frameIndex] });
+    graphics_command_list* list = &sm_commandLists[sm_currentFrameIndex];
+
+    texture* swapchain_texture = sm_swapchain.get_image(sm_activeSwapchainImageIndex);
+
+    if( swapchain_texture->get_layout() != TEXTURE_LAYOUT_PRESENT )
+        list->texture_memory_barrier(swapchain_texture, TEXTURE_LAYOUT_PRESENT);
+
+    list->end();
+    list->set_signal_dependency(&sm_frameInFlightDeps[sm_currentFrameIndex]);
+    list->add_wait_dependency(sm_currentSwapchainReadyDep);
+    list->submit(&sm_frameInFlightFences[sm_currentFrameIndex]);
+
+    sm_swapchain.present(sm_activeSwapchainImageIndex, { &sm_frameInFlightDeps[sm_currentFrameIndex] });
 
     sm_frameCount++;
-    sm_frameIndex = (sm_frameIndex + 1) % GFX_RI_FRAMES_IN_FLIGHT;
+    sm_currentFrameIndex = (sm_currentFrameIndex + 1) % GFX_RI_FRAMES_IN_FLIGHT;
     sm_isFrameActive = false;
     sm_currentSwapchainReadyDep = nullptr;
 
@@ -142,7 +149,7 @@ void render_interface::recreate_swapchain()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            present_mode::PRESENT_MODE_IMMEDIATE);
+            PRESENT_MODE_IMMEDIATE);
 
     // Destroy all our old texture views and create the new ones.
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
@@ -165,14 +172,14 @@ void render_interface::set_target_swapchain_extents(u32 width, u32 height)
     sm_targetSwapchainHeight = height;
 }
 
-u32 render_interface::get_active_frame_index()
+u32 render_interface::get_current_frame_index()
 {
-    return sm_activeFrameIndex;
+    return sm_currentFrameIndex;
 }
 
-u32 render_interface::get_last_active_frame_index()
+u32 render_interface::get_last_frame_index()
 {
-    return (get_active_frame_index() + GFX_RI_FRAMES_AHEAD) % GFX_RI_FRAMES_IN_FLIGHT;
+    return (get_current_frame_index() + GFX_RI_FRAMES_AHEAD) % GFX_RI_FRAMES_IN_FLIGHT;
 }
 
 texture_view* render_interface::get_swapchain_texture_view(u32 index)
@@ -183,7 +190,7 @@ texture_view* render_interface::get_swapchain_texture_view(u32 index)
 
 texture_view* render_interface::get_active_swapchain_texture_view()
 {
-    return get_swapchain_texture_view(get_active_frame_index());
+    return get_swapchain_texture_view(sm_activeSwapchainImageIndex);
 }
 
 dependency* render_interface::get_swapchain_image_ready_dependency(u32 index)
@@ -194,12 +201,12 @@ dependency* render_interface::get_swapchain_image_ready_dependency(u32 index)
 
 dependency* render_interface::get_current_swapchain_image_ready_dependency()
 {
-    return get_swapchain_image_ready_dependency(get_active_frame_index());
+    return get_swapchain_image_ready_dependency(get_current_frame_index());
 }
 
 graphics_command_list* render_interface::get_list_temp()
 {
-    return &sm_commandLists[sm_frameIndex];
+    return &sm_commandLists[sm_currentFrameIndex];
 }
 
 bool render_interface::handle_swapchain_changes(bool force_recreate)
@@ -230,9 +237,9 @@ u32 render_interface::sm_swapchainWidth = 0;
 u32 render_interface::sm_swapchainHeight = 0;
 
 bool render_interface::sm_isFrameActive = false;
-u32 render_interface::sm_frameIndex = 0;
+u32 render_interface::sm_currentFrameIndex = 0;
 u32 render_interface::sm_frameCount = 0;
-u32 render_interface::sm_activeFrameIndex = 0;
+u32 render_interface::sm_activeSwapchainImageIndex = 0;
 
 texture_view render_interface::sm_swapchainViews[GFX_RI_FRAMES_IN_FLIGHT] = { };
 
