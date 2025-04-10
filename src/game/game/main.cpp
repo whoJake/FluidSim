@@ -120,18 +120,17 @@ void debug_image()
 
 		gfx::fw::render_interface::begin_frame();
 		// buffer -> image
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&img_texture, gfx::TEXTURE_LAYOUT_TRANSFER_DST);
 		gfx::fw::render_interface::get_list_temp()->copy_to_texture(&buffer, &img_texture);
 
 		//// image -> swapchain
 		gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
 		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&img_texture, gfx::TEXTURE_LAYOUT_TRANSFER_SRC);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::TEXTURE_LAYOUT_TRANSFER_DST);
 		gfx::fw::render_interface::get_list_temp()->copy_to_texture(&img_texture, swap_tex);
 
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		gfx::fw::render_interface::end_frame();
 	}
 
@@ -154,13 +153,12 @@ void debug_triangle()
 		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
 		// swapchain -> renderable
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
 		gfx::driver::get_device()->begin_pass(gfx::fw::render_interface::get_list_temp(), prog, 0, swap_view);
 		gfx::fw::render_interface::get_list_temp()->draw(3);
 		gfx::driver::get_device()->end_pass(gfx::fw::render_interface::get_list_temp());
 
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		gfx::fw::render_interface::end_frame();
 	}
 
@@ -236,7 +234,6 @@ void debug_vbuffer_start()
 	// swapchain -> present
 	gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
 	gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
-	gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 
 	gfx::fw::render_interface::end_frame();
 }
@@ -285,7 +282,7 @@ void debug_vbuffer_work()
 		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
 		// swapchain -> renderable
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
 		gfx::driver::get_device()->begin_pass(gfx::fw::render_interface::get_list_temp(), prog, 0, swap_view);
 		gfx::fw::render_interface::get_list_temp()->bind_vertex_buffers(bufs.data(), u32_cast(bufs.size()));
@@ -294,8 +291,6 @@ void debug_vbuffer_work()
 		gfx::fw::render_interface::get_list_temp()->draw(3, 1, offset);
 		gfx::driver::get_device()->end_pass(gfx::fw::render_interface::get_list_temp());
 
-		// swapchain -> present
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
 		flip = !flip;
 	}
 

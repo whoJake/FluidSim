@@ -164,7 +164,7 @@ enum texture_usage_bits : u32
 
 using texture_usage_flags = std::underlying_type_t<texture_usage_bits>;
 
-enum class texture_layout : u32
+enum texture_layout : u32
 {
     // Matches VkImageLayout
     TEXTURE_LAYOUT_UNDEFINED = 0,
@@ -184,7 +184,7 @@ enum class texture_layout : u32
 };
 
 // Ordered to match VkPresentModeKHR
-enum class present_mode
+enum present_mode
 {
     PRESENT_MODE_IMMEDIATE = 0,
     PRESENT_MODE_MAILBOX,
