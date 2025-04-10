@@ -28,6 +28,8 @@
 namespace gfx
 {
 
+struct screen_capabilities;
+
 class device
 {
 public:
@@ -44,13 +46,15 @@ public:
 #ifdef GFX_EXT_SWAPCHAIN
     GFX_DEVICE_FUNC(surface_capabilities get_surface_capabilities() const);
 
-    GFX_DEVICE_FUNC(swapchain create_swapchain(swapchain* previous, texture_info info, texture_usage_flags usage, format format, present_mode present_mode));
+    GFX_DEVICE_FUNC(swapchain create_swapchain(swapchain* previous, texture_info info, u32 image_count, texture_usage_flags usage, format format, present_mode present_mode));
     GFX_DEVICE_FUNC(void free_swapchain(swapchain* swapchain));
 
-    GFX_DEVICE_FUNC(u32 acquire_next_image(swapchain* sc, fence* fence, u64 timeout = u64_max));
+    GFX_DEVICE_FUNC(swapchain_acquire_result acquire_next_image(swapchain* sc, u32* aquired_index, dependency* signal_dep, fence* signal_fence, u64 timeout = u64_max));
 
     GFX_DEVICE_FUNC(void present(swapchain* sc, u32 image_index, const std::vector<dependency*>& dependencies = { }));
 #endif // GFX_EXT_SWAPCHAIN
+
+    GFX_DEVICE_FUNC(screen_capabilities query_screen_capabilities() const);
 
     GFX_DEVICE_FUNC(std::vector<gpu> enumerate_gpus() const);
 
@@ -111,7 +115,7 @@ public:
     GFX_DEVICE_FUNC(void copy_texture_to_texture(command_list* list, texture* src, texture* dst));
     GFX_DEVICE_FUNC(void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst));
     GFX_DEVICE_FUNC(void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst));
-    GFX_DEVICE_FUNC(void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout));
+    GFX_DEVICE_FUNC(void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout, pipeline_stage_flag_bits src_stage = PIPELINE_STAGE_BOTTOM_OF_PIPE, pipeline_stage_flag_bits dst_stage = PIPELINE_STAGE_TOP_OF_PIPE));
 
     // GFX_DEVICE_FUNC(void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index), void* pAux = nullptr));
 

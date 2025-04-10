@@ -238,19 +238,22 @@ surface_capabilities VK_DEVICE::get_surface_capabilities() const
     };
 }
 
-swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, texture_usage_flags usage, format format, present_mode present)
+swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, u32 image_count, texture_usage_flags usage, format format, present_mode present)
 {
     VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     createInfo.oldSwapchain = previous
         ? previous->get_impl<VkSwapchainKHR>()
         : VK_NULL_HANDLE;
-    createInfo.minImageCount = 2;
+    createInfo.minImageCount = image_count;
     createInfo.imageExtent = { info.get_width(), info.get_height() };
 
     // TODO
     createInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
     createInfo.imageFormat = converters::get_format_vk(format);
     createInfo.imageArrayLayers = info.get_depth();
+
+    if( usage & TEXTURE_USAGE_SWAPCHAIN_OWNED )
+        usage ^= TEXTURE_USAGE_SWAPCHAIN_OWNED;
     createInfo.imageUsage = (VkImageUsageFlags)usage;
 
     //TODO
@@ -296,16 +299,38 @@ swapchain VK_DEVICE::create_swapchain(swapchain* previous, texture_info info, te
 
 void VK_DEVICE::free_swapchain(swapchain* swapchain)
 {
-    u32 imageCount = swapchain->get_image_count();
-    for( u32 idx = 0; idx < imageCount; idx++ )
-    {
-        free_texture(swapchain->get_image(idx));
-        free_fence(swapchain->get_fence(idx));
-    }
-
     vkDestroySwapchainKHR(get_impl<device_state_vk>().device, swapchain->get_impl<VkSwapchainKHR>(), nullptr);
 }
 #endif // GFX_EXT_SWAPCHAIN
+
+screen_capabilities VK_DEVICE::query_screen_capabilities() const
+{
+    if( !m_surface )
+        return { };
+
+    VkSurfaceCapabilitiesKHR surfaceCapabilities{ };
+    VkResult result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_gpu.get_impl<VkPhysicalDevice>(), (VkSurfaceKHR)m_surface, &surfaceCapabilities);
+    
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to query for surface capabilities.");
+    }
+
+    return screen_capabilities
+    {
+        .min_image_count = surfaceCapabilities.minImageCount,
+        .max_image_count = surfaceCapabilities.maxImageCount,
+        .current_width = surfaceCapabilities.currentExtent.width,
+        .current_height = surfaceCapabilities.currentExtent.height,
+        .min_width = surfaceCapabilities.minImageExtent.width,
+        .min_height = surfaceCapabilities.minImageExtent.height,
+        .max_width = surfaceCapabilities.maxImageExtent.width,
+        .max_height = surfaceCapabilities.maxImageExtent.height
+    };
+}
 
 std::vector<gpu> VK_DEVICE::enumerate_gpus() const
 {
@@ -408,7 +433,7 @@ void* VK_DEVICE::allocate_texture(texture* texture, const memory_info& memory_in
 
 #ifdef GFX_VK_VMA_ALLOCATOR
     vma_allocation<VkImage> allocation = 
-        get_impl<device_state_vk>().allocator.allocate_image(memory_info, *static_cast<texture_info*>(texture), memory_info.get_format(), view_type);
+        get_impl<device_state_vk>().allocator.allocate_image(memory_info, *static_cast<texture_info*>(texture), memory_info.get_format(), view_type, texture->get_layout());
     static_cast<resource*>(texture)->initialise(memory_info, allocation.allocation);
     return allocation.resource;
 #endif
@@ -560,26 +585,37 @@ void VK_DEVICE::wait_idle()
 }
 
 #ifdef GFX_EXT_SWAPCHAIN
-u32 VK_DEVICE::acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout)
+swapchain_acquire_result VK_DEVICE::acquire_next_image(swapchain* swapchain, u32* aquired_index, dependency* signal_dep, fence* signal_fence, u64 timeout)
 {
+    GFX_ASSERT(signal_dep || signal_fence, "Must provide either a dependency or a fence to signal.");
+
     VkFence signalFence{ VK_NULL_HANDLE };
-    if( fence )
+    if( signal_fence )
     {
-        signalFence = fence->get_impl<VkFence>();
+        signalFence = signal_fence->get_impl<VkFence>();
     }
 
-    u32 retval{ 0 };
-    VkResult result = vkAcquireNextImageKHR(get_impl<device_state_vk>().device, swapchain->get_impl<VkSwapchainKHR>(), timeout, VK_NULL_HANDLE, signalFence, &retval);
+    VkSemaphore signalSemaphore{ VK_NULL_HANDLE };
+    if( signal_dep )
+    {
+        signalSemaphore = signal_dep->get_impl<VkSemaphore>();
+    }
+
+    VkResult result = vkAcquireNextImageKHR(get_impl<device_state_vk>().device, swapchain->get_impl<VkSwapchainKHR>(), timeout, signalSemaphore, signalFence, aquired_index);
 
     switch( result )
     {
     case VK_SUCCESS:
-        break;
+        return SWAPCHAIN_ACQUIRE_SUCCESS;
+    case VK_SUBOPTIMAL_KHR:
+        return SWAPCHAIN_ACQUIRE_SUBOPTIMAL;
+    case VK_ERROR_OUT_OF_DATE_KHR:
+        return SWAPCHAIN_ACQUIRE_OUT_OF_DATE;
     default:
         GFX_ASSERT(false, "Failed to acquire next swapchain image.");
     }
 
-    return retval;
+    return SWAPCHAIN_ACQUIRE_OUT_OF_DATE;
 }
 
 void VK_DEVICE::present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies)
@@ -688,12 +724,14 @@ static void vulkan_submit_impl(VkQueue queue, const std::vector<command_list*>& 
     info.pCommandBuffers = buffers.data();
     std::vector<VkSemaphore> waitSema;
     std::vector<VkSemaphore> signalSema;
+    std::vector<VkPipelineStageFlags> waitSemaStages; // TODO?
 
     for( const command_list* list : lists )
     {
         for( const dependency* dep : list->get_wait_dependencies() )
         {
             waitSema.push_back(dep->get_impl<VkSemaphore>());
+            waitSemaStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
         }
 
         if( list->get_signal_dependency() != nullptr )
@@ -706,6 +744,8 @@ static void vulkan_submit_impl(VkQueue queue, const std::vector<command_list*>& 
     info.pWaitSemaphores = waitSema.data();
     info.signalSemaphoreCount = u32_cast(signalSema.size());
     info.pSignalSemaphores = signalSema.data();
+
+    info.pWaitDstStageMask = waitSemaStages.data(); // TODO
 
     VkFence submitFence = fence
         ? fence->get_impl<VkFence>()
@@ -963,7 +1003,7 @@ void VK_DEVICE::copy_buffer_to_buffer(command_list* list, buffer* src, buffer* d
         &region);
 }
 
-void VK_DEVICE::texture_barrier(command_list* list, texture* texture, texture_layout dst_layout)
+void VK_DEVICE::texture_barrier(command_list* list, texture* texture, texture_layout dst_layout, pipeline_stage_flag_bits src_stage, pipeline_stage_flag_bits dst_stage)
 {
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     // Aspect masks?
@@ -980,11 +1020,10 @@ void VK_DEVICE::texture_barrier(command_list* list, texture* texture, texture_la
         .layerCount = 1,
     };
 
-    // Pipeline stage? Comes into synchronization problem.
     vkCmdPipelineBarrier(
         list->get_impl<VkCommandBuffer>(),
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        converters::get_pipeline_stage_flags_vk(src_stage),
+        converters::get_pipeline_stage_flags_vk(dst_stage),
         0,
         0,
         nullptr,

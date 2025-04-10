@@ -34,7 +34,7 @@ public:
     vma_allocation<VkBuffer> allocate_buffer(const memory_info& memory_info);
     void free_buffer(vma_allocation<VkBuffer> allocation);
 
-    vma_allocation<VkImage> allocate_image(const memory_info& memory_info, const texture_info& info, format format, resource_view_type view_type);
+    vma_allocation<VkImage> allocate_image(const memory_info& memory_info, const texture_info& info, format format, resource_view_type view_type, texture_layout initial_layout);
     void free_image(vma_allocation<VkImage> allocation);
 private:
     VmaAllocator m_handle;

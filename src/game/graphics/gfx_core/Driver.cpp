@@ -138,7 +138,7 @@ void driver::create_texture(texture* texture, const memory_info& memory_info, re
 void driver::create_swapchain_texture(texture* texture, const memory_info& memory_info, void* pImpl)
 {
     texture->m_pImpl = pImpl;
-    texture->m_layout = texture_layout::TEXTURE_LAYOUT_PRESENT;
+    texture->m_layout = texture_layout::TEXTURE_LAYOUT_UNDEFINED;
     texture->m_isSwapchain = true;
 }
 
@@ -182,6 +182,16 @@ void driver::fill_initial_data(resource* resource, const memory_info& memory_inf
     map_resource(resource);
     memcpy(resource->get_mapped(), memory_info.get_initial_data(), memory_info.get_size());
     unmap_resource(resource);
+}
+
+void driver::wait_idle()
+{
+    GFX_CALL(wait_idle);
+}
+
+screen_capabilities driver::query_screen_capabilities()
+{
+    return GFX_CALL(query_screen_capabilities);
 }
 
 device* driver::get_device()

@@ -224,6 +224,38 @@ constexpr texture_layout get_layout_vk(VkImageLayout layout)
     }
 }
 
+constexpr VkPipelineStageFlags get_pipeline_stage_flags_vk(pipeline_stage_flags flags)
+{
+    VkPipelineStageFlags retval{ };
+
+    if( flags & PIPELINE_STAGE_TOP_OF_PIPE )
+        retval |= VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    if( flags & PIPELINE_STAGE_DRAW_INDIRECT )
+        retval |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+    if( flags & PIPELINE_STAGE_VERTEX_INPUT )
+        retval |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+    if( flags & PIPELINE_STAGE_VERTEX_SHADER )
+        retval |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+    if( flags & PIPELINE_STAGE_GEOMETRY_SHADER )
+        retval |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+    if( flags & PIPELINE_STAGE_FRAGMENT_SHADER )
+        retval |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    if( flags & PIPELINE_STAGE_EARLY_FRAGMENT_TESTS )
+        retval |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    if( flags & PIPELINE_STAGE_LATE_FRAGMENT_TESTS )
+        retval |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    if( flags & PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT )
+        retval |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if( flags & PIPELINE_STAGE_TRANSFER )
+        retval |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+    if( flags & PIPELINE_STAGE_COMPUTE_SHADER )
+        retval |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    if( flags & PIPELINE_STAGE_BOTTOM_OF_PIPE )
+        retval |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+    return retval;
+}
+
 constexpr VkShaderStageFlags get_shader_stage_flags_vk(shader_stage_flags flags)
 {
     VkShaderStageFlags retval{ };

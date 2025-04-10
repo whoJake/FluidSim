@@ -194,6 +194,23 @@ enum class present_mode
     PRESENT_MODE_COUNT,
 };
 
+enum pipeline_stage_flag_bits : u32
+{
+    PIPELINE_STAGE_TOP_OF_PIPE = 1 << 0,
+    PIPELINE_STAGE_DRAW_INDIRECT = 1 << 1,
+    PIPELINE_STAGE_VERTEX_INPUT = 1 << 2,
+    PIPELINE_STAGE_VERTEX_SHADER = 1 << 3,
+    PIPELINE_STAGE_GEOMETRY_SHADER = 1 << 4,
+    PIPELINE_STAGE_FRAGMENT_SHADER = 1 << 5,
+    PIPELINE_STAGE_EARLY_FRAGMENT_TESTS = 1 << 6,
+    PIPELINE_STAGE_LATE_FRAGMENT_TESTS = 1 << 7,
+    PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT = 1 << 8,
+    PIPELINE_STAGE_TRANSFER = 1 << 9,
+    PIPELINE_STAGE_COMPUTE_SHADER = 1 << 10,
+    PIPELINE_STAGE_BOTTOM_OF_PIPE = 1 << 11,
+};
+using pipeline_stage_flags = std::underlying_type_t<pipeline_stage_flag_bits>;
+
 enum shader_stage_flag_bits : u32
 {
     SHADER_STAGE_VERTEX = 1 << 0,
@@ -239,6 +256,13 @@ enum descriptor_table_type : u32
     DESCRIPTOR_TABLE_PER_DRAW,
 
     DESCRIPTOR_TABLE_COUNT,
+};
+
+enum swapchain_acquire_result : u32
+{
+    SWAPCHAIN_ACQUIRE_SUCCESS = 0,
+    SWAPCHAIN_ACQUIRE_SUBOPTIMAL,
+    SWAPCHAIN_ACQUIRE_OUT_OF_DATE,
 };
 
 /// <summary>

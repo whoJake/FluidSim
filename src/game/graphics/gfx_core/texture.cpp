@@ -42,10 +42,9 @@ u16 texture_info::get_mip_count() const
     return m_mipCount;
 }
 
-texture texture::create(const memory_info& memory_info, const texture_info& texture_info, texture_layout layout, resource_view_type view_type)
+texture texture::create(const memory_info& memory_info, const texture_info& texture_info, resource_view_type view_type)
 {
     texture retval(texture_info);
-    retval.m_layout = layout;
     retval.m_isSwapchain = memory_info.get_texture_usage() & TEXTURE_USAGE_SWAPCHAIN_OWNED;
     driver::create_texture(&retval, memory_info, view_type);
     return retval;

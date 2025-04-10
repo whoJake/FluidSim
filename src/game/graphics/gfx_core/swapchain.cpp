@@ -10,24 +10,11 @@ void swapchain::initialise(std::vector<texture>&& textures, void* pImpl)
 {
     m_images = std::move(textures);
     m_pImpl = pImpl;
-
-    m_fenceIndex = 0;
-    m_aquireFences.reserve(m_images.size());
-
-    for( u64 i = 0; i < m_images.size(); i++ )
-    {
-        m_aquireFences.push_back(GFX_CALL(create_fence, false));
-    }
 }
 
-u32 swapchain::aquire_next_image(u64 timeout)
+swapchain_acquire_result swapchain::acquire_next_image(u32* aquired_index, dependency* signal_dep, u64 timeout)
 {
-    return GFX_CALL(acquire_next_image, this, &m_aquireFences[m_fenceIndex++], timeout);
-}
-
-void swapchain::wait_on_present(u32 index, u64 timeout)
-{
-    m_aquireFences[index].wait();
+    return GFX_CALL(acquire_next_image, this, aquired_index, signal_dep, nullptr, timeout);
 }
 
 void swapchain::present(u32 index, const std::vector<dependency*>& dependencies)
@@ -48,11 +35,6 @@ const texture* swapchain::get_image(u32 index) const
 texture* swapchain::get_image(u32 index)
 {
     return &m_images[index];
-}
-
-fence* swapchain::get_fence(u32 index)
-{
-    return &m_aquireFences[index];
 }
 
 } // gfx

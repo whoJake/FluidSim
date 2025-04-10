@@ -35,7 +35,7 @@ public:
     
     // Commands
     // void texture_memory_barrier(texture* texture, texture_layout dst_layout, memory_access_mask dst_access);
-    void texture_memory_barrier(texture* texture, texture_layout dst_layout);
+    void texture_memory_barrier(texture* texture, texture_layout dst_layout, pipeline_stage_flag_bits src_stage = PIPELINE_STAGE_BOTTOM_OF_PIPE, pipeline_stage_flag_bits dst_stage = PIPELINE_STAGE_TOP_OF_PIPE);
     // Pipeline barriers here !
 
     void add_wait_dependency(dependency* dep);

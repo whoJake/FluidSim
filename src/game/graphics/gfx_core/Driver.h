@@ -20,6 +20,8 @@ enum driver_mode
 #endif
 };
 
+struct screen_capabilities;
+
 class driver
 {
 public:
@@ -43,12 +45,24 @@ public:
     static void map_resource(resource* resource);
     static void unmap_resource(resource* resource);
 
+    static void wait_idle();
+    static screen_capabilities query_screen_capabilities();
+
     static device* get_device();
 private:
     static void fill_initial_data(resource* resource, const memory_info& memory_info);
 private:
     static device* sm_device;
     static std::function<u32(const std::vector<gpu>&)> sm_gpuSelector;
+};
+
+struct screen_capabilities
+{
+    u32 min_image_count;
+    u32 max_image_count;
+    u32 current_width, current_height;
+    u32 min_width, min_height;
+    u32 max_width, max_height;
 };
 
 } // gfx

@@ -8,6 +8,7 @@
 #include "gfx_core/driver.h"
 #include "memory_zone.h"
 #include "gfx_fw/program_mgr.h"
+#include "gfx_fw/render_interface.h"
 
 #include "cdt/loaders/image_loaders.h"
 #include "gfx_core/vulkan/vkdefines.h"
@@ -18,9 +19,16 @@
 
 static u64 g_frame = 0;
 
-void debug_image(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex);
-void debug_triangle(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex);
-void debug_vbuffer(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex);
+void debug_image();
+void debug_triangle();
+
+void debug_vbuffer_start();
+void debug_vbuffer_work();
+void debug_vbuffer_end();
+
+static bool g_updatefps = true;
+static u64 g_fps = 0;
+static f32 g_percWaiting = 0.f;
 
 int main(int argc, const char* argv[])
 {
@@ -58,59 +66,29 @@ int main(int argc, const char* argv[])
 	gfx::device* device = gfx::driver::get_device();
 	gfx::driver::get_device()->dump_info();
 
-	gfx::surface_capabilities sc = device->get_surface_capabilities();
+	gfx::fw::render_interface::set_target_swapchain_extents(1430, 1079);
+	gfx::fw::render_interface::initialise();
 
-	gfx::texture_info tInfo{ };
-	tInfo.initialise(
-		window.get_extent().x,
-		window.get_extent().y,
-		1,
-		1);
+	// debug_image();
+	// debug_triangle();
+	debug_vbuffer_start();
 
-	gfx::swapchain swapchain = device->create_swapchain(
-		nullptr,
-		tInfo,
-		gfx::TEXTURE_USAGE_TRANSFER_SRC | gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_COLOR,
-		gfx::format::R8G8B8A8_SRGB,
-		gfx::present_mode::PRESENT_MODE_IMMEDIATE);
-
-	u32 swapIndex = swapchain.aquire_next_image();
-	gfx::texture* swapTexture = swapchain.get_image(swapIndex);
-	gfx::texture_view swap_view = swapTexture->create_view(gfx::format::R8G8B8A8_SRGB, gfx::RESOURCE_VIEW_2D, { 0, 1, 0, 1 });
-	swapchain.wait_on_present(swapIndex);
-
-	debug_image(&swap_view, &swapchain, swapIndex);
-	// debug_triangle(&swap_view, &swapchain, swapIndex);
-	// debug_vbuffer(&swap_view, &swapchain, swapIndex);
-
-	sys::moment lastupdate = sys::now();
-	u64 frames = 0;
-
-	const double seconds_per_update = 1.0;
 	while( !window.get_should_close() )
 	{
 		window.process_events();
-		++frames;
+		debug_vbuffer_work();
 
-		sys::moment now = sys::now();
-		u64 us_since_last_update = std::chrono::floor<std::chrono::microseconds>(now - lastupdate).count();
-
-		if( us_since_last_update * 0.000001 > seconds_per_update  )
+		if( g_updatefps  )
 		{
-			lastupdate = now;
-
-			u64 fps = u64_cast(frames / seconds_per_update);
-			frames = 0;
-
-			window.set_title(std::format("{} fps", fps));
+			window.set_title(std::format("{} fps | {} waiting", g_fps, g_percWaiting));
+			g_updatefps = false;
 		}
-
-		g_frame++;
 	}
 
-	gfx::texture_view::destroy(&swap_view);
-	device->free_swapchain(&swapchain);
+	debug_vbuffer_end();
+	gfx::driver::wait_idle();
 
+	gfx::fw::render_interface::shutdown();
 	gfx::program_mgr::shutdown();
 	gfx::driver::shutdown();
 	
@@ -119,11 +97,9 @@ int main(int argc, const char* argv[])
 	return 0;
 }
 
-void debug_image(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex)
+void debug_image()
 {
-	gfx::device* device = gfx::driver::get_device();
-
-	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("assets/images/new_years.png");
+	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("C:/Users/Jake/Documents/Projects/UnnamedGame/src/game/game/assets/images/new_years.png");
 
 	gfx::memory_info buf_mem_info = gfx::memory_info::create_as_buffer(img->data(), img->get_size(), gfx::format::R8G8B8A8_SRGB, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::TEXTURE_USAGE_TRANSFER_SRC);
 	gfx::buffer buffer = gfx::buffer::create(buf_mem_info);
@@ -136,91 +112,69 @@ void debug_image(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 sw
 		gfx::format::R8G8B8A8_SRGB,
 		gfx::MEMORY_TYPE_GPU_ONLY,
 		gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_TRANSFER_SRC);
-	gfx::texture img_texture = gfx::texture::create(tex_mem_info, tex_info, gfx::texture_layout::TEXTURE_LAYOUT_GENERAL, gfx::RESOURCE_VIEW_2D);
 
-	gfx::fence swapFence = device->create_fence(false);
-	gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
-
-	gfx::graphics_command_list swapList = device->allocate_graphics_command_list();
+	gfx::texture img_texture = gfx::texture::create(tex_mem_info, tex_info, gfx::RESOURCE_VIEW_2D);
 
 	{
-		sys::timer<sys::microseconds> time("Record command list. {}");
-		swapList.set_signal_dependency(&dep);
-		swapList.begin();
+		sys::timer<sys::microseconds> time("Debug image record frame time. {}");
 
+		gfx::fw::render_interface::begin_frame();
 		// buffer -> image
-		swapList.texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
-		swapList.copy_to_texture(&buffer, &img_texture);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		gfx::fw::render_interface::get_list_temp()->copy_to_texture(&buffer, &img_texture);
 
 		//// image -> swapchain
+		gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
 		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
-		swapList.texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
-		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
-		swapList.copy_to_texture(&img_texture, swap_tex);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&img_texture, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_SRC);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_TRANSFER_DST);
+		gfx::fw::render_interface::get_list_temp()->copy_to_texture(&img_texture, swap_tex);
 
-		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
-		swapList.end();
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+		gfx::fw::render_interface::end_frame();
 	}
 
-	swapList.submit(&swapFence);
-
-	swapchain->present(swapIndex, { &dep });
-
-	swapFence.wait();
-	device->free_command_list(&swapList);
-	device->free_dependency(&dep);
-	device->free_fence(&swapFence);
-
-	device->free_texture(&img_texture);
-	device->free_buffer(&buffer);
+	gfx::driver::wait_idle();
+	gfx::texture::destroy(&img_texture);
+	gfx::buffer::destroy(&buffer);
 }
 
-void debug_triangle(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex)
+void debug_triangle()
 {
-	gfx::device* device = gfx::driver::get_device();
-
 	gfx::program_mgr::load("triangle.fxcp");
 	gfx::program* prog = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("triangle")));
 
-	gfx::fence swapFence = device->create_fence(false);
-	gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
-
-	gfx::graphics_command_list swapList = device->allocate_graphics_command_list();
 	{
-		sys::timer<sys::microseconds> time("Record command list. {}");
-		swapList.set_signal_dependency(&dep);
+		sys::timer<sys::microseconds> time("Debug triangle record frame time. {}");
+		
+		gfx::fw::render_interface::begin_frame();
 
-		swapList.begin();
+		gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
 		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
 		// swapchain -> renderable
-		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
-		gfx::driver::get_device()->begin_pass(&swapList, prog, 0, swap_view);
-		swapList.draw(3);
-		gfx::driver::get_device()->end_pass(&swapList);
+		gfx::driver::get_device()->begin_pass(gfx::fw::render_interface::get_list_temp(), prog, 0, swap_view);
+		gfx::fw::render_interface::get_list_temp()->draw(3);
+		gfx::driver::get_device()->end_pass(gfx::fw::render_interface::get_list_temp());
 
-		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
-		swapList.end();
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+		gfx::fw::render_interface::end_frame();
 	}
-	swapList.submit(&swapFence);
 
-	swapchain->present(swapIndex, { &dep });
-
-	swapFence.wait();
-	device->free_command_list(&swapList);
-	device->free_dependency(&dep);
-	device->free_fence(&swapFence);
+	gfx::driver::wait_idle();
 }
 
-void debug_vbuffer(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 swapIndex)
-{
-	gfx::device* device = gfx::driver::get_device();
-	gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
+static gfx::buffer sbuf = { };
+static gfx::buffer vbuf = { };
+static gfx::program* prog = nullptr;
 
+void debug_vbuffer_start()
+{
 	gfx::program_mgr::load("basic_vertex_2d.fxcp");
-	gfx::program* prog = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("basic_vertex_2d")));
+	prog = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("basic_vertex_2d")));
 
 	struct position
 	{
@@ -264,7 +218,7 @@ void debug_vbuffer(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 
 		gfx::MEMORY_TYPE_CPU_VISIBLE,
 		gfx::BUFFER_USAGE_TRANSFER_SRC);
 
-	gfx::buffer staging_buf = gfx::buffer::create(staging_mem_info);
+	sbuf = gfx::buffer::create(staging_mem_info);
 
 	gfx::memory_info buf_mem_info = gfx::memory_info::create_as_buffer(
 		sizeof(vertex) * 6,
@@ -272,45 +226,85 @@ void debug_vbuffer(gfx::texture_view* swap_view, gfx::swapchain* swapchain, u32 
 		gfx::MEMORY_TYPE_GPU_ONLY,
 		gfx::BUFFER_USAGE_TRANSFER_DST | gfx::BUFFER_USAGE_VERTEX);
 
-	gfx::buffer buffer = gfx::buffer::create(buf_mem_info);
+	vbuf = gfx::buffer::create(buf_mem_info);
 
-	gfx::fence swapFence = device->create_fence(false);
-	gfx::dependency dep = device->create_dependency("SUBMIT_DEPENDENCY");
+	gfx::fw::render_interface::begin_frame();
 
-	gfx::graphics_command_list swapList = device->allocate_graphics_command_list();
+	// staging -> local
+	gfx::fw::render_interface::get_list_temp()->copy_buffer(&sbuf, &vbuf);
+
+	// swapchain -> present
+	gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
+	gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
+	gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+
+	gfx::fw::render_interface::end_frame();
+}
+
+void debug_vbuffer_work()
+{
+	// Calculate FPS stuff
 	{
-		sys::timer<sys::microseconds> time("Record command list. {}");
-		swapList.set_signal_dependency(&dep);
+		static sys::moment lastupdate = sys::now();
+		static u64 frames = 0;
 
-		swapList.begin();
+		const double seconds_per_update = 1.0;
+
+		++frames;
+		{
+			sys::moment now = sys::now();
+			u64 us_since_last_update = std::chrono::floor<std::chrono::microseconds>(now - lastupdate).count();
+
+			if( us_since_last_update * 0.000001 > seconds_per_update )
+			{
+				lastupdate = now;
+
+				g_fps = u64_cast(frames / seconds_per_update);
+				frames = 0;
+				g_updatefps = true;
+			}
+		}
+	}
+
+	static bool flip = false;
+
+	double frame_time = 1.f / g_fps;
+	frame_time *= 1000; // ms
+	frame_time *= 1000; // us
+
+	sys::moment before = sys::now();
+	gfx::fw::render_interface::begin_frame();
+	u64 us_since_before = std::chrono::floor<std::chrono::microseconds>(sys::now() - before).count();
+	g_percWaiting = (us_since_before / frame_time) * 100.f;
+
+	{
+		std::vector<gfx::buffer*> bufs;
+		bufs.push_back(&vbuf);
+
+		gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
+		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
 		// swapchain -> renderable
-		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
-		// staging -> local
-		swapList.copy_buffer(&staging_buf, &buffer);
+		gfx::driver::get_device()->begin_pass(gfx::fw::render_interface::get_list_temp(), prog, 0, swap_view);
+		gfx::fw::render_interface::get_list_temp()->bind_vertex_buffers(bufs.data(), u32_cast(bufs.size()));
 
-		std::vector<gfx::buffer*> bufs;
-		bufs.push_back(&buffer);
+		u32 offset = flip ? 0 : 3;
+		gfx::fw::render_interface::get_list_temp()->draw(3, 1, offset);
+		gfx::driver::get_device()->end_pass(gfx::fw::render_interface::get_list_temp());
 
-		device->begin_pass(&swapList, prog, 0, swap_view);
-
-		swapList.bind_vertex_buffers(bufs.data(), u32_cast(bufs.size()));
-		swapList.draw(6);
-		device->end_pass(&swapList);
-
-		swapList.texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
-		swapList.end();
+		// swapchain -> present
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::texture_layout::TEXTURE_LAYOUT_PRESENT);
+		flip = !flip;
 	}
-	swapList.submit(&swapFence);
 
-	swapchain->present(swapIndex, { &dep });
+	gfx::fw::render_interface::end_frame();
+}
 
-	swapFence.wait();
-	device->free_command_list(&swapList);
-	device->free_dependency(&dep);
-	device->free_fence(&swapFence);
-
-	device->free_buffer(&staging_buf);
-	device->free_buffer(&buffer);
+void debug_vbuffer_end()
+{
+	gfx::driver::wait_idle();
+	gfx::driver::destroy_buffer(&sbuf);
+	gfx::driver::destroy_buffer(&vbuf);
 }

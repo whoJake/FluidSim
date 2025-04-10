@@ -80,9 +80,9 @@ void command_list::submit(fence* fence)
     }
 }
 
-void command_list::texture_memory_barrier(texture* texture, texture_layout dst_layout)
+void command_list::texture_memory_barrier(texture* texture, texture_layout dst_layout, pipeline_stage_flag_bits src_stage, pipeline_stage_flag_bits dst_stage)
 {
-    GFX_CALL(texture_barrier, this, texture, dst_layout);
+    GFX_CALL(texture_barrier, this, texture, dst_layout, src_stage, dst_stage);
     texture->m_layout = dst_layout;
 }
 
@@ -93,7 +93,7 @@ const command_list_type& command_list::get_type() const
 
 void command_list::add_wait_dependency(dependency* dep)
 {
-    if( std::find(m_waitDependencies.begin(), m_waitDependencies.end(), dep) != m_waitDependencies.end() )
+    if( std::find(m_waitDependencies.begin(), m_waitDependencies.end(), dep) == m_waitDependencies.end() )
     {
         m_waitDependencies.push_back(dep);
     }

@@ -88,7 +88,7 @@ void vma_allocator::free_buffer(vma_allocation<VkBuffer> allocation)
     vmaDestroyBuffer(m_handle, allocation.resource, allocation.allocation);
 }
 
-vma_allocation<VkImage> vma_allocator::allocate_image(const memory_info& memory_info, const texture_info& texture_info, format format, resource_view_type view_type)
+vma_allocation<VkImage> vma_allocator::allocate_image(const memory_info& memory_info, const texture_info& texture_info, format format, resource_view_type view_type, texture_layout initial_layout)
 {
     vma_allocation<VkImage> retval{ };
 
@@ -106,7 +106,7 @@ vma_allocation<VkImage> vma_allocator::allocate_image(const memory_info& memory_
     imageInfo.queueFamilyIndexCount = 0;
     imageInfo.pQueueFamilyIndices = 0;
     imageInfo.arrayLayers = 1;
-    // imageInfo.initialLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    imageInfo.initialLayout = converters::get_layout_vk(initial_layout);
 
     switch( view_type )
     {

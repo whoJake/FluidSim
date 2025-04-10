@@ -48,6 +48,8 @@ texture_view texture_view::create(const texture* texture, texture_view_range ran
 
 void texture_view::destroy(texture_view* texture_view)
 {
+    if( !texture_view->get_impl<void*>() )
+        return;
     driver::destroy_texture_view(texture_view);
 }
 

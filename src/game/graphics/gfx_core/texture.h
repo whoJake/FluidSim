@@ -40,7 +40,7 @@ public:
     friend class command_list; // TODO TEMPORARY
 
     // Texture requires view_type to create.. ):
-    static texture create(const memory_info& memory_info, const texture_info& texture_info, texture_layout layout, resource_view_type view_type);
+    static texture create(const memory_info& memory_info, const texture_info& texture_info, resource_view_type view_type);
     static void destroy(texture* texture);
 
     texture() = default;

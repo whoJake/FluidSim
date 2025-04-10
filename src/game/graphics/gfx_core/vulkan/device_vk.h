@@ -44,13 +44,15 @@ public:
 #ifdef GFX_EXT_SWAPCHAIN
     surface_capabilities get_surface_capabilities() const override;
 
-    swapchain create_swapchain(swapchain* previous, texture_info info, texture_usage_flags usage, format format, present_mode present_mode) override;
+    swapchain create_swapchain(swapchain* previous, texture_info info, u32 image_count, texture_usage_flags usage, format format, present_mode present_mode) override;
     void free_swapchain(swapchain* swapchain) override;
 
-    u32 acquire_next_image(swapchain* swapchain, fence* fence, u64 timeout = u64_max) override;
+    swapchain_acquire_result acquire_next_image(swapchain* swapchain, u32* aquired_index, dependency* signal_dep, fence* signal_fence, u64 timeout = u64_max) override;
 
     void present(swapchain* swapchain, u32 image_index, const std::vector<dependency*>& dependencies) override;
 #endif // GFX_EXT_SWAPCHAIN
+
+    screen_capabilities query_screen_capabilities() const override;
 
     std::vector<gpu> enumerate_gpus() const override;
 
@@ -114,7 +116,7 @@ public:
     void copy_texture_to_texture(command_list* list, texture* src, texture* dst) override;
     void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst) override;
     void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst) override;
-    void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout) override;
+    void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout, pipeline_stage_flag_bits src_stage, pipeline_stage_flag_bits dst_stage) override;
 
     // Shader things
     void* create_shader_pass_impl(program* program, u64 passIdx) override;
