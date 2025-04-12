@@ -49,6 +49,16 @@ int main(int argc, const char* argv[])
 		true,
 		{ 0, 0 },
 		{ 1430, 1079 },
+		fw::cursor_lock_state::none,
+		[](Event& e)
+		{
+			EventDispatcher dispatch(e);
+			dispatch.dispatch<WindowResizeEvent>([](WindowResizeEvent& ev) -> bool
+				{
+					gfx::fw::render_interface::set_target_swapchain_extents(ev.get_width(), ev.get_height());
+					return true;
+				});
+		}
 	};
 
 	fw::window_glfw window(state);

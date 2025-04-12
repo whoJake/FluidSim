@@ -25,6 +25,9 @@ public:
     swapchain() = default;
     ~swapchain() = default;
 
+    DEFAULT_COPY(swapchain);
+    DEFAULT_MOVE(swapchain);
+
     void initialise(std::vector<texture>&& textures, void* pImpl);
 
     swapchain_acquire_result acquire_next_image(u32* aquired_index, dependency* signal_dep, u64 timeout = u64_max);

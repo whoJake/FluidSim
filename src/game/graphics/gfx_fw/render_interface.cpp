@@ -36,7 +36,7 @@ void render_interface::initialise()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            PRESENT_MODE_IMMEDIATE);
+            PRESENT_MODE_FIFO);
 
     sm_swapchainWidth = swapchain_width;
     sm_swapchainHeight = swapchain_height;
@@ -79,18 +79,26 @@ void render_interface::shutdown()
     GFX_CALL(free_swapchain, &sm_swapchain);
 }
 
-void render_interface::begin_frame()
+void render_interface::wait_for_frame()
+{
+    sm_frameInFlightFences[sm_currentFrameIndex].wait();
+    sm_frameInFlightFences[sm_currentFrameIndex].reset();
+}
+
+void render_interface::begin_frame(bool wait_frame)
 {
     GFX_ASSERT(!sm_isFrameActive, "A previous frame is still active, cannot start another.");
 
-    handle_swapchain_changes();
+    if( wait_frame )
+    {
+        wait_for_frame();
+    }
 
-    // Wait on the frame if its not done.
-    sm_frameInFlightFences[sm_currentFrameIndex].wait();
-    sm_frameInFlightFences[sm_currentFrameIndex].reset();
+    handle_swapchain_changes();
 
     // Bad?
     sm_currentSwapchainReadyDep = &sm_swapchainImageReady[sm_currentFrameIndex];
+
     swapchain_acquire_result acquire_result =
         GFX_CALL(acquire_next_image, &sm_swapchain, &sm_activeSwapchainImageIndex, sm_currentSwapchainReadyDep, nullptr);
 
@@ -149,21 +157,21 @@ void render_interface::recreate_swapchain()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            PRESENT_MODE_IMMEDIATE);
+            PRESENT_MODE_FIFO);
 
     // Destroy all our old texture views and create the new ones.
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
     {
         texture_view::destroy(&sm_swapchainViews[idx]);
 
-        sm_swapchainViews[idx] = sm_swapchain.get_image(idx)->create_view(
+        sm_swapchainViews[idx] = new_swapchain.get_image(idx)->create_view(
             format::R8G8B8A8_SRGB,
             RESOURCE_VIEW_2D,
             { 0, 1, 0, 1 });
     }
 
     GFX_CALL(free_swapchain, &sm_swapchain);
-    sm_swapchain = new_swapchain;
+    sm_swapchain = std::move(new_swapchain);
 }
 
 void render_interface::set_target_swapchain_extents(u32 width, u32 height)

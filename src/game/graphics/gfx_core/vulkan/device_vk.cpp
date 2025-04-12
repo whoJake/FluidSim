@@ -906,25 +906,31 @@ void VK_DEVICE::begin_pass(command_list* list, program* program, u64 passIdx, te
     attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
+    u32 u32_width = output->get_resource()->get_width();
+    u32 u32_height = output->get_resource()->get_height();
+
     renderInfo.colorAttachmentCount = 1;
     renderInfo.pColorAttachments = &attachmentInfo;
-    renderInfo.renderArea = { 0, 0, 1430, 1079 };
+    renderInfo.renderArea = { 0, 0, u32_width, u32_height };
     renderInfo.layerCount = 1;
 
     vkCmdBeginRendering(list->get_impl<VkCommandBuffer>(), &renderInfo);
     vkCmdBindPipeline(list->get_impl<VkCommandBuffer>(), VK_PIPELINE_BIND_POINT_GRAPHICS, program->get_pass(passIdx).get_impl<VkPipeline>());
 
+    f32 f32_width = f32_cast(u32_width);
+    f32 f32_height = f32_cast(u32_height);
+
     VkViewport viewport{ };
     viewport.x = 0.f;
-    viewport.y = f32_cast(1079);
-    viewport.width = f32_cast(1430);
-    viewport.height = -f32_cast(1079);
+    viewport.y = f32_height;
+    viewport.width = f32_width;
+    viewport.height = -f32_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{ };
     scissor.offset = { 0, 0 };
-    scissor.extent = { 1430, 1079 };
+    scissor.extent = { u32_width, u32_height };
 
     vkCmdSetViewport(list->get_impl<VkCommandBuffer>(), 0, 1, &viewport);
     vkCmdSetScissor(list->get_impl<VkCommandBuffer>(), 0, 1, &scissor);

@@ -11,7 +11,7 @@ namespace gfx
 namespace fw
 {
 
-#define GFX_RI_FRAMES_AHEAD 1
+#define GFX_RI_FRAMES_AHEAD 2
 #define GFX_RI_FRAMES_IN_FLIGHT GFX_RI_FRAMES_AHEAD + 1
 
 class render_interface
@@ -23,7 +23,8 @@ public:
     static void reset_device();
     static void recreate_swapchain();
 
-    static void begin_frame();
+    static void wait_for_frame();
+    static void begin_frame(bool wait_frame = true);
     static void end_frame();
 
     static void set_target_swapchain_extents(u32 width, u32 height);
