@@ -44,6 +44,9 @@ public:
 
     ~basic_hash_string();
 
+    DEFAULT_MOVE(basic_hash_string);
+    DEFAULT_COPY(basic_hash_string);
+
     _underlying get_hash() const;
     std::string_view try_get_str() const;
 

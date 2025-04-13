@@ -490,6 +490,42 @@ void VK_DEVICE::destroy_texture_view_impl(texture_view* view)
     vkDestroyImageView(get_impl<device_state_vk>().device, view->get_impl<VkImageView>(), nullptr);
 }
 
+void* VK_DEVICE::create_texture_sampler_impl(texture_sampler* sampler)
+{
+    // TODO all of this shit, should be pretty easy to add into texture_sampler.
+    VkSamplerCreateInfo createInfo{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    createInfo.magFilter = VK_FILTER_NEAREST;
+    createInfo.minFilter = VK_FILTER_NEAREST;
+    createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.anisotropyEnable = VK_FALSE;
+    createInfo.maxAnisotropy = 0;
+    createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    createInfo.unnormalizedCoordinates = VK_FALSE;
+    createInfo.compareEnable = VK_FALSE;
+    createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    
+    VkSampler retval{ VK_NULL_HANDLE };
+    VkResult result = vkCreateSampler(get_impl<device_state_vk>().device, &createInfo, nullptr, &retval);
+    switch( result )
+    {
+    case VK_SUCCESS:
+        break;
+    default:
+        GFX_ASSERT(false, "Failed to create sampler.");
+        break;
+    }
+
+    return retval;
+}
+
+void VK_DEVICE::destroy_texture_sampler_impl(texture_sampler* sampler)
+{
+    vkDestroySampler(get_impl<device_state_vk>().device, sampler->get_impl<VkSampler>(), nullptr);
+}
+
 fence VK_DEVICE::create_fence(bool signaled)
 {
     VkFence impl{ VK_NULL_HANDLE };
@@ -840,6 +876,35 @@ void VK_DEVICE::bind_index_buffer(command_list* list, buffer* buffer, index_buff
     vkCmdBindIndexBuffer(list->get_impl<VkCommandBuffer>(), buffer->get_impl<VkBuffer>(), offset, type);
 }
 
+void VK_DEVICE::bind_descriptor_tables(command_list* list, pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type)
+{
+    GFX_ASSERT(table_count > 0, "Must provide atleast one descriptor table.");
+
+    // TODO multiple descriptor tables.
+    u32 set_index = u32_cast(type);
+    std::vector<VkDescriptorSet> descriptor_sets;
+    for( u32 idx = 0; idx < table_count; idx++ )
+    {
+        descriptor_sets.push_back(pTables[idx]->get_impl<VkDescriptorSet>());
+    }
+
+    VkPipelineBindPoint bindPoint{ };
+    switch( list->get_type() )
+    {
+    case command_list_type::graphics:
+        bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        break;
+    case command_list_type::compute:
+        bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+        break;
+    default:
+        GFX_ASSERT(false, "Command list type does not support this command.");
+        break;
+    }
+
+    vkCmdBindDescriptorSets(list->get_impl<VkCommandBuffer>(), bindPoint, pass->get_layout_impl<VkPipelineLayout>(), set_index, table_count, descriptor_sets.data(), 0, nullptr);
+}
+
 void VK_DEVICE::begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output)
 {
     GFX_ASSERT(color_outputs || depth_output, "Atleast one color output or a depth output must be provided.");
@@ -922,9 +987,9 @@ void VK_DEVICE::begin_pass(command_list* list, program* program, u64 passIdx, te
 
     VkViewport viewport{ };
     viewport.x = 0.f;
-    viewport.y = f32_height;
+    viewport.y = 0.f;
     viewport.width = f32_width;
-    viewport.height = -f32_height;
+    viewport.height = f32_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -1500,7 +1565,29 @@ void VK_DEVICE::write_descriptor_table(descriptor_table* table)
 
     if( imageViews.size() != 0 )
     {
+        std::vector<VkDescriptorImageInfo> imageInfos;
+        for( void* pSampler : imageViews )
+        {
+            // TODO assume sampler, lol.
+            texture_sampler* sampler = reinterpret_cast<texture_sampler*>(pSampler);
 
+            VkDescriptorImageInfo info{ };
+            info.imageLayout = converters::get_layout_vk(sampler->get_texture_view()->get_resource()->get_layout());
+            info.imageView = sampler->get_texture_view()->get_impl<VkImageView>();
+            info.sampler = sampler->get_impl<VkSampler>();
+
+            imageInfos.push_back(info);
+        }
+
+        VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.dstSet = table->get_impl<VkDescriptorSet>();
+        write.dstBinding = u32_cast(bufferViews.size());
+        write.dstArrayElement = 0;
+        write.descriptorCount = u32_cast(imageInfos.size());
+        write.pImageInfo = imageInfos.data();
+
+        vkUpdateDescriptorSets(get_impl<device_state_vk>().device, 1, &write, 0, nullptr);
     }
 }
 

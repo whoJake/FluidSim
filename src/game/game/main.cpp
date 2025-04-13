@@ -9,6 +9,7 @@
 #include "memory_zone.h"
 #include "gfx_fw/program_mgr.h"
 #include "gfx_fw/render_interface.h"
+#include "gfx_core/descriptor_pool.h"
 
 #include "cdt/loaders/image_loaders.h"
 #include "gfx_core/vulkan/vkdefines.h"
@@ -25,6 +26,8 @@ void debug_triangle();
 void debug_vbuffer_start();
 void debug_vbuffer_work();
 void debug_vbuffer_end();
+
+void debug_ui();
 
 static bool g_updatefps = true;
 
@@ -84,7 +87,8 @@ int main(int argc, const char* argv[])
 
 	// debug_image();
 	// debug_triangle();
-	debug_vbuffer_start();
+	// debug_vbuffer_start();
+	debug_ui();
 	f32 frame_time_ms = 0.f;
 	f32 wait_frame_ms = 0.f;
 
@@ -98,14 +102,14 @@ int main(int argc, const char* argv[])
 		window.process_events();
 		{
 			sys::moment before_wait = sys::now();
-			gfx::fw::render_interface::wait_for_frame();
+			// gfx::fw::render_interface::wait_for_frame();
 			sys::moment after_wait = sys::now();
 			
 			f32 cur_wait_frame_ms = std::chrono::floor<std::chrono::microseconds>(after_wait - before_wait).count() / 1000.f;
 			wait_frame_ms = (wait_frame_ms * 0.9f) + (cur_wait_frame_ms * 0.1f);
 		}
 
-		debug_vbuffer_work();
+		// debug_vbuffer_work();
 
 		sys::moment after_frame = sys::now();
 
@@ -120,7 +124,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	debug_vbuffer_end();
+	// debug_vbuffer_end();
 	gfx::driver::wait_idle();
 
 	gfx::fw::render_interface::shutdown();
@@ -265,11 +269,6 @@ void debug_vbuffer_start()
 
 	// staging -> local
 	gfx::fw::render_interface::get_list_temp()->copy_buffer(&sbuf, &vbuf);
-
-	// swapchain -> present
-	gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
-	gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
-
 	gfx::fw::render_interface::end_frame();
 }
 
@@ -305,4 +304,114 @@ void debug_vbuffer_end()
 	gfx::driver::wait_idle();
 	gfx::driver::destroy_buffer(&sbuf);
 	gfx::driver::destroy_buffer(&vbuf);
+}
+
+void debug_ui()
+{
+	struct position
+	{
+		f32 x, y;
+	};
+
+	struct uv
+	{
+		f32 u, v;
+	};
+
+	struct vertex
+	{
+		position pos;
+		uv texcoord0;
+	};
+
+	vertex vertices[] =
+	{
+		{ { -0.75f, -0.75f }, { -0.2f, -0.2f } }, // 0
+		{ {  0.75f, -0.75f }, { 1.2f, -0.2f } }, // 1
+		{ { -0.75f,  0.75f }, { -0.2f, 1.2f } }, // 2
+
+		{ {  0.75f,  0.75f }, { 1.2f, 1.2f } }, // 3
+		{ { -0.75f,  0.75f }, { -0.2f, 1.2f } }, // 4
+		{ {  0.75f, -0.75f }, { 1.2f, -0.2f } }, // 5
+	};
+
+	gfx::memory_info staging_mem_info = gfx::memory_info::create_as_buffer(
+		vertices,
+		sizeof(vertex) * 6,
+		gfx::format::UNDEFINED,
+		gfx::MEMORY_TYPE_CPU_VISIBLE,
+		gfx::BUFFER_USAGE_TRANSFER_SRC);
+
+	gfx::buffer staging_buffer = gfx::buffer::create(staging_mem_info);
+
+	gfx::memory_info buf_mem_info = gfx::memory_info::create_as_buffer(
+		sizeof(vertex) * 6,
+		gfx::format::UNDEFINED,
+		gfx::MEMORY_TYPE_GPU_ONLY,
+		gfx::BUFFER_USAGE_TRANSFER_DST | gfx::BUFFER_USAGE_VERTEX);
+
+	gfx::buffer vertex_buffer = gfx::buffer::create(buf_mem_info);
+
+	std::unique_ptr<cdt::image> image = cdt::image_loader::from_file_png("C:/Users/Jake/Documents/Projects/UnnamedGame/src/game/game/assets/images/new_years.png");
+
+	gfx::memory_info image_buf_mem_info = gfx::memory_info::create_as_buffer(image->data(), image->get_size(), gfx::format::R8G8B8A8_SRGB, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::TEXTURE_USAGE_TRANSFER_SRC);
+	gfx::buffer image_staging_buffer = gfx::buffer::create(image_buf_mem_info);
+
+	gfx::texture_info texture_info{ };
+	texture_info.initialise(image->get_metadata().width, image->get_metadata().height, image->get_metadata().depth, 1);
+
+	gfx::memory_info tex_mem_info = gfx::memory_info::create_as_texture(
+		texture_info.get_width() * texture_info.get_height() * texture_info.get_depth(),
+		gfx::format::R8G8B8A8_SRGB,
+		gfx::MEMORY_TYPE_GPU_ONLY,
+		gfx::TEXTURE_USAGE_TRANSFER_DST | gfx::TEXTURE_USAGE_SAMPLED);
+
+	gfx::texture image_texture = gfx::texture::create(tex_mem_info, texture_info, gfx::RESOURCE_VIEW_2D);
+
+	{
+		// Create our initial buffers
+		gfx::fw::render_interface::begin_frame();
+
+		gfx::fw::render_interface::get_list_temp()->copy_buffer(&staging_buffer, &vertex_buffer);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&image_texture, gfx::TEXTURE_LAYOUT_TRANSFER_DST);
+		gfx::fw::render_interface::get_list_temp()->copy_to_texture(&image_staging_buffer, &image_texture);
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&image_texture, gfx::TEXTURE_LAYOUT_SHADER_READONLY);
+
+		gfx::fw::render_interface::end_frame();
+	}
+
+	gfx::program_mgr::load("basic_ui.fxcp");
+	gfx::program* program = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("basic_ui")));
+
+	gfx::descriptor_pool desc_pool = gfx::descriptor_pool();
+	desc_pool.initialise(program->get_pass(0).get_descriptor_table(gfx::DESCRIPTOR_TABLE_PER_FRAME), 1);
+
+	gfx::descriptor_table* table = desc_pool.allocate();
+
+	gfx::texture_view image_view = image_texture.create_view(gfx::format::R8G8B8A8_SRGB, gfx::RESOURCE_VIEW_2D, { 0, 1, 0, 1 });
+	gfx::texture_sampler image_sampler = image_view.create_sampler();
+
+	table->set_image(dt::hash_string32("in_sampler0"), &image_sampler);
+	gfx::driver::get_device()->write_descriptor_table(table);
+
+	{
+		// Draw and render
+		gfx::fw::render_interface::begin_frame();
+
+		gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
+		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
+
+		// swapchain -> renderable
+		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
+		gfx::driver::get_device()->begin_pass(gfx::fw::render_interface::get_list_temp(), program, 0, swap_view);
+
+		gfx::buffer* pBuf = &vertex_buffer;
+		gfx::fw::render_interface::get_list_temp()->bind_vertex_buffers(&pBuf, 1);
+		gfx::fw::render_interface::get_list_temp()->bind_descriptor_tables(&program->get_pass(0), &table, 1, gfx::DESCRIPTOR_TABLE_PER_FRAME);
+
+		gfx::fw::render_interface::get_list_temp()->draw(6);
+		gfx::driver::get_device()->end_pass(gfx::fw::render_interface::get_list_temp());
+
+		gfx::fw::render_interface::end_frame();
+	}
 }

@@ -170,6 +170,11 @@ void graphics_command_list::bind_index_buffer(buffer* buffer, index_buffer_type 
     GFX_CALL(bind_index_buffer, reinterpret_cast<command_list*>(this), buffer, index_type);
 }
 
+void graphics_command_list::bind_descriptor_tables(pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type)
+{
+    GFX_CALL(bind_descriptor_tables, reinterpret_cast<command_list*>(this), pass, pTables, table_count, type);
+}
+
 compute_command_list::compute_command_list() :
     transfer_command_list(command_list_type::compute)
 { }

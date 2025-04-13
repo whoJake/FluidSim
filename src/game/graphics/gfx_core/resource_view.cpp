@@ -1,5 +1,6 @@
 #include "resource_view.h"
 #include "driver.h"
+#include "texture_sampler.h"
 
 namespace gfx
 {
@@ -37,6 +38,11 @@ void buffer_view::destroy(buffer_view* buffer_view)
 const texture* texture_view::get_resource() const
 {
     return static_cast<const texture*>(m_pResource);
+}
+
+texture_sampler texture_view::create_sampler()
+{
+    return texture_sampler::create(this);
 }
 
 texture_view texture_view::create(const texture* texture, texture_view_range range, format format, resource_view_type type)

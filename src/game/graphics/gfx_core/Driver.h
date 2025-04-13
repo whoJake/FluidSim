@@ -42,6 +42,9 @@ public:
     static void create_texture_view(texture_view* view, const texture* texture, texture_view_range range, format format, resource_view_type type);
     static void destroy_texture_view(texture_view* view);
 
+    static void create_texture_sampler(texture_sampler* sampler, texture_view* view);
+    static void destroy_texture_sampler(texture_sampler* sampler);
+
     static void map_resource(resource* resource);
     static void unmap_resource(resource* resource);
 

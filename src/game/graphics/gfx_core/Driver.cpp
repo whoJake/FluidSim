@@ -179,6 +179,23 @@ void driver::destroy_texture_view(texture_view* view)
     view->m_pImpl = nullptr;
 }
 
+void driver::create_texture_sampler(texture_sampler* sampler, texture_view* view)
+{
+    GFX_ASSERT(sampler, "Sampler must be provided.");
+    GFX_ASSERT(sampler, "View must be provided.");
+
+    sampler->m_pImpl = GFX_CALL(create_texture_sampler_impl, sampler);
+    sampler->m_textureView = view;
+}
+
+void driver::destroy_texture_sampler(texture_sampler* sampler)
+{
+    GFX_ASSERT(sampler, "Sampler cannot be nullptr.");
+
+    GFX_CALL(destroy_texture_sampler_impl, sampler);
+    sampler->m_pImpl = nullptr;
+}
+
 void driver::fill_initial_data(resource* resource, const memory_info& memory_info)
 {
     GFX_ASSERT(resource, "Resource must not be nullptr.");

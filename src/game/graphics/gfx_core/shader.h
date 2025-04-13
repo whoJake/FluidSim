@@ -30,6 +30,9 @@ public:
     program() = default;
     ~program() = default;
 
+    DEFAULT_MOVE(program);
+    DEFAULT_COPY(program);
+
     dt::hash_string32 get_name() const;
 
     pass& get_pass(u64 index);

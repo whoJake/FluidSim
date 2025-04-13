@@ -7,6 +7,7 @@
 #include "resource_view.h"
 #include "buffer.h"
 #include "texture.h"
+#include "texture_sampler.h"
 #include "fence.h"
 #include "command_list.h"
 #include "dependency.h"
@@ -70,6 +71,9 @@ public:
     GFX_DEVICE_FUNC(void* create_texture_view_impl(texture_view* view, texture_view_range range));
     GFX_DEVICE_FUNC(void destroy_texture_view_impl(texture_view* view));
 
+    GFX_DEVICE_FUNC(void* create_texture_sampler_impl(texture_sampler* sampler));
+    GFX_DEVICE_FUNC(void destroy_texture_sampler_impl(texture_sampler* sampler));
+
     GFX_DEVICE_FUNC(u8* map_resource(const resource* resource));
     GFX_DEVICE_FUNC(void unmap_resource(const resource* resource));
 
@@ -103,6 +107,8 @@ public:
 
     GFX_DEVICE_FUNC(void bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index));
     GFX_DEVICE_FUNC(void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type));
+
+    GFX_DEVICE_FUNC(void bind_descriptor_tables(command_list* list, pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type));
 
     GFX_DEVICE_FUNC(void begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output));
     GFX_DEVICE_FUNC(void end_rendering(command_list* list));

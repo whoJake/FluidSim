@@ -5,6 +5,8 @@
 #include "fence.h"
 #include "texture.h"
 #include "dependency.h"
+#include "descriptor_pool.h"
+#include "shader.h"
 
 namespace gfx
 {
@@ -88,6 +90,8 @@ public:
 
     void bind_vertex_buffers(buffer** pBuffers, u32 buffer_count, u32 first_vertex_index = 0);
     void bind_index_buffer(buffer* buffer, index_buffer_type index_type = index_buffer_type::INDEX_TYPE_U16);
+
+    void bind_descriptor_tables(pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type);
 };
 
 class compute_command_list : public transfer_command_list

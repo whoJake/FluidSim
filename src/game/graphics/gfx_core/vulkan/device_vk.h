@@ -68,6 +68,9 @@ public:
     void* create_texture_view_impl(texture_view* view, texture_view_range range) override;
     void destroy_texture_view_impl(texture_view* view) override;
 
+    void* create_texture_sampler_impl(texture_sampler* sampler) override;
+    void destroy_texture_sampler_impl(texture_sampler* sampler) override;
+
     u8* map_resource(const resource* resouce) override;
     void unmap_resource(const resource* resource) override;
 
@@ -106,6 +109,8 @@ public:
 
     void bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index) override;
     void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type) override;
+
+    void bind_descriptor_tables(command_list* list, pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type) override;
 
     void begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output) override;
     void end_rendering(command_list* list) override;

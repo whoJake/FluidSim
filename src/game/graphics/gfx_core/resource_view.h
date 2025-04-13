@@ -63,6 +63,7 @@ struct texture_view_range
 extern texture_view_range full_texture_view;
 
 class texture;
+class texture_sampler;
 class texture_view : public resource_view
 {
 public:
@@ -73,6 +74,8 @@ public:
     DELETE_COPY(texture_view);
 
     const texture* get_resource() const;
+
+    texture_sampler create_sampler();
 
     static texture_view create(const texture* texture, texture_view_range range, format format = format::UNDEFINED, resource_view_type type = RESOURCE_VIEW_INHERIT);
     static void destroy(texture_view* texture_view);
