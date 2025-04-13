@@ -1377,13 +1377,6 @@ void VK_DEVICE::destroy_shader_program(program* program)
     {
         const pass& pass = program->get_pass(passIdx);
 
-        // Destroy the tables first.
-        for( u64 tableIdx = 0; tableIdx < pass.get_descriptor_table_count(); tableIdx++ )
-        {
-            const descriptor_table_desc* table = pass.get_descriptor_table((descriptor_table_type)tableIdx);
-            vkDestroyDescriptorSetLayout(deviceState.device, table->get_impl<VkDescriptorSetLayout>(), nullptr);
-        }
-
         // These two doesn't really matter what order
         vkDestroyPipelineLayout(deviceState.device, pass.get_layout_impl<VkPipelineLayout>(), nullptr);
         vkDestroyPipeline(deviceState.device, pass.get_impl<VkPipeline>(), nullptr);

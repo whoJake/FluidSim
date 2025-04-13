@@ -7,6 +7,7 @@
 struct shader_resource {
     std::string name;
     gfx::shader_resource_type type;
+    gfx::shader_stage_flags stages;
     uint32_t qualifiers;
 
     uint32_t set;
@@ -31,6 +32,9 @@ public:
     static bool reflect(gfx::program_def* pProgram);
 private:
     static bool reflect_pass(gfx::program_def* pProgram, u64 passIdx, dt::vector<dt::vector<shader_resource>>& shader_resources);
+
+    static bool reflect_table(gfx::descriptor_table_def* pTable, const std::vector<shader_resource>& all_resources);
+    static bool reflect_tables(gfx::pass_def* pPass, dt::vector<dt::vector<shader_resource>>& all_resources);
 
     static bool reflect_shader(gfx::shader_def* pShader, dt::vector<shader_resource>* out_resources);
     static bool parse_shader_resources(spirv_cross::CompilerGLSL& compiler,

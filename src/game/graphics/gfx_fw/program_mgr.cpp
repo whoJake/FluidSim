@@ -70,9 +70,6 @@ void program_mgr::load(const char* path)
     for( u64 passIdx = 0; passIdx < pProgram->get_pass_count(); passIdx++ )
     {
         pass& pass = pProgram->get_pass(passIdx);
-        pass.set_layout_impl(GFX_CALL(create_shader_pass_layout_impl, &pass));
-        pass.set_impl(GFX_CALL(create_shader_pass_impl, pProgram, passIdx));
-
         for( u64 descIdx = 0; descIdx < pass.get_descriptor_table_count(); descIdx++ )
         {
             // Weird interface, have to do this garbage
@@ -82,6 +79,9 @@ void program_mgr::load(const char* path)
             pass.set_descriptor_table(sm_instance->m_cache.get_descriptor_table_desc(std::move(*pDesc)), type);
             delete pDesc;
         }
+
+        pass.set_layout_impl(GFX_CALL(create_shader_pass_layout_impl, &pass));
+        pass.set_impl(GFX_CALL(create_shader_pass_impl, pProgram, passIdx));
     }
 }
 
@@ -201,10 +201,8 @@ void descriptor_cache::destroy()
     for( descriptor_table_desc& desc : m_tableDescs )
     {
         GFX_CALL(destroy_descriptor_table_desc, &desc);
+        desc.set_impl(nullptr);
     }
-
-    m_tableDescHashes.resize(0);
-    m_tableDescs.resize(0);
 }
 
 } // gfx

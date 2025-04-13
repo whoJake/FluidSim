@@ -281,6 +281,34 @@ constexpr bool is_dynamic_shader_resource_type(shader_resource_type type)
     }
 }
 
+constexpr bool is_image_resource_type(shader_resource_type type)
+{
+    switch( type )
+    {
+    case SHADER_RESOURCE_IMAGE:
+    case SHADER_RESOURCE_IMAGE_SAMPLER:
+    case SHADER_RESOURCE_IMAGE_STORAGE:
+    case SHADER_RESOURCE_SAMPLER:
+        return true;
+    default:
+        return false;
+    }
+}
+
+constexpr bool is_buffer_resource_type(shader_resource_type type)
+{
+    switch( type )
+    {
+    case SHADER_RESOURCE_UNIFORM_BUFFER:
+    case SHADER_RESOURCE_UNIFORM_BUFFER_DYNAMIC:
+    case SHADER_RESOURCE_STORAGE_BUFFER:
+    case SHADER_RESOURCE_STORAGE_BUFFER_DYNAMIC:
+        return true;
+    default:
+        return false;
+    }
+}
+
 struct shader_pass_outputs
 {
     // u32 viewMask; ??

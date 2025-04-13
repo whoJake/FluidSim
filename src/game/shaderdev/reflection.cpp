@@ -306,6 +306,7 @@ bool reflector::parse_shader_resources(spirv_cross::CompilerGLSL& compiler,
 
 bool reflector::reflect_pass(gfx::program_def* pProgram, u64 passIdx, dt::vector<dt::vector<shader_resource>>& shader_resources)
 {
+    bool success = true;
     gfx::pass_def* pass = &pProgram->passes[passIdx];
     
     // Lets start by modifying our PSO. Vertex Input Assembly is all we need to modify.
@@ -381,7 +382,115 @@ bool reflector::reflect_pass(gfx::program_def* pProgram, u64 passIdx, dt::vector
         }
     }
     
-    // Now we need to do the descriptor tables.
+    success |= reflect_tables(pass, shader_resources);
+
+    return success;
+}
+
+bool reflector::reflect_tables(gfx::pass_def* pPass, dt::vector<dt::vector<shader_resource>>& all_resources)
+{
+    bool success = true;
+
+    // Organise our tables
+    for( u32 table_idx = 0; table_idx < gfx::DESCRIPTOR_TABLE_COUNT; table_idx++ )
+    {
+        // Get all resources that apply to this table
+        std::vector<shader_resource> resources;
+        for( u32 shader_idx = 0; shader_idx < all_resources.size(); shader_idx++ )
+        {
+            // Find what stage this vector means.
+            gfx::shader_stage_flag_bits stage;
+            if( pPass->vertex_index == shader_idx )
+                stage = gfx::SHADER_STAGE_VERTEX;
+            else if( pPass->geometry_index == shader_idx )
+                stage = gfx::SHADER_STAGE_GEOMETRY;
+            else if( pPass->fragment_index == shader_idx )
+                stage = gfx::SHADER_STAGE_FRAGMENT;
+            else if( pPass->compute_index == shader_idx )
+                stage = gfx::SHADER_STAGE_COMPUTE;
+            else
+            {
+                SHADEV_ASSERT(false, "Shader stage unsupported.");
+            }
+
+            for( shader_resource& resource : all_resources[shader_idx] )
+            {
+                // This doesn't go in a table.
+                if( !gfx::is_buffer_resource_type(resource.type) && !gfx::is_image_resource_type(resource.type) )
+                    continue;
+
+                // Not the right table idx.
+                if( resource.set != table_idx )
+                    continue;
+
+                resource.stages |= stage;
+                resources.push_back(resource);
+            }
+        }
+
+        if( resources.empty() )
+            continue;
+
+        gfx::descriptor_table_def& table = pPass->tables.emplace_back();
+        success |= reflect_table(&table, resources);
+    }
+
+    return success;
+}
+
+bool reflector::reflect_table(gfx::descriptor_table_def* pTable, const std::vector<shader_resource>& all_resources)
+{
+    // combine the same bindings
+    // sort by binding
+    // insert empty slots if necessary
+    // split by image/buffer
+    // write to our table
+
+    std::vector<bool> filled_slots;
+    std::vector<shader_resource> resources;
+
+    for( const shader_resource& rsc : all_resources )
+    {
+        if( resources.size() <= rsc.binding )
+        {
+            resources.resize(rsc.binding + 1);
+            filled_slots.resize(rsc.binding + 1);
+        }
+
+        if( filled_slots[rsc.binding] == true )
+        {
+            // TODO validate we're actually the same resource..
+            resources[rsc.binding].stages |= rsc.stages;
+        }
+        else
+        {
+            filled_slots[rsc.binding] = true;
+            resources[rsc.binding] = rsc;
+        }
+    }
+
+    for( u32 idx = 0; idx < resources.size(); idx++ )
+    {
+        if( filled_slots[idx] == false )
+        {
+            resources[idx].type = gfx::SHADER_RESOURCE_EMPTY;
+        }
+    }
+    
+    // We are sorted, we are combined, we have empty slots.. Put the resource in the table man
+    for( shader_resource& resource : resources )
+    {
+        gfx::descriptor_slot_def slot{ };
+        slot.name = resource.name;
+        slot.array_count = resource.arraySize;
+        slot.type = resource.type;
+        slot.visibility_mask = resource.stages;
+
+        if( gfx::is_buffer_resource_type(resource.type) )
+            pTable->buffer_slots.push_back(slot);
+        else
+            pTable->image_slots.push_back(slot);
+    }
 
     return true;
 }
