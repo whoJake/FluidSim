@@ -27,14 +27,17 @@ void debug_vbuffer_work();
 void debug_vbuffer_end();
 
 static bool g_updatefps = true;
-static u64 g_fps = 0;
-static f32 g_percWaiting = 0.f;
 
 int main(int argc, const char* argv[])
 {
 	sys::zone_allocator::max_zones = MEMZONE_SYSTEM_COUNT + MEMZONE_GFX_COUNT;
 	sys::memory::setup_heap();
 	sys::memory::initialise_system_zones();
+
+	std::vector<const char*> args(argc - 1);
+	for( u32 i = 1; i < argc; i++ )
+		args[i - 1] = argv[i];
+	sys::param::init(args);
 	initialise_gfx_zones();
 
 	sys::log::details::logger logger;
@@ -82,16 +85,38 @@ int main(int argc, const char* argv[])
 	// debug_image();
 	// debug_triangle();
 	debug_vbuffer_start();
+	f32 frame_time_ms = 0.f;
+	f32 wait_frame_ms = 0.f;
+
+	f32 rolling_ms = 0.f;
 
 	while( !window.get_should_close() )
 	{
+		static sys::moment before_frame = sys::now();
+		before_frame = sys::now();
+
 		window.process_events();
+		{
+			sys::moment before_wait = sys::now();
+			gfx::fw::render_interface::wait_for_frame();
+			sys::moment after_wait = sys::now();
+			
+			f32 cur_wait_frame_ms = std::chrono::floor<std::chrono::microseconds>(after_wait - before_wait).count() / 1000.f;
+			wait_frame_ms = (wait_frame_ms * 0.9f) + (cur_wait_frame_ms * 0.1f);
+		}
+
 		debug_vbuffer_work();
 
-		if( g_updatefps  )
+		sys::moment after_frame = sys::now();
+
+		f32 cur_frame_time_ms = std::chrono::floor<std::chrono::microseconds>(after_frame - before_frame).count() / 1000.f;
+		frame_time_ms = (frame_time_ms * 0.9f) + (cur_frame_time_ms * 0.1f);
+
+		rolling_ms += cur_frame_time_ms;
+		if( rolling_ms >= 750.f )
 		{
-			window.set_title(std::format("{} fps | {} waiting", g_fps, g_percWaiting));
-			g_updatefps = false;
+			rolling_ms = 0.f;
+			window.set_title(std::format("Frame time: {:.3f}ms | Wait time: {:.3f}ms | Percentage: {}% | FPS: {:.2f}", frame_time_ms, wait_frame_ms, u32_cast((wait_frame_ms / frame_time_ms) * 100), 1000.f / frame_time_ms));
 		}
 	}
 
@@ -250,40 +275,8 @@ void debug_vbuffer_start()
 
 void debug_vbuffer_work()
 {
-	// Calculate FPS stuff
-	{
-		static sys::moment lastupdate = sys::now();
-		static u64 frames = 0;
-
-		const double seconds_per_update = 1.0;
-
-		++frames;
-		{
-			sys::moment now = sys::now();
-			u64 us_since_last_update = std::chrono::floor<std::chrono::microseconds>(now - lastupdate).count();
-
-			if( us_since_last_update * 0.000001 > seconds_per_update )
-			{
-				lastupdate = now;
-
-				g_fps = u64_cast(frames / seconds_per_update);
-				frames = 0;
-				g_updatefps = true;
-			}
-		}
-	}
-
 	static bool flip = false;
-
-	double frame_time = 1.f / g_fps;
-	frame_time *= 1000; // ms
-	frame_time *= 1000; // us
-
-	sys::moment before = sys::now();
-	gfx::fw::render_interface::begin_frame();
-	u64 us_since_before = std::chrono::floor<std::chrono::microseconds>(sys::now() - before).count();
-	g_percWaiting = (us_since_before / frame_time) * 100.f;
-
+	gfx::fw::render_interface::begin_frame(false);
 	{
 		std::vector<gfx::buffer*> bufs;
 		bufs.push_back(&vbuf);

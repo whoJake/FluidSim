@@ -6,9 +6,13 @@
 namespace gfx
 {
 
+class driver;
+
 class debugger
 {
 public:
+    friend class driver;
+
     enum class severity
     {
         none,
@@ -28,6 +32,7 @@ public:
 
     void attach_callback(callback func);
 
+    bool is_enabled() const;
     void send_event(severity level, const char* message);
 
     void set_impl_ptr(void* data);
@@ -35,6 +40,7 @@ public:
 private:
     std::vector<callback> m_callbacks;
     void* m_impl{ nullptr };
+    bool m_enabled{ false };
 };
 
 } // gfx

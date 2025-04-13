@@ -1691,7 +1691,7 @@ void device_state_vk::create_instance(debugger& debugger)
     createInfo.ppEnabledExtensionNames = enableExtensions.data();
     createInfo.enabledLayerCount = u32_cast(enabledLayers.size());
     createInfo.ppEnabledLayerNames = enabledLayers.data();
-    createInfo.pNext = &dbgCreateInfo;
+    createInfo.pNext = debugger.is_enabled() ? &dbgCreateInfo : nullptr;
 
     // Validation layers.
 
@@ -1707,17 +1707,20 @@ void device_state_vk::create_instance(debugger& debugger)
     enabled_instance_extensions = std::move(enableExtensions);
     enabled_instance_layers = std::move(enabledLayers);
 
-    VkDebugUtilsMessengerEXT dbgMessenger{ };
-    VkResult dbgResult = create_debug_utils_messenger(instance, &dbgCreateInfo, nullptr, &dbgMessenger);
-    switch( dbgResult )
+    if( debugger.is_enabled() )
     {
+        VkDebugUtilsMessengerEXT dbgMessenger{ };
+        VkResult dbgResult = create_debug_utils_messenger(instance, &dbgCreateInfo, nullptr, &dbgMessenger);
+        switch( dbgResult )
+        {
         case VK_SUCCESS:
             break;
         default:
             break;
-    }
+        }
 
-    debugger.set_impl_ptr(dbgMessenger);
+        debugger.set_impl_ptr(dbgMessenger);
+    }
 }
 
 VkInstance VK_DEVICE::get_vulkan_instance() const

@@ -12,9 +12,13 @@ u32 default_choose_gpu(const std::vector<gpu>&);
 device* driver::sm_device = nullptr;
 std::function<u32(const std::vector<gpu>&)> driver::sm_gpuSelector = default_choose_gpu;
 
+MAKEPARAM(disable_debugger);
+
 
 u32 driver::initialise(driver_mode mode)
 {
+
+
 #ifdef GFX_SUPPORTS_VULKAN
     return driver::initialise(
         mode,
@@ -49,6 +53,8 @@ u32 driver::initialise(driver_mode mode, surface_create_func surface_func)
     }
 
     GFX_ASSERT(sm_device, "Graphics device initialisation failed.");
+
+    sm_device->get_debugger().m_enabled = !p_disable_debugger.get();
 
     // DO NOT SUBMIT
     // gpuIdx = sm_gpuSelector(sm_device->enumerate_gpus());

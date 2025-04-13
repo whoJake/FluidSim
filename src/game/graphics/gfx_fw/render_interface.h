@@ -39,6 +39,8 @@ public:
     static dependency* get_swapchain_image_ready_dependency(u32 index);
     static dependency* get_current_swapchain_image_ready_dependency();
 
+    static void force_recreate_swapchain();
+
     static graphics_command_list* get_list_temp();
 private:
     static bool handle_swapchain_changes(bool force_recreate = false);
@@ -46,6 +48,7 @@ private:
     static swapchain sm_swapchain;
     static u32 sm_targetSwapchainWidth, sm_targetSwapchainHeight;
     static u32 sm_swapchainWidth, sm_swapchainHeight;
+    static bool sm_forceRecreateSwapchain;
 
     static bool sm_isFrameActive;
     static u32 sm_currentFrameIndex;

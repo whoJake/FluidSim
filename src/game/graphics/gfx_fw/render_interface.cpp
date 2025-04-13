@@ -36,7 +36,7 @@ void render_interface::initialise()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            PRESENT_MODE_FIFO);
+            PRESENT_MODE_IMMEDIATE);
 
     sm_swapchainWidth = swapchain_width;
     sm_swapchainHeight = swapchain_height;
@@ -94,7 +94,7 @@ void render_interface::begin_frame(bool wait_frame)
         wait_for_frame();
     }
 
-    handle_swapchain_changes();
+    handle_swapchain_changes(sm_forceRecreateSwapchain);
 
     // Bad?
     sm_currentSwapchainReadyDep = &sm_swapchainImageReady[sm_currentFrameIndex];
@@ -157,7 +157,7 @@ void render_interface::recreate_swapchain()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            PRESENT_MODE_FIFO);
+            PRESENT_MODE_IMMEDIATE);
 
     // Destroy all our old texture views and create the new ones.
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
@@ -172,6 +172,7 @@ void render_interface::recreate_swapchain()
 
     GFX_CALL(free_swapchain, &sm_swapchain);
     sm_swapchain = std::move(new_swapchain);
+    sm_forceRecreateSwapchain = false;
 }
 
 void render_interface::set_target_swapchain_extents(u32 width, u32 height)
@@ -212,6 +213,11 @@ dependency* render_interface::get_current_swapchain_image_ready_dependency()
     return get_swapchain_image_ready_dependency(get_current_frame_index());
 }
 
+void render_interface::force_recreate_swapchain()
+{
+    sm_forceRecreateSwapchain = true;
+}
+
 graphics_command_list* render_interface::get_list_temp()
 {
     return &sm_commandLists[sm_currentFrameIndex];
@@ -243,6 +249,7 @@ u32 render_interface::sm_targetSwapchainWidth = 0;
 u32 render_interface::sm_targetSwapchainHeight = 0;
 u32 render_interface::sm_swapchainWidth = 0;
 u32 render_interface::sm_swapchainHeight = 0;
+bool render_interface::sm_forceRecreateSwapchain = false;
 
 bool render_interface::sm_isFrameActive = false;
 u32 render_interface::sm_currentFrameIndex = 0;

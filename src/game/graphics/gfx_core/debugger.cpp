@@ -3,6 +3,11 @@
 namespace gfx
 {
 
+bool debugger::is_enabled() const
+{
+    return m_enabled;
+}
+
 void debugger::attach_callback(callback func)
 {
     m_callbacks.push_back(func);
