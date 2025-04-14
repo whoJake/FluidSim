@@ -89,13 +89,9 @@ private:
     dt::array<descriptor_slot_desc> m_bufferDescs;
     dt::array<descriptor_slot_desc> m_imageDescs;
 
-    struct slot_cache
-    {
-        dt::hash_string32 name;
-        u32 index;
-    };
-
-    dt::vector<slot_cache> m_lookup;
+    // Slot cache, name -> index
+    // Removed for now since its causing infinite problems because of hash_string constructors?
+    // Or just my dt::vector being shitty
 
     void* m_pImpl;
 };

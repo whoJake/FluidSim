@@ -176,83 +176,35 @@ void descriptor_table_desc::initialise(const dt::vector<descriptor_slot_desc>& b
 {
     m_bufferDescs.initialise(buffer_slots.size(), false);
     m_imageDescs.initialise(image_slots.size(), false);
-    m_lookup.reserve(buffer_slots.size() + image_slots.size());
-
-    auto insert_slot_cache = [&](slot_cache slot) -> void
-        {
-            auto it = std::lower_bound(
-                m_lookup.cbegin(),
-                m_lookup.cend(),
-                slot,
-                [](const slot_cache& left, const slot_cache& right)
-                {
-                    return left.name.get_hash() < right.name.get_hash();
-                });
-
-            bool found = !(it == m_lookup.cend() || it->name.get_hash() != slot.name.get_hash());
-            GFX_ASSERT(!found, "Descriptor slot {} ({}) has already been added to descriptor table.", slot.name.get_hash(), slot.name.try_get_str());
-
-            m_lookup.insert(m_lookup.index_of(it), slot);
-        };
 
     for( u64 idx = 0; idx < buffer_slots.size(); idx++ )
     {
         m_bufferDescs[idx] = buffer_slots[idx];
-
-        slot_cache slot{
-            buffer_slots[idx].get_name(),
-            u32_cast(idx)
-        };
-
-        insert_slot_cache(std::move(slot));
     }
 
     for( u64 idx = 0; idx < image_slots.size(); idx++ )
     {
         m_imageDescs[idx] = image_slots[idx];
-
-        slot_cache slot{
-            image_slots[idx].get_name(),
-            u32_cast(m_bufferDescs.size() + idx)
-        };
-
-        insert_slot_cache(slot);
     }
 }
 
 u64 descriptor_table_desc::find_buffer_slot(dt::hash_string32 name) const
 {
-    auto it = std::lower_bound(
-        m_lookup.begin(),
-        m_lookup.end(),
-        name,
-        [](const slot_cache& slot, const dt::hash_string32& name)
+    for( u32 idx = 0; idx < u32_cast(m_bufferDescs.size()); idx++ )
+    {
+        const descriptor_slot_desc& desc = m_bufferDescs[idx];
+        if( desc.get_name().get_hash() == name.get_hash() )
         {
-            return slot.name.get_hash() < name.get_hash();
-        });
+            return idx;
+        }
+    }
 
-    GFX_ASSERT(it != m_lookup.end() && it->name.get_hash() == name.get_hash(), "Buffer descriptor {} ({}) was not found inside descriptor table.", name.get_hash(), name.try_get_str());
-    GFX_ASSERT(it->index < m_bufferDescs.size(), "Descriptor {} ({}) is not a buffer slot.", name.get_hash(), name.try_get_str());
-    return it->index;
+    GFX_ASSERT(false, "FAIL");
+    return -1;
 }
 
 u64 descriptor_table_desc::find_image_slot(dt::hash_string32 name) const
 {
-    /*
-    auto it = std::lower_bound(
-        m_lookup.begin(),
-        m_lookup.end(),
-        name,
-        [](const slot_cache& slot, const dt::hash_string32& name)
-        {
-            return slot.name.get_hash() < name.get_hash();
-        });
-
-    GFX_ASSERT(it != m_lookup.end() && it->name.get_hash() == name.get_hash(), "Buffer descriptor {} ({}) was not found inside descriptor table.", name.get_hash(), name.try_get_str());
-    GFX_ASSERT(it->index >= m_imageDescs.size(), "Descriptor {} ({}) is not a buffer slot.", name.get_hash(), name.try_get_str());
-    return it->index - m_imageDescs.size();
-    */
-
     for( u32 idx = 0; idx < u32_cast(m_imageDescs.size()); idx++ )
     {
         const descriptor_slot_desc& desc = m_imageDescs[idx];
