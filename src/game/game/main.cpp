@@ -414,4 +414,14 @@ void debug_ui()
 
 		gfx::fw::render_interface::end_frame();
 	}
+
+	gfx::driver::wait_idle();
+
+	gfx::driver::get_device()->destroy_descriptor_pool(&desc_pool);
+	gfx::texture_sampler::destroy(&image_sampler);
+	gfx::texture_view::destroy(&image_view);
+	gfx::texture::destroy(&image_texture);
+	gfx::buffer::destroy(&image_staging_buffer);
+	gfx::buffer::destroy(&staging_buffer);
+	gfx::buffer::destroy(&vertex_buffer);
 }
