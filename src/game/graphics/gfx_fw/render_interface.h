@@ -5,6 +5,8 @@
 #include "../gfx_core/resource_view.h"
 #include "../gfx_core/command_list.h"
 
+#include "context.h"
+
 namespace gfx
 {
 
@@ -13,6 +15,10 @@ namespace fw
 
 #define GFX_RI_FRAMES_AHEAD 2
 #define GFX_RI_FRAMES_IN_FLIGHT GFX_RI_FRAMES_AHEAD + 1
+
+#define GFX_RI_RENDER_THREADS 1
+
+#define RI_GraphicsContext ::gfx::fw::render_interface::get_graphics_context()
 
 class render_interface
 {
@@ -41,7 +47,7 @@ public:
 
     static void force_recreate_swapchain();
 
-    static graphics_command_list* get_list_temp();
+    static graphics_context& get_graphics_context();
 private:
     static bool handle_swapchain_changes(bool force_recreate = false);
 private:
@@ -63,8 +69,15 @@ private:
     static dependency sm_frameInFlightDeps[GFX_RI_FRAMES_IN_FLIGHT];
     static fence sm_frameInFlightFences[GFX_RI_FRAMES_IN_FLIGHT];
 
-    // TEMP
-    static graphics_command_list sm_commandLists[GFX_RI_FRAMES_IN_FLIGHT];
+    static thread_local graphics_context sm_graphicsContext;
+    static std::vector<graphics_command_list*> sm_graphicsListsToSubmit;
+    static graphics_command_list sm_graphicsSubmissionLists[GFX_RI_FRAMES_IN_FLIGHT];
+
+    static graphics_command_list sm_graphicsContextCommandLists[GFX_RI_FRAMES_IN_FLIGHT][GFX_RI_RENDER_THREADS];
+private:
+    // Context management functions
+    static void begin_context();
+    static void end_context();
 };
 
 } // fw

@@ -8,10 +8,11 @@ command_list::command_list(command_list_type type) :
     m_type(type)
 { }
 
-void command_list::init(void* pImpl)
+void command_list::init(void* pImpl, bool is_secondary)
 {
     m_pso.reset();
     m_isActive = false;
+    m_isSecondary = is_secondary;
     m_pImpl = pImpl;
 }
 
@@ -86,6 +87,16 @@ void command_list::texture_memory_barrier(texture* texture, texture_layout dst_l
     texture->m_layout = dst_layout;
 }
 
+void command_list::bind_program(program* prog, u64 passIdx)
+{
+    GFX_CALL(bind_program, this, prog, passIdx);
+}
+
+void command_list::execute_command_lists(command_list** lists, u32 count)
+{
+    GFX_CALL(execute_command_lists, this, lists, count);
+}
+
 const command_list_type& command_list::get_type() const
 {
     return m_type;
@@ -123,6 +134,11 @@ const dependency* command_list::get_signal_dependency() const
     return m_signalDependency;
 }
 
+bool command_list::is_secondary() const
+{
+    return m_isSecondary;
+}
+
 transfer_command_list::transfer_command_list() :
     command_list(command_list_type::transfer)
 { }
@@ -146,33 +162,53 @@ void transfer_command_list::copy_buffer(buffer* src, buffer* dst)
     GFX_CALL(copy_buffer_to_buffer, static_cast<command_list*>(this), src, dst);
 }
 
+void transfer_command_list::bind_descriptor_tables(pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type)
+{
+    GFX_CALL(bind_descriptor_tables, reinterpret_cast<command_list*>(this), pass, pTables, table_count, type);
+}
+
 graphics_command_list::graphics_command_list() :
     transfer_command_list(command_list_type::graphics)
 { }
 
+void graphics_command_list::begin_rendering(const std::vector<texture_attachment>& color_attachments, texture_attachment* depth_attachment)
+{
+    GFX_CALL(begin_rendering, this, color_attachments, depth_attachment);
+}
+
+void graphics_command_list::end_rendering()
+{
+    GFX_CALL(end_rendering, this);
+}
+
 void graphics_command_list::draw(u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance)
 {
-    GFX_CALL(draw, reinterpret_cast<command_list*>(this), vertex_count, instance_count, first_vertex, first_instance);
+    GFX_CALL(draw, this, vertex_count, instance_count, first_vertex, first_instance);
 }
 
 void graphics_command_list::draw_indexed(u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance)
 {
-    GFX_CALL(draw_indexed, reinterpret_cast<command_list*>(this), index_count, instance_count, first_index, vertex_offset, first_instance);
+    GFX_CALL(draw_indexed, this, index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
 void graphics_command_list::bind_vertex_buffers(buffer** pBuffers, u32 buffer_count, u32 first_vertex_index)
 {
-    GFX_CALL(bind_vertex_buffers, reinterpret_cast<command_list*>(this), pBuffers, buffer_count, first_vertex_index);
+    GFX_CALL(bind_vertex_buffers, this, pBuffers, buffer_count, first_vertex_index);
 }
 
 void graphics_command_list::bind_index_buffer(buffer* buffer, index_buffer_type index_type)
 {
-    GFX_CALL(bind_index_buffer, reinterpret_cast<command_list*>(this), buffer, index_type);
+    GFX_CALL(bind_index_buffer, this, buffer, index_type);
 }
 
-void graphics_command_list::bind_descriptor_tables(pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type)
+void graphics_command_list::set_viewport(f32 x, f32 y, f32 width, f32 height, f32 min_depth, f32 max_depth)
 {
-    GFX_CALL(bind_descriptor_tables, reinterpret_cast<command_list*>(this), pass, pTables, table_count, type);
+    GFX_CALL(set_viewport, this, x, y, width, height, min_depth, max_depth);
+}
+
+void graphics_command_list::set_scissor(u32 x, u32 y, u32 width, u32 height)
+{
+    GFX_CALL(set_scissor, this, x, y, width, height);
 }
 
 compute_command_list::compute_command_list() :

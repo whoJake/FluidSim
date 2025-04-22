@@ -574,11 +574,11 @@ void VK_DEVICE::free_dependency(dependency* dep)
     vkDestroySemaphore(get_impl<device_state_vk>().device, dep->get_impl<VkSemaphore>(), nullptr);
 }
 
-graphics_command_list VK_DEVICE::allocate_graphics_command_list()
+graphics_command_list VK_DEVICE::allocate_graphics_command_list(bool secondary)
 {
-    VkCommandBuffer buffer = get_impl<device_state_vk>().command_pool.allocate_buffer_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    VkCommandBuffer buffer = get_impl<device_state_vk>().command_pool.allocate_buffer_by_flags(VK_QUEUE_GRAPHICS_BIT, secondary);
     graphics_command_list retval{ };
-    retval.init(buffer);
+    retval.init(buffer, secondary);
     return retval;
 }
 
@@ -737,6 +737,13 @@ void VK_DEVICE::begin(command_list* list)
     VkCommandBufferBeginInfo begin{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
     // FLAGS?
 
+    // Don't inherit anything. Think this is fine.
+    VkCommandBufferInheritanceInfo inheritInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO };
+    if( list->is_secondary() )
+    {
+        begin.pInheritanceInfo = &inheritInfo;
+    }
+
     vkBeginCommandBuffer(list->get_impl<VkCommandBuffer>(), &begin);
 }
 
@@ -841,6 +848,22 @@ void VK_DEVICE::draw_indexed(command_list* list, u32 index_count, u32 instance_c
     vkCmdDrawIndexed(list->get_impl<VkCommandBuffer>(), index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
+void VK_DEVICE::bind_program(command_list* list, program* prog, u64 passIdx)
+{
+    VkPipelineBindPoint bindPoint{ };
+    switch( list->get_type() )
+    {
+    case command_list_type::graphics:
+        bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        break;
+    case command_list_type::compute:
+        bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+        break;
+    }
+
+    vkCmdBindPipeline(list->get_impl<VkCommandBuffer>(), bindPoint, prog->get_pass(passIdx).get_impl<VkPipeline>());
+}
+
 void VK_DEVICE::bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index)
 {
     std::vector<VkBuffer> bufs;
@@ -905,50 +928,50 @@ void VK_DEVICE::bind_descriptor_tables(command_list* list, pass* pass, descripto
     vkCmdBindDescriptorSets(list->get_impl<VkCommandBuffer>(), bindPoint, pass->get_layout_impl<VkPipelineLayout>(), set_index, table_count, descriptor_sets.data(), 0, nullptr);
 }
 
-void VK_DEVICE::begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output)
+void VK_DEVICE::begin_rendering(command_list* list, const std::vector<texture_attachment>& color_outputs, texture_attachment* depth_output)
 {
-    GFX_ASSERT(color_outputs || depth_output, "Atleast one color output or a depth output must be provided.");
+    GFX_ASSERT(!color_outputs.empty() || depth_output, "Atleast one color output or a depth output must be provided.");
 
     VkRect2D renderSize{ };
-    if( color_output_count > 0 )
+    if( !color_outputs.empty() )
     {
-        texture_view* first = color_outputs[0];
-        renderSize = { 0, 0, first->get_resource()->get_width(), first->get_resource()->get_height() };
+        const texture_attachment& first = color_outputs[0];
+        renderSize = { 0, 0, first.view->get_resource()->get_width(), first.view->get_resource()->get_height() };
     }
     else
     {
-        renderSize = { 0, 0, depth_output->get_resource()->get_width(), depth_output->get_resource()->get_height() };
+        renderSize = { 0, 0, depth_output->view->get_resource()->get_width(), depth_output->view->get_resource()->get_height() };
     }
 
     VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
     VkRenderingAttachmentInfo depthAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 
     std::vector<VkRenderingAttachmentInfo> color_attachments;
-    color_attachments.reserve(color_output_count);
+    color_attachments.reserve(color_outputs.size());
 
-    for( u32 idx = 0; idx < color_output_count; idx++ )
+    for( u32 idx = 0; idx < u32_cast(color_outputs.size()); idx++ )
     {
-        texture_view* output = color_outputs[idx];
+        const texture_attachment& output = color_outputs[idx];
         VkRenderingAttachmentInfo attachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        attachment.imageView = output->get_impl<VkImageView>();
-        attachment.imageLayout = converters::get_layout_vk(output->get_resource()->get_layout());
-        attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachment.imageView = output.view->get_impl<VkImageView>();
+        attachment.imageLayout = converters::get_layout_vk(output.view->get_resource()->get_layout());
+        attachment.loadOp = converters::get_load_op_vk(output.load);
+        attachment.storeOp = converters::get_store_op_vk(output.store);
 
         color_attachments.push_back(attachment);
     }
 
     if( depth_output )
     {
-        depthAttachment.imageView = depth_output->get_impl<VkImageView>();
-        depthAttachment.imageLayout = converters::get_layout_vk(depth_output->get_resource()->get_layout());
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.imageView = depth_output->view->get_impl<VkImageView>();
+        depthAttachment.imageLayout = converters::get_layout_vk(depth_output->view->get_resource()->get_layout());
+        depthAttachment.loadOp = converters::get_load_op_vk(depth_output->load);
+        depthAttachment.storeOp = converters::get_store_op_vk(depth_output->store);
 
         renderInfo.pDepthAttachment = &depthAttachment;
     }
 
-    renderInfo.colorAttachmentCount = color_output_count;
+    renderInfo.colorAttachmentCount = u32_cast(color_attachments.size());
     renderInfo.pColorAttachments = color_attachments.data();
 
     renderInfo.renderArea = renderSize;
@@ -961,49 +984,30 @@ void VK_DEVICE::end_rendering(command_list* list)
     vkCmdEndRendering(list->get_impl<VkCommandBuffer>());
 }
 
-void VK_DEVICE::begin_pass(command_list* list, program* program, u64 passIdx, texture_view* output)
+void VK_DEVICE::set_viewport(command_list* list, f32 x, f32 y, f32 width, f32 height, f32 min_depth, f32 max_depth)
 {
-    VkRenderingInfo renderInfo{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-    
-    VkRenderingAttachmentInfo attachmentInfo{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    attachmentInfo.imageView = output->get_impl<VkImageView>();
-    attachmentInfo.imageLayout = converters::get_layout_vk(output->get_resource()->get_layout());
-    attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-    u32 u32_width = output->get_resource()->get_width();
-    u32 u32_height = output->get_resource()->get_height();
-
-    renderInfo.colorAttachmentCount = 1;
-    renderInfo.pColorAttachments = &attachmentInfo;
-    renderInfo.renderArea = { 0, 0, u32_width, u32_height };
-    renderInfo.layerCount = 1;
-
-    vkCmdBeginRendering(list->get_impl<VkCommandBuffer>(), &renderInfo);
-    vkCmdBindPipeline(list->get_impl<VkCommandBuffer>(), VK_PIPELINE_BIND_POINT_GRAPHICS, program->get_pass(passIdx).get_impl<VkPipeline>());
-
-    f32 f32_width = f32_cast(u32_width);
-    f32 f32_height = f32_cast(u32_height);
-
-    VkViewport viewport{ };
-    viewport.x = 0.f;
-    viewport.y = 0.f;
-    viewport.width = f32_width;
-    viewport.height = f32_height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor{ };
-    scissor.offset = { 0, 0 };
-    scissor.extent = { u32_width, u32_height };
+    VkViewport viewport
+    {
+        .x = x,
+        .y = y,
+        .width = width,
+        .height = height,
+        .minDepth = min_depth,
+        .maxDepth = max_depth
+    };
 
     vkCmdSetViewport(list->get_impl<VkCommandBuffer>(), 0, 1, &viewport);
-    vkCmdSetScissor(list->get_impl<VkCommandBuffer>(), 0, 1, &scissor);
 }
 
-void VK_DEVICE::end_pass(command_list* list)
+void VK_DEVICE::set_scissor(command_list* list, u32 x, u32 y, u32 width, u32 height)
 {
-    vkCmdEndRendering(list->get_impl<VkCommandBuffer>());
+    VkRect2D scissor
+    {
+        .offset = { i32_cast(x), i32_cast(y) },
+        .extent = { width, height }
+    };
+
+    vkCmdSetScissor(list->get_impl<VkCommandBuffer>(), 0, 1, &scissor);
 }
 
 void VK_DEVICE::copy_texture_to_texture(command_list* list, texture* src, texture* dst)
@@ -1102,6 +1106,17 @@ void VK_DEVICE::texture_barrier(command_list* list, texture* texture, texture_la
         nullptr,
         1,
         &barrier);
+}
+
+void VK_DEVICE::execute_command_lists(command_list* list, command_list** execute_lists, u32 count)
+{
+    std::vector<VkCommandBuffer> buffers;
+    for( u32 i = 0; i < count; i++ )
+    {
+        buffers.push_back(execute_lists[i]->get_impl<VkCommandBuffer>());
+    }
+
+    vkCmdExecuteCommands(list->get_impl<VkCommandBuffer>(), count, buffers.data());
 }
 
 static VkPipeline vulkan_create_graphics_pipeline_impl(VkDevice device, program* program, u64 passIdx)

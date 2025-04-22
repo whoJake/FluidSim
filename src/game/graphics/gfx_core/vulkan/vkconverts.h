@@ -388,5 +388,33 @@ constexpr VkVertexInputRate get_vertex_input_rate_vk(vertex_input_rate rate)
     return static_cast<VkVertexInputRate>(rate);
 }
 
+constexpr VkAttachmentLoadOp get_load_op_vk(load_operation op)
+{
+    switch( op )
+    {
+    case LOAD_OP_LOAD:
+        return VK_ATTACHMENT_LOAD_OP_LOAD;
+    case LOAD_OP_CLEAR:
+        return VK_ATTACHMENT_LOAD_OP_CLEAR;
+    case LOAD_OP_DONT_CARE:
+        return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    default:
+        GFX_ASSERT(false, "Load operation is not valid for VkAttachmentLoadOp conversion.");
+    }
+}
+
+constexpr VkAttachmentStoreOp get_store_op_vk(store_operation op)
+{
+    switch( op )
+    {
+    case STORE_OP_STORE:
+        return VK_ATTACHMENT_STORE_OP_STORE;
+    case STORE_OP_DONT_CARE:
+        return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    default:
+        GFX_ASSERT(false, "Store operation is not valid for VkAttachmentStoreOp conversion.");
+    }
+}
+
 } // converters
 } // gfx

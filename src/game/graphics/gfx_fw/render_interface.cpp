@@ -61,7 +61,12 @@ void render_interface::initialise()
         strcpy(swapchain_dep_cstr, swapchain_dep_name.c_str());
         sm_swapchainImageReady[idx] = GFX_CALL(create_dependency, swapchain_dep_cstr);
 
-        sm_commandLists[idx] = GFX_CALL(allocate_graphics_command_list);
+        sm_graphicsSubmissionLists[idx] = GFX_CALL(allocate_graphics_command_list, false);
+
+        for( u32 thread_idx = 0; thread_idx < GFX_RI_RENDER_THREADS; thread_idx++ )
+        {
+            sm_graphicsContextCommandLists[idx][thread_idx] = GFX_CALL(allocate_graphics_command_list, true);
+        }
     }
 }
 
@@ -72,8 +77,13 @@ void render_interface::shutdown()
         texture_view::destroy(&sm_swapchainViews[idx]);
         GFX_CALL(free_dependency, &sm_swapchainImageReady[idx]);
         GFX_CALL(free_dependency, &sm_frameInFlightDeps[idx]);
+        GFX_CALL(free_command_list, &sm_graphicsSubmissionLists[idx]);
         GFX_CALL(free_fence, &sm_frameInFlightFences[idx]);
-        GFX_CALL(free_command_list, &sm_commandLists[idx]);
+
+        for( u32 thread_idx = 0; thread_idx < GFX_RI_RENDER_THREADS; thread_idx++ )
+        {
+            GFX_CALL(free_command_list, &sm_graphicsContextCommandLists[idx][thread_idx]);
+        }
     }
 
     GFX_CALL(free_swapchain, &sm_swapchain);
@@ -114,27 +124,37 @@ void render_interface::begin_frame(bool wait_frame)
     }
 
     GFX_ASSERT(acquire_result == SWAPCHAIN_ACQUIRE_SUCCESS, "Failed to begin frame as next swapchain image could not be acquired.");
+    begin_context();
     sm_isFrameActive = true;
-
-    sm_commandLists[sm_currentFrameIndex].reset(false);
-    sm_commandLists[sm_currentFrameIndex].begin();
 }
 
 void render_interface::end_frame()
 {
     GFX_ASSERT(sm_isFrameActive, "Frame must be active in order to end it.");
 
-    graphics_command_list* list = &sm_commandLists[sm_currentFrameIndex];
+    graphics_command_list& graSubmitList = sm_graphicsSubmissionLists[sm_currentFrameIndex];
+    graSubmitList.reset(false);
+    graSubmitList.begin();
+
+    // Temp, I dont think end_frame is nessisary on the API
+    // Just start_frame -> wait_for_frame (wait for cpu frame, not gpu :/)
+    end_context();
+
+    if( !sm_graphicsListsToSubmit.empty() )
+    {
+        graphics_command_list** pGraLists = sm_graphicsListsToSubmit.data();
+        graSubmitList.execute_command_lists(reinterpret_cast<command_list**>(pGraLists), u32_cast(sm_graphicsListsToSubmit.size()));
+        sm_graphicsListsToSubmit.clear();
+    }
 
     texture* swapchain_texture = sm_swapchain.get_image(sm_activeSwapchainImageIndex);
-
     if( swapchain_texture->get_layout() != TEXTURE_LAYOUT_PRESENT )
-        list->texture_memory_barrier(swapchain_texture, TEXTURE_LAYOUT_PRESENT);
+        graSubmitList.texture_memory_barrier(swapchain_texture, TEXTURE_LAYOUT_PRESENT);
 
-    list->end();
-    list->set_signal_dependency(&sm_frameInFlightDeps[sm_currentFrameIndex]);
-    list->add_wait_dependency(sm_currentSwapchainReadyDep);
-    list->submit(&sm_frameInFlightFences[sm_currentFrameIndex]);
+    graSubmitList.end();
+    graSubmitList.set_signal_dependency(&sm_frameInFlightDeps[sm_currentFrameIndex]);
+    graSubmitList.add_wait_dependency(sm_currentSwapchainReadyDep);
+    graSubmitList.submit(&sm_frameInFlightFences[sm_currentFrameIndex]);
 
     sm_swapchain.present(sm_activeSwapchainImageIndex, { &sm_frameInFlightDeps[sm_currentFrameIndex] });
 
@@ -142,7 +162,6 @@ void render_interface::end_frame()
     sm_currentFrameIndex = (sm_currentFrameIndex + 1) % GFX_RI_FRAMES_IN_FLIGHT;
     sm_isFrameActive = false;
     sm_currentSwapchainReadyDep = nullptr;
-
 }
 
 void render_interface::recreate_swapchain()
@@ -218,9 +237,9 @@ void render_interface::force_recreate_swapchain()
     sm_forceRecreateSwapchain = true;
 }
 
-graphics_command_list* render_interface::get_list_temp()
+graphics_context& render_interface::get_graphics_context()
 {
-    return &sm_commandLists[sm_currentFrameIndex];
+    return sm_graphicsContext;
 }
 
 bool render_interface::handle_swapchain_changes(bool force_recreate)
@@ -240,6 +259,18 @@ bool render_interface::handle_swapchain_changes(bool force_recreate)
     }
 
     return false;
+}
+
+void render_interface::begin_context()
+{
+    // Single thread, just give it the right command list man.
+    sm_graphicsContext.begin(&sm_graphicsContextCommandLists[get_current_frame_index()][0]);
+}
+
+void render_interface::end_context()
+{
+    // Single thread, just grab command list from current thread context
+    sm_graphicsListsToSubmit.push_back(reinterpret_cast<graphics_command_list*>(sm_graphicsContext.end()));
 }
 
 // Static initialization
@@ -264,7 +295,11 @@ dependency* render_interface::sm_currentSwapchainReadyDep = nullptr;
 dependency render_interface::sm_frameInFlightDeps[GFX_RI_FRAMES_IN_FLIGHT] = { };
 fence render_interface::sm_frameInFlightFences[GFX_RI_FRAMES_IN_FLIGHT] = { };
 
-graphics_command_list render_interface::sm_commandLists[GFX_RI_FRAMES_IN_FLIGHT] = { };
+thread_local graphics_context render_interface::sm_graphicsContext = { };
+std::vector<graphics_command_list*> render_interface::sm_graphicsListsToSubmit = { };
+graphics_command_list render_interface::sm_graphicsSubmissionLists[GFX_RI_FRAMES_IN_FLIGHT] = { };
+
+graphics_command_list render_interface::sm_graphicsContextCommandLists[GFX_RI_FRAMES_IN_FLIGHT][GFX_RI_RENDER_THREADS] = { };
 
 } // fw
 } // gfx

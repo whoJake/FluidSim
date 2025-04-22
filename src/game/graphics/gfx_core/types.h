@@ -131,7 +131,7 @@ enum buffer_usage_bits : u32
 
 using buffer_usage_flags = std::underlying_type_t<buffer_usage_bits>;
 
-enum class index_buffer_type : u32
+enum index_buffer_type : u32
 {
     INDEX_TYPE_U16 = 0,
     INDEX_TYPE_U32,
@@ -263,6 +263,19 @@ enum swapchain_acquire_result : u32
     SWAPCHAIN_ACQUIRE_SUCCESS = 0,
     SWAPCHAIN_ACQUIRE_SUBOPTIMAL,
     SWAPCHAIN_ACQUIRE_OUT_OF_DATE,
+};
+
+enum load_operation : u32
+{
+    LOAD_OP_LOAD = 0,
+    LOAD_OP_CLEAR,
+    LOAD_OP_DONT_CARE,
+};
+
+enum store_operation : u32
+{
+    STORE_OP_STORE = 0,
+    STORE_OP_DONT_CARE,
 };
 
 /// <summary>

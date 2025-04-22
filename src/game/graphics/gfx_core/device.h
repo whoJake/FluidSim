@@ -83,7 +83,7 @@ public:
     GFX_DEVICE_FUNC(dependency create_dependency(const char* debug_name = nullptr));
     GFX_DEVICE_FUNC(void free_dependency(dependency* dep));
 
-    GFX_DEVICE_FUNC(graphics_command_list allocate_graphics_command_list());
+    GFX_DEVICE_FUNC(graphics_command_list allocate_graphics_command_list(bool secondary = false));
     GFX_DEVICE_FUNC(void free_command_list(command_list* list));
 
     GFX_DEVICE_FUNC(void wait_idle());
@@ -105,23 +105,25 @@ public:
     GFX_DEVICE_FUNC(void draw(command_list* list, u32 vertex_count, u32 instance_count, u32 first_vertex, u32 first_instance));
     GFX_DEVICE_FUNC(void draw_indexed(command_list* list, u32 index_count, u32 instance_count, u32 first_index, u32 vertex_offset, u32 first_instance));
 
+    GFX_DEVICE_FUNC(void bind_program(command_list* list, program* prog, u64 passIdx));
     GFX_DEVICE_FUNC(void bind_vertex_buffers(command_list* list, buffer** pBuffers, u32 buffer_count, u32 first_vertex_index));
     GFX_DEVICE_FUNC(void bind_index_buffer(command_list* list, buffer* buffer, index_buffer_type type));
 
     GFX_DEVICE_FUNC(void bind_descriptor_tables(command_list* list, pass* pass, descriptor_table** pTables, u32 table_count, descriptor_table_type type));
 
-    GFX_DEVICE_FUNC(void begin_rendering(command_list* list, texture_view** color_outputs, u32 color_output_count, texture_view* depth_output));
+    GFX_DEVICE_FUNC(void begin_rendering(command_list* list, const std::vector<texture_attachment>& color_outputs, texture_attachment* depth_output));
     GFX_DEVICE_FUNC(void end_rendering(command_list* list));
 
-    // TEMPORARY
-    GFX_DEVICE_FUNC(void begin_pass(command_list* list, program* program, u64 passIdx, texture_view* output));
-    GFX_DEVICE_FUNC(void end_pass(command_list* list));
+    GFX_DEVICE_FUNC(void set_viewport(command_list* list, f32 x, f32 y, f32 width, f32 height, f32 min_depth, f32 max_depth));
+    GFX_DEVICE_FUNC(void set_scissor(command_list* list, u32 x, u32 y, u32 width, u32 height));
 
     // GFX_DEVICE_FUNC(void copy_texture(texture* src, texture_layout src_layout, texture* dst, texture_layout dst_layout, texture_region? region);
     GFX_DEVICE_FUNC(void copy_texture_to_texture(command_list* list, texture* src, texture* dst));
     GFX_DEVICE_FUNC(void copy_buffer_to_texture(command_list* list, buffer* src, texture* dst));
     GFX_DEVICE_FUNC(void copy_buffer_to_buffer(command_list* list, buffer* src, buffer* dst));
     GFX_DEVICE_FUNC(void texture_barrier(command_list* list, texture* texture, texture_layout dst_layout, pipeline_stage_flag_bits src_stage = PIPELINE_STAGE_BOTTOM_OF_PIPE, pipeline_stage_flag_bits dst_stage = PIPELINE_STAGE_TOP_OF_PIPE));
+
+    GFX_DEVICE_FUNC(void execute_command_lists(command_list* list, command_list** execute_lists, u32 count));
 
     // GFX_DEVICE_FUNC(void set_vertex_input_state(vertex_input_state* pStates, u32 state_count = 1, u32 first_vertex_index), void* pAux = nullptr));
 

@@ -38,7 +38,7 @@ int main(int argc, const char* argv[])
 	sys::memory::initialise_system_zones();
 
 	std::vector<const char*> args(argc - 1);
-	for( u32 i = 1; i < argc; i++ )
+	for( i32 i = 1; i < argc; i++ )
 		args[i - 1] = argv[i];
 	sys::param::init(args);
 	initialise_gfx_zones();
@@ -136,6 +136,7 @@ int main(int argc, const char* argv[])
 	return 0;
 }
 
+/*
 void debug_image()
 {
 	std::unique_ptr<cdt::image> img = cdt::image_loader::from_file_png("C:/Users/Jake/Documents/Projects/UnnamedGame/src/game/game/assets/images/new_years.png");
@@ -305,6 +306,7 @@ void debug_vbuffer_end()
 	gfx::driver::destroy_buffer(&sbuf);
 	gfx::driver::destroy_buffer(&vbuf);
 }
+*/
 
 void debug_ui()
 {
@@ -372,10 +374,10 @@ void debug_ui()
 		// Create our initial buffers
 		gfx::fw::render_interface::begin_frame();
 
-		gfx::fw::render_interface::get_list_temp()->copy_buffer(&staging_buffer, &vertex_buffer);
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&image_texture, gfx::TEXTURE_LAYOUT_TRANSFER_DST);
-		gfx::fw::render_interface::get_list_temp()->copy_to_texture(&image_staging_buffer, &image_texture);
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(&image_texture, gfx::TEXTURE_LAYOUT_SHADER_READONLY);
+		RI_GraphicsContext.copy_buffer(&staging_buffer, &vertex_buffer);
+		RI_GraphicsContext.texture_layout_transition(&image_texture, gfx::TEXTURE_LAYOUT_TRANSFER_DST);
+		RI_GraphicsContext.copy_buffer(&image_staging_buffer, &image_texture);
+		RI_GraphicsContext.texture_layout_transition(&image_texture, gfx::TEXTURE_LAYOUT_SHADER_READONLY);
 
 		gfx::fw::render_interface::end_frame();
 	}
@@ -401,16 +403,27 @@ void debug_ui()
 		gfx::texture_view* swap_view = gfx::fw::render_interface::get_active_swapchain_texture_view();
 		gfx::texture* swap_tex = const_cast<gfx::texture*>(swap_view->get_resource());
 
+		gfx::texture_attachment attachment
+		{
+			.view = swap_view,
+			.load = gfx::LOAD_OP_CLEAR,
+			.store = gfx::STORE_OP_STORE,
+		};
+
 		// swapchain -> renderable
-		gfx::fw::render_interface::get_list_temp()->texture_memory_barrier(swap_tex, gfx::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
-		gfx::driver::get_device()->begin_pass(gfx::fw::render_interface::get_list_temp(), program, 0, swap_view);
+		RI_GraphicsContext.texture_layout_transition(swap_tex, gfx::TEXTURE_LAYOUT_COLOR_ATTACHMENT);
 
-		gfx::buffer* pBuf = &vertex_buffer;
-		gfx::fw::render_interface::get_list_temp()->bind_vertex_buffers(&pBuf, 1);
-		gfx::fw::render_interface::get_list_temp()->bind_descriptor_tables(&program->get_pass(0), &table, 1, gfx::DESCRIPTOR_TABLE_PER_FRAME);
+		RI_GraphicsContext.begin_rendering({ attachment }, nullptr);
+		RI_GraphicsContext.bind_program(program, 0);
 
-		gfx::fw::render_interface::get_list_temp()->draw(6);
-		gfx::driver::get_device()->end_pass(gfx::fw::render_interface::get_list_temp());
+		RI_GraphicsContext.set_viewport(0.f, 0.f, f32_cast(image_texture.get_width()), f32_cast(image_texture.get_height()), 0.f, 1.f);
+		RI_GraphicsContext.set_scissor(0, 0, image_texture.get_width(), image_texture.get_height());
+
+		RI_GraphicsContext.bind_vertex_buffers({ &vertex_buffer });
+		RI_GraphicsContext.bind_descriptor_table(&program->get_pass(0), table, gfx::DESCRIPTOR_TABLE_PER_FRAME);
+
+		RI_GraphicsContext.draw(6);
+		RI_GraphicsContext.end_rendering();
 
 		gfx::fw::render_interface::end_frame();
 	}

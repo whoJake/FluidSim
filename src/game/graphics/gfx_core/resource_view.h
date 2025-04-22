@@ -81,4 +81,11 @@ public:
     static void destroy(texture_view* texture_view);
 };
 
+struct texture_attachment
+{
+    texture_view* view;
+    load_operation load;
+    store_operation store;
+};
+
 } // gfx

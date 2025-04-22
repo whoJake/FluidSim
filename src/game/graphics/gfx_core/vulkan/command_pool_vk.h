@@ -17,8 +17,8 @@ public:
     void initialise(device_state_vk* state);
     void shutdown();
 
-    VkCommandBuffer allocate_buffer(u32 family_index);
-    VkCommandBuffer allocate_buffer_by_flags(VkQueueFlags flags);
+    VkCommandBuffer allocate_buffer(u32 family_index, bool secondary = false);
+    VkCommandBuffer allocate_buffer_by_flags(VkQueueFlags flags, bool secondary = false);
 
     void free_buffer(VkCommandBuffer buffer, u32 family_index);
     void free_buffer_by_flags(VkCommandBuffer buffer, VkQueueFlags flags);

@@ -61,7 +61,7 @@ void command_pool_vk::shutdown()
     delete[] m_locks;
 }
 
-VkCommandBuffer command_pool_vk::allocate_buffer(u32 family_index)
+VkCommandBuffer command_pool_vk::allocate_buffer(u32 family_index, bool secondary)
 {
     GFX_ASSERT(family_index < m_poolCount, "Family Index is invalid.");
 
@@ -69,7 +69,7 @@ VkCommandBuffer command_pool_vk::allocate_buffer(u32 family_index)
 
     VkCommandBufferAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
     allocInfo.commandPool = m_pools[family_index];
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.level = secondary ? VK_COMMAND_BUFFER_LEVEL_SECONDARY : VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer retval{ VK_NULL_HANDLE };
@@ -93,9 +93,9 @@ VkCommandBuffer command_pool_vk::allocate_buffer(u32 family_index)
     return retval;
 }
 
-VkCommandBuffer command_pool_vk::allocate_buffer_by_flags(VkQueueFlags flags)
+VkCommandBuffer command_pool_vk::allocate_buffer_by_flags(VkQueueFlags flags, bool secondary)
 {
-    return allocate_buffer(m_state->get_family_index_by_flags(flags));
+    return allocate_buffer(m_state->get_family_index_by_flags(flags), secondary);
 }
 
 void command_pool_vk::free_buffer(VkCommandBuffer buffer, u32 family_index)
