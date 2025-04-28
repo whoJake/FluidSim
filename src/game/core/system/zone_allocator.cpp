@@ -133,7 +133,7 @@ void zone_allocator::register_zone_internal(const char* name, zone_id zone, zone
     MEM_ASSERT(zone != 0, "Double registration of default zone.");
     u64 zoneIdx = u64_cast(zone) - 1;
 
-    MEM_ASSERT(zoneIdx <= m_zones.size(), "Zone is outside of valid zone range. Make sure that zone_allocator::max_zones is set to the correct amount before initialising.");
+    MEM_ASSERT(zoneIdx < m_zones.size(), "Zone is outside of valid zone range. Make sure that zone_allocator::max_zones is set to the correct amount before initialising.");
     MEM_ASSERT(!m_zones[zoneIdx].is_initialised(), "Double registration of zone {} with id {}", name, zone);
 
     m_zones[zoneIdx].initialise(name, zone, budget);

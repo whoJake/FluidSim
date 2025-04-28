@@ -15,6 +15,7 @@ namespace gfx
 
 enum driver_mode
 {
+    DRIVER_MODE_DISABLED = 0,
 #ifdef GFX_SUPPORTS_VULKAN
     DRIVER_MODE_VULKAN,
 #endif
@@ -52,10 +53,12 @@ public:
     static screen_capabilities query_screen_capabilities();
 
     static device* get_device();
+    static driver_mode get_driver_mode();
 private:
     static void fill_initial_data(resource* resource, const memory_info& memory_info);
 private:
     static device* sm_device;
+    static driver_mode sm_activeMode;
     static std::function<u32(const std::vector<gpu>&)> sm_gpuSelector;
 };
 

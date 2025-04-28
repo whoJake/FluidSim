@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "system/log.h"
+#include "system/assert.h"
 #include <source_location>
 
 template<typename ...Args>
@@ -10,16 +10,17 @@ __forceinline void QuitFmt_Internal(const std::source_location& loc, const char*
     // stringstream but we're quitting anyway so fuck it
     std::stringstream ss{ };
     ss << "{} {} ln{}\n" << fmt;
-    SYSLOG_FATAL(ss.str().c_str(), loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
-    SYSLOG_FORCEFLUSH();
+    //SYSLOG_FATAL(ss.str().c_str(), loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
+    //SYSLOG_FORCEFLUSH();
+    SYSASSERT(false, "Problem..");
     std::abort();
 }
 
 #ifdef CFG_DEBUG
-#define BREAKFMT(msg, ...) do{ sys::log::warn(std::format(msg, __VA_ARGS__)); __debugbreak(); }while(0)
+#define BREAKFMT(msg, ...) do{ SYSMSG_WARN(msg, __VA_ARGS__); SYSBREAK; }while(0)
 #define QUITFMT(msg, ...) do{ QuitFmt_Internal(std::source_location::current(), msg, __VA_ARGS__ ); }while(0)
 #else
-#define BREAKFMT(msg, ...) do{ sys::log::warn(std::format(msg, __VA_ARGS__)); }while(0)
+#define BREAKFMT(msg, ...) do{ SYSMSG_WARN(msg, __VA_ARGS__); }while(0)
 #define QUITFMT(msg, ...) do{ QuitFmt_Internal(std::source_location::current(), msg, __VA_ARGS__ ); }while(0)
 #endif
 

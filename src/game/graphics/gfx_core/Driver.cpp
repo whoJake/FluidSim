@@ -10,6 +10,7 @@ namespace gfx
 u32 default_choose_gpu(const std::vector<gpu>&);
 
 device* driver::sm_device = nullptr;
+driver_mode driver::sm_activeMode = DRIVER_MODE_DISABLED;
 std::function<u32(const std::vector<gpu>&)> driver::sm_gpuSelector = default_choose_gpu;
 
 MAKEPARAM(disable_debugger);
@@ -58,6 +59,7 @@ u32 driver::initialise(driver_mode mode, surface_create_func surface_func)
 
     // DO NOT SUBMIT
     // gpuIdx = sm_gpuSelector(sm_device->enumerate_gpus());
+    sm_activeMode = mode;
     return sm_device->initialise(0, surface_func);
 }
 
@@ -220,6 +222,11 @@ screen_capabilities driver::query_screen_capabilities()
 device* driver::get_device()
 {
     return sm_device;
+}
+
+driver_mode driver::get_driver_mode()
+{
+    return sm_activeMode;
 }
 
 u32 default_choose_gpu(const std::vector<gpu>& options)

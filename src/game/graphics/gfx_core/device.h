@@ -143,17 +143,18 @@ public:
     GFX_DEVICE_FUNC(void* allocate_descriptor_table_impl(descriptor_pool* pool));
     GFX_DEVICE_FUNC(void write_descriptor_table(descriptor_table* table));
 
+    GFX_DEVICE_FUNC(void dump_info() const);
+
+    inline const gpu& get_gpu() const
+    {
+        return m_gpu;
+    }
+
     inline debugger& get_debugger()
     {
         return m_debugger;
     }
 
-#ifdef GFX_SUPPORTS_VULKAN
-    GFX_DEVICE_FUNC(VkInstance get_vulkan_instance() const);
-#endif
-
-    GFX_DEVICE_FUNC(void dump_info() const);
-protected:
     template<typename T>
     T& get_impl()
     {

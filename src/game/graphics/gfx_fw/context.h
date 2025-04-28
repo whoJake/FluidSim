@@ -13,11 +13,11 @@ namespace gfx
 class context
 {
 public:
-    void begin(transfer_command_list* list);
-    transfer_command_list* end();
-
     bool is_active() const;
     u32 get_active_frame_index() const;
+
+    void set_id(u32 id);
+    u32 get_id() const;
 
     // Commands
     void copy_texture(texture* src, texture* dst);
@@ -34,8 +34,8 @@ protected:
     ~context() = default;
 protected:
     transfer_command_list* m_cmdList;
-
 private:
+    u32 m_contextId{ u32_max };
     u32 m_activeFrameIdx;
 };
 
@@ -56,7 +56,10 @@ public:
 
     void set_viewport(f32 x, f32 y, f32 width, f32 height, f32 min_depth, f32 max_depth);
     void set_scissor(u32 x, u32 y, u32 width, u32 height);
-private:
+
+    void begin(graphics_command_list* list);
+    graphics_command_list* end();
+
     graphics_command_list* get_command_list() const;
 };
 

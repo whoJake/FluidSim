@@ -142,7 +142,6 @@ public:
     void* allocate_descriptor_table_impl(descriptor_pool* pool) override;
     void write_descriptor_table(descriptor_table* table) override;
 
-    VkInstance get_vulkan_instance() const override;
     void dump_info() const override;
 };
 #endif // GFX_VIRTUAL_DEVICE

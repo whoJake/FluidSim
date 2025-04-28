@@ -53,6 +53,12 @@
 #define NOMINMAX
 #endif
 
+// User includes
+#include "gfx_core/vulkan/device_vk.h"
+#include "gfx_fw/context.h"
+#include "gfx_core/types.h"
+#include "gfx_core/pipeline_state.h"
+
 // Vulkan includes
 #ifdef IMGUI_IMPL_VULKAN_USE_VOLK
 #include <volk.h>
@@ -97,6 +103,20 @@ struct ImGui_ImplVulkan_InitInfo
     void                            (*CheckVkResultFn)(VkResult err);
     VkDeviceSize                    MinAllocationSize;      // Minimum allocation size. Set to 1024*1024 to satisfy zealous best practices validation layer and waste a little memory.
 };
+
+struct ImGui_GfxDevice_ImplVulkan_InitInfo
+{
+    gfx::device_vk* Device;
+    gfx::descriptor_pool* Pool;
+    gfx::shader_pass_outputs OutputDescription;
+    uint32_t MinImageCount; // >= 2
+    uint32_t ImageCount; // >= MinImageCount;
+    gfx::sample_count_flag_bits MSAASamples;
+};
+
+// CUSTOM: User code helper
+IMGUI_IMPL_API bool         ImGui_GfxDevice_ImplVulkan_Init(ImGui_GfxDevice_ImplVulkan_InitInfo* info);
+IMGUI_IMPL_API void         ImGui_GfxDevice_ImplVulkan_RenderDrawData(ImDrawData* data, gfx::graphics_context& context);
 
 // Called by user code
 IMGUI_IMPL_API bool         ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info);

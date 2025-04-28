@@ -1818,11 +1818,6 @@ void device_state_vk::create_instance(debugger& debugger)
     }
 }
 
-VkInstance VK_DEVICE::get_vulkan_instance() const
-{
-    return get_impl<device_state_vk>().instance;
-}
-
 void VK_DEVICE::dump_info() const
 {
     const device_state_vk& deviceState = get_impl<device_state_vk>();

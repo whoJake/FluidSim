@@ -5,15 +5,7 @@
 #include "platform/events/WindowEvent.h"
 #include "platform/events/Event.h"
 
-#include "system/timer.h"
-
-#include "rendering/RenderContext.h"
-
-#include "graphics/Material.h"
-#include "graphics/Shader.h"
-
-#include "scene/spatial/Scene.h"
-#include "render/Renderer.h"
+#include "implementations/ImGuiContext.h"
 
 class CrawlerGame : public fw::game
 {
@@ -28,7 +20,6 @@ public:
 
 	void on_event(Event& e) override;
 
-	fw::game::options get_startup_options() override;
 	fw::window::state get_window_startup_state() override;
 private:
 	bool on_window_resize(WindowResizeEvent& e);
@@ -38,8 +29,7 @@ private:
 	void debug_setup();
 private:
 	// testing
-	std::unique_ptr<Scene> m_scene;
-	std::unique_ptr<Renderer> m_renderer;
 	std::unique_ptr<mygui::Context> m_imGui;
-	Entity* m_camera;
+	glm::vec3 m_position;
+	glm::vec2 m_cursor;
 };

@@ -62,16 +62,15 @@ void render_interface::initialise()
         sm_swapchainImageReady[idx] = GFX_CALL(create_dependency, swapchain_dep_cstr);
 
         sm_graphicsSubmissionLists[idx] = GFX_CALL(allocate_graphics_command_list, false);
-
-        for( u32 thread_idx = 0; thread_idx < GFX_RI_RENDER_THREADS; thread_idx++ )
-        {
-            sm_graphicsContextCommandLists[idx][thread_idx] = GFX_CALL(allocate_graphics_command_list, true);
-        }
     }
+
+    initialise_contexts();
 }
 
 void render_interface::shutdown()
 {
+    shutdown_contexts();
+
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
     {
         texture_view::destroy(&sm_swapchainViews[idx]);
@@ -79,11 +78,6 @@ void render_interface::shutdown()
         GFX_CALL(free_dependency, &sm_frameInFlightDeps[idx]);
         GFX_CALL(free_command_list, &sm_graphicsSubmissionLists[idx]);
         GFX_CALL(free_fence, &sm_frameInFlightFences[idx]);
-
-        for( u32 thread_idx = 0; thread_idx < GFX_RI_RENDER_THREADS; thread_idx++ )
-        {
-            GFX_CALL(free_command_list, &sm_graphicsContextCommandLists[idx][thread_idx]);
-        }
     }
 
     GFX_CALL(free_swapchain, &sm_swapchain);
@@ -124,7 +118,7 @@ void render_interface::begin_frame(bool wait_frame)
     }
 
     GFX_ASSERT(acquire_result == SWAPCHAIN_ACQUIRE_SUCCESS, "Failed to begin frame as next swapchain image could not be acquired.");
-    begin_context();
+    render_thread_begin_context();
     sm_isFrameActive = true;
 }
 
@@ -138,7 +132,7 @@ void render_interface::end_frame()
 
     // Temp, I dont think end_frame is nessisary on the API
     // Just start_frame -> wait_for_frame (wait for cpu frame, not gpu :/)
-    end_context();
+    render_thread_end_context();
 
     if( !sm_graphicsListsToSubmit.empty() )
     {
@@ -261,16 +255,41 @@ bool render_interface::handle_swapchain_changes(bool force_recreate)
     return false;
 }
 
-void render_interface::begin_context()
+void render_interface::initialise_contexts()
 {
-    // Single thread, just give it the right command list man.
-    sm_graphicsContext.begin(&sm_graphicsContextCommandLists[get_current_frame_index()][0]);
+    // Same, single thread. Set only ID to 0
+    for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
+    {
+        for( u32 thread_idx = 0; thread_idx < GFX_RI_RENDER_THREADS; thread_idx++ )
+        {
+            sm_graphicsContextCommandLists[idx][thread_idx] = GFX_CALL(allocate_graphics_command_list, true);
+        }
+    }
+
+    RI_GraphicsContext.set_id(0);
 }
 
-void render_interface::end_context()
+void render_interface::shutdown_contexts()
+{
+    for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
+    {
+        for( u32 thread_idx = 0; thread_idx < GFX_RI_RENDER_THREADS; thread_idx++ )
+        {
+            GFX_CALL(free_command_list, &sm_graphicsContextCommandLists[idx][thread_idx]);
+        }
+    }
+}
+
+void render_interface::render_thread_begin_context()
+{
+    // Single thread, just give it the right command list man.
+    sm_graphicsContext.begin(&sm_graphicsContextCommandLists[get_current_frame_index()][RI_GraphicsContext.get_id()]);
+}
+
+void render_interface::render_thread_end_context()
 {
     // Single thread, just grab command list from current thread context
-    sm_graphicsListsToSubmit.push_back(reinterpret_cast<graphics_command_list*>(sm_graphicsContext.end()));
+    sm_graphicsListsToSubmit.push_back(RI_GraphicsContext.end());
 }
 
 // Static initialization

@@ -3,23 +3,6 @@
 namespace gfx
 {
 
-void context::begin(transfer_command_list* list)
-{
-    GFX_ASSERT(!is_active(), "Context is already active.");
-    m_cmdList = list;
-    m_cmdList->reset(false);
-    m_cmdList->begin();
-}
-
-transfer_command_list* context::end()
-{
-    GFX_ASSERT(is_active(), "Context is not active.");
-    m_cmdList->end();
-    transfer_command_list* retval = m_cmdList;
-    m_cmdList = nullptr;
-    return retval;
-}
-
 bool context::is_active() const
 {
     // TODO this probably should change.
@@ -29,6 +12,16 @@ bool context::is_active() const
 u32 context::get_active_frame_index() const
 {
     return m_activeFrameIdx;
+}
+
+u32 context::get_id() const
+{
+    return m_contextId;
+}
+
+void context::set_id(u32 id)
+{
+    m_contextId = id;
 }
 
 void context::copy_texture(texture* src, texture* dst)
@@ -113,6 +106,23 @@ void graphics_context::set_scissor(u32 x, u32 y, u32 width, u32 height)
 {
     GFX_ASSERT(is_active(), "Graphics context is not active.");
     get_command_list()->set_scissor(x, y, width, height);
+}
+
+void graphics_context::begin(graphics_command_list* list)
+{
+    GFX_ASSERT(!is_active(), "Context is already active.");
+    m_cmdList = list;
+    m_cmdList->reset(false);
+    m_cmdList->begin();
+}
+
+graphics_command_list* graphics_context::end()
+{
+    GFX_ASSERT(is_active(), "Context is not active.");
+    m_cmdList->end();
+    graphics_command_list* retval = get_command_list();
+    m_cmdList = nullptr;
+    return retval;
 }
 
 graphics_command_list* graphics_context::get_command_list() const

@@ -15,7 +15,7 @@ enum gfx_memory_zone : u32
     MEMZONE_GFX_COUNT = MEMZONE_GFX_END - MEMZONE_GFX_BEGIN,
 };
 
-void initialise_gfx_zones()
+static void initialise_gfx_zones()
 {
     sys::zone_allocator::register_zone("graphics.default", MEMZONE_GFX_DEFAULT, { 0, sys::budget_failure_type::silent });
     sys::zone_allocator::register_zone("graphics.shaders", MEMZONE_GFX_SHADERS, { 0, sys::budget_failure_type::silent });

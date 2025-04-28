@@ -72,12 +72,16 @@ private:
     static thread_local graphics_context sm_graphicsContext;
     static std::vector<graphics_command_list*> sm_graphicsListsToSubmit;
     static graphics_command_list sm_graphicsSubmissionLists[GFX_RI_FRAMES_IN_FLIGHT];
-
-    static graphics_command_list sm_graphicsContextCommandLists[GFX_RI_FRAMES_IN_FLIGHT][GFX_RI_RENDER_THREADS];
 private:
-    // Context management functions
-    static void begin_context();
-    static void end_context();
+    // Context management
+    static void initialise_contexts();
+    // static void render_thread();
+    static void shutdown_contexts();
+
+    static void render_thread_begin_context();
+    static void render_thread_end_context();
+private:
+    static graphics_command_list sm_graphicsContextCommandLists[GFX_RI_FRAMES_IN_FLIGHT][GFX_RI_RENDER_THREADS];
 };
 
 } // fw

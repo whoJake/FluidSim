@@ -1,38 +1,21 @@
 #include "AppStartup.h"
 
-#include "system/log.h"
-#include "system/timer.h"
-#include <chrono>
-#include "system/details/log_console.h"
-#include "system/details/basic_log.h"
-#include "gfx_core/driver.h"
-#include "memory_zone.h"
-#include "gfx_fw/program_mgr.h"
-#include "gfx_fw/render_interface.h"
-#include "gfx_core/descriptor_pool.h"
-
-#include "cdt/loaders/image_loaders.h"
-#include "gfx_core/vulkan/vkdefines.h"
-#include "platform/windows/window_glfw.h"
-
-#include "system/memory.h"
-#include "system/zone_allocator.h"
-
-static u64 g_frame = 0;
-
-void debug_image();
-void debug_triangle();
-
-void debug_vbuffer_start();
-void debug_vbuffer_work();
-void debug_vbuffer_end();
-
-void debug_ui();
-
-static bool g_updatefps = true;
+// static u64 g_frame = 0;
+// 
+// void debug_image();
+// void debug_triangle();
+// 
+// void debug_vbuffer_start();
+// void debug_vbuffer_work();
+// void debug_vbuffer_end();
+// 
+// void debug_ui();
+// 
+// static bool g_updatefps = true;
 
 int main(int argc, const char* argv[])
 {
+	/*
 	sys::zone_allocator::max_zones = MEMZONE_SYSTEM_COUNT + MEMZONE_GFX_COUNT;
 	sys::memory::setup_heap();
 	sys::memory::initialise_system_zones();
@@ -130,10 +113,11 @@ int main(int argc, const char* argv[])
 	gfx::fw::render_interface::shutdown();
 	gfx::program_mgr::shutdown();
 	gfx::driver::shutdown();
-	
-	// AppStartup app;
-	// return app.run(argc, argv);
-	return 0;
+	*/
+
+	AppStartup app;
+	return app.run(argc, argv);
+	// return 0;
 }
 
 /*
@@ -306,7 +290,6 @@ void debug_vbuffer_end()
 	gfx::driver::destroy_buffer(&sbuf);
 	gfx::driver::destroy_buffer(&vbuf);
 }
-*/
 
 void debug_ui()
 {
@@ -438,3 +421,5 @@ void debug_ui()
 	gfx::buffer::destroy(&staging_buffer);
 	gfx::buffer::destroy(&vertex_buffer);
 }
+
+*/
