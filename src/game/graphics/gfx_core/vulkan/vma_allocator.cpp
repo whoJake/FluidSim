@@ -1,3 +1,4 @@
+#define VMA_IMPLEMENTATION
 #include "vma_allocator.h"
 #include "vkconverts.h"
 #include "gfx_core/resource.h"
