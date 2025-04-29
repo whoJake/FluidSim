@@ -16,7 +16,9 @@ public:
 	bool on_game_startup() override;
 	void on_game_shutdown() override;
 
-	bool update(f64 deltaTime) override;
+	void setup_update_graph(fw::scaffold_update_node& parent) override;
+
+	bool update(f64 deltaTime);
 
 	void on_event(Event& e) override;
 

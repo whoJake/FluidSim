@@ -3,6 +3,7 @@
 #include "app.h"
 #include "../platform/window.h"
 #include "system/timer.h"
+#include "base/scaffold.h"
 
 namespace fw
 {
@@ -26,17 +27,19 @@ public:
     DELETE_MOVE(game);
     DELETE_COPY(game);
 
-    i32 app_main() override;
+    i32 app_main() override final;
 
-    bool on_startup() override;
-    void on_shutdown() override;
+    bool on_startup() override final;
+    void on_shutdown() override final;
+
+    virtual void setup_startup_graph(scaffold_startup_node& parent);
+    virtual void setup_update_graph(scaffold_update_node& parent);
+    virtual void setup_shutdown_graph(scaffold_shutdown_node& parent);
 
     void set_should_close();
 
     window& get_window();
     const window& get_window() const;
-
-    virtual bool update(f64 delta_time);
 
     virtual bool on_game_startup();
     virtual void on_game_shutdown();

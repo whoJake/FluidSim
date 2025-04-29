@@ -4,26 +4,29 @@
 #include "../platform/windows/window_glfw.h"
 #include "gfx_core/Driver.h"
 #include "gfx_fw/render_interface.h"
+#include "basic/Time.h"
 
 namespace fw
 {
 
 i32 game::app_main()
 {
-    while( !m_shouldClose && !m_window->get_should_close())
-    {
-        sys::moment updateStart = sys::now();
-        auto timeSpent = updateStart - m_lastUpdateTime;
-        m_lastUpdateTime = updateStart;
-
-        bool success = update(std::chrono::duration_cast<std::chrono::nanoseconds>(timeSpent).count() / 1e9);
-        if( !success )
+    setup_startup_graph(scaffold::add_startup_node(scaffold_startup_node([]() -> void
         {
-            return EXIT_UPDATE_FAILURE;
-        }
+            // Nothing to do in base startup :/
+        })));
 
-    }
+    setup_update_graph(scaffold::add_update_node(scaffold_startup_node([]() -> void
+        {
+            Time::update();
+        })));
 
+    setup_shutdown_graph(scaffold::add_shutdown_node(scaffold_shutdown_node([]() -> void
+    {
+        // Nothing to do in base shutdown
+    })));
+
+    scaffold::startup();
     return EXIT_SUCCESS;
 }
 
@@ -62,9 +65,19 @@ void game::on_shutdown()
     m_window->close();
 }
 
+void game::setup_startup_graph(scaffold_startup_node& parent)
+{ }
+
+void game::setup_update_graph(scaffold_update_node& parent)
+{ }
+
+void game::setup_shutdown_graph(scaffold_shutdown_node& parent)
+{ }
+
 void game::set_should_close()
 {
     m_shouldClose = true;
+    scaffold::set_should_stop();
 }
 
 window& game::get_window()
@@ -75,11 +88,6 @@ window& game::get_window()
 const window& game::get_window() const
 {
     return *m_window;
-}
-
-bool game::update(f64 delta_time)
-{
-    return true;
 }
 
 bool game::on_game_startup()

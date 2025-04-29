@@ -4,6 +4,7 @@
 #include "input/imgui/imgui_bindings.h"
 #include "input/Input.h"
 #include "gfx_fw/render_interface.h"
+#include "basic/Time.h"
 
 bool CrawlerGame::on_game_startup()
 {
@@ -73,11 +74,18 @@ void CrawlerGame::on_game_shutdown()
 {
 }
 
+void CrawlerGame::setup_update_graph(fw::scaffold_update_node& parent)
+{
+	parent.add_child(fw::scaffold_update_node([&]() -> void
+		{
+			get_window().process_events();
+
+			update(fw::Time::delta_time());
+		}));
+}
+
 bool CrawlerGame::update(f64 deltaTime)
 {
-	// Calculate delta time
-	get_window().process_events();
-
 	update_impl(f32_cast(deltaTime));
 	Input::tick();
 
