@@ -4,6 +4,7 @@
 #include <iostream>
 #include <chrono>
 #include <format>
+#include "assert.h"
 
 namespace sys
 {
@@ -149,7 +150,7 @@ private:
     inline void output_timer() const
     {
         std::string time = std::format("{}{}", get_fidelity_string(), fidelity_suffix());
-        CHANNEL_LOG_PROFILE(m_channel, m_format, time);
+        SYSMSG_PROFILE(m_format, time);
     }
 private:
     moment m_start;

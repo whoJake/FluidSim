@@ -136,7 +136,7 @@ public:
 
     GFX_DEVICE_FUNC(void destroy_shader_program(program* program));
 
-    GFX_DEVICE_FUNC(void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size));
+    GFX_DEVICE_FUNC(void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size, bool reuse_tables));
     GFX_DEVICE_FUNC(void destroy_descriptor_pool(descriptor_pool* pool));
     GFX_DEVICE_FUNC(void reset_descriptor_pool(descriptor_pool* pool));
 

@@ -400,6 +400,7 @@ constexpr VkAttachmentLoadOp get_load_op_vk(load_operation op)
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     default:
         GFX_ASSERT(false, "Load operation is not valid for VkAttachmentLoadOp conversion.");
+        return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
 }
 
@@ -413,6 +414,7 @@ constexpr VkAttachmentStoreOp get_store_op_vk(store_operation op)
         return VK_ATTACHMENT_STORE_OP_DONT_CARE;
     default:
         GFX_ASSERT(false, "Store operation is not valid for VkAttachmentStoreOp conversion.");
+        return VK_ATTACHMENT_STORE_OP_NONE;
     }
 }
 

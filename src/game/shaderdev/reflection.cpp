@@ -77,7 +77,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_INPUT>(const spirv_cross::
     for( auto& resource : spirv_resources.stage_inputs )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_INPUT;
 
         ret_resource.location = compiler.get_decoration(resource.id, spv::DecorationLocation);
@@ -99,7 +99,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_INPUT_ATTACHMENT>(const sp
     for( auto& resource : spirv_resources.subpass_inputs )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_INPUT_ATTACHMENT;
 
         ret_resource.inputAttachmentIndex = compiler.get_decoration(resource.id, spv::DecorationInputAttachmentIndex);
@@ -122,7 +122,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_OUTPUT>(const spirv_cross:
     for( auto& resource : spirv_resources.stage_outputs )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_OUTPUT;
 
         ret_resource.location = compiler.get_decoration(resource.id, spv::DecorationLocation);
@@ -144,7 +144,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_IMAGE>(const spirv_cross::
     for( auto& resource : spirv_resources.separate_images )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_IMAGE;
 
         ret_resource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -165,7 +165,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_IMAGE_SAMPLER>(const spirv
     for( auto& resource : spirv_resources.sampled_images )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_IMAGE_SAMPLER;
 
         ret_resource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -186,7 +186,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_IMAGE_STORAGE>(const spirv
     for( auto& resource : spirv_resources.storage_images )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_IMAGE_STORAGE;
 
         ret_resource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -207,7 +207,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_SAMPLER>(const spirv_cross
     for( auto& resource : spirv_resources.separate_samplers )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_SAMPLER;
 
         ret_resource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -228,7 +228,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_UNIFORM_BUFFER>(const spir
     for( auto& resource : spirv_resources.uniform_buffers )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_UNIFORM_BUFFER;
 
         ret_resource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -250,7 +250,7 @@ static bool read_shader_resource<gfx::SHADER_RESOURCE_STORAGE_BUFFER>(const spir
     for( auto& resource : spirv_resources.storage_buffers )
     {
         shader_resource ret_resource{ };
-        ret_resource.name = resource.name;
+        ret_resource.name = compiler.get_name(resource.id);
         ret_resource.type = gfx::SHADER_RESOURCE_STORAGE_BUFFER;
 
         ret_resource.set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);

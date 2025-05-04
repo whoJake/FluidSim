@@ -1463,7 +1463,7 @@ void VK_DEVICE::destroy_shader_program(program* program)
     }
 }
 
-void* VK_DEVICE::create_descriptor_pool_impl(descriptor_table_desc* base, u32 size)
+void* VK_DEVICE::create_descriptor_pool_impl(descriptor_table_desc* base, u32 size, bool reuse_tables)
 {
     dt::vector<VkDescriptorPoolSize> sizes;
     // Just do this slow as fuck who cares
@@ -1519,6 +1519,7 @@ void* VK_DEVICE::create_descriptor_pool_impl(descriptor_table_desc* base, u32 si
     createInfo.maxSets = size;
     createInfo.poolSizeCount = u32_cast(sizes.size());
     createInfo.pPoolSizes = sizes.data();
+    createInfo.flags = reuse_tables ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT : 0;
 
     VkDescriptorPool retval{ VK_NULL_HANDLE };
     VkResult result = vkCreateDescriptorPool(get_impl<device_state_vk>().device, &createInfo, nullptr, &retval);
@@ -1569,13 +1570,32 @@ void* VK_DEVICE::allocate_descriptor_table_impl(descriptor_pool* pool)
 
 void VK_DEVICE::write_descriptor_table(descriptor_table* table)
 {
-    const dt::array<void*>& bufferViews = table->get_buffer_views();
+    const dt::array<buffer*>& bufferViews = table->get_buffer_views();
     const dt::array<void*>& imageViews = table->get_image_views();
 
     u32 bindingIdx = 0;
     if( bufferViews.size() != 0 )
     {
+        std::vector<VkDescriptorBufferInfo> bufferInfos;
+        for( buffer* buffer : bufferViews )
+        {
+            VkDescriptorBufferInfo info{ };
+            info.buffer = buffer->get_impl<VkBuffer>();
+            info.offset = 0;
+            info.range = VK_WHOLE_SIZE;
 
+            bufferInfos.push_back(info);
+        }
+
+        VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+        write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        write.dstSet = table->get_impl<VkDescriptorSet>();
+        write.dstBinding = 0;
+        write.dstArrayElement = 0;
+        write.descriptorCount = u32_cast(bufferInfos.size());
+        write.pBufferInfo = bufferInfos.data();
+
+        vkUpdateDescriptorSets(get_impl<device_state_vk>().device, 1, &write, 0, nullptr);
     }
 
     if( imageViews.size() != 0 )

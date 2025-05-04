@@ -72,6 +72,7 @@ void CrawlerGame::on_event(Event& e)
 
 void CrawlerGame::on_game_shutdown()
 {
+	m_imGui.reset();
 }
 
 void CrawlerGame::setup_update_graph(fw::scaffold_update_node& parent)

@@ -4,12 +4,13 @@
 namespace gfx
 {
 
-void descriptor_pool::initialise(descriptor_table_desc* desc, u32 size)
+void descriptor_pool::initialise(descriptor_table_desc* desc, u32 size, bool reuse_tables)
 {
     m_desc = desc;
     m_capacity = size;
+    m_reuseTables = reuse_tables;
 
-    m_pImpl = GFX_CALL(create_descriptor_pool_impl, desc, size);
+    m_pImpl = GFX_CALL(create_descriptor_pool_impl, desc, size, reuse_tables);
 }
 
 descriptor_table* descriptor_pool::allocate()
@@ -63,7 +64,16 @@ void descriptor_pool::free(descriptor_table* table)
         {
             m_used[idx].release();
             m_used.erase(idx);
-            m_available.push_back(dt::make_unique<descriptor_table>(table));
+
+            if( m_reuseTables )
+            {
+                m_available.push_back(dt::make_unique<descriptor_table>(table));
+            }
+            else
+            {
+                // TODO actually free the descriptor pool. This is only used for ImGui atm.
+                delete table;
+            }
             return;
         }
     }
@@ -103,12 +113,12 @@ void descriptor_table::initialise(descriptor_pool* owner, void* pImpl)
     GFX_ASSERT(pImpl, "Descriptor table must have a pre-computed impl pointer.");
 
     m_owner = owner;
-    m_bufferViews = dt::array<void*>(get_desc().get_buffer_descriptions().size());
+    m_bufferViews = dt::array<buffer*>(get_desc().get_buffer_descriptions().size());
     m_imageViews = dt::array<void*>(get_desc().get_image_descriptions().size());
     m_pImpl = pImpl;
 }
 
-void descriptor_table::set_buffer(dt::hash_string32 name, void* value)
+void descriptor_table::set_buffer(dt::hash_string32 name, buffer* value)
 {
     m_bufferViews[get_desc().find_buffer_slot(name)] = value;
 }
@@ -118,7 +128,7 @@ void descriptor_table::set_image(dt::hash_string32 name, void* value)
     m_imageViews[get_desc().find_image_slot(name)] = value;
 }
 
-const dt::array<void*>& descriptor_table::get_buffer_views() const
+const dt::array<buffer*>& descriptor_table::get_buffer_views() const
 {
     return m_bufferViews;
 }

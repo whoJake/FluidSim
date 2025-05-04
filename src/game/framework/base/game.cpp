@@ -58,8 +58,8 @@ bool game::on_startup()
 
 void game::on_shutdown()
 {
-    on_game_shutdown();
     gfx::driver::wait_idle();
+    on_game_shutdown();
     gfx::fw::render_interface::shutdown();
     gfx::driver::shutdown();
     m_window->close();

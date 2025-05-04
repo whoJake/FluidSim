@@ -3,6 +3,7 @@
 #include "dt/hash_string.h"
 #include "dt/array.h"
 #include "dt/unique_ptr.h"
+#include "resource_view.h"
 
 namespace gfx
 {
@@ -26,10 +27,10 @@ public:
 
     void initialise(descriptor_pool* owner, void* pImpl);
 
-    void set_buffer(dt::hash_string32 name, void* value);
+    void set_buffer(dt::hash_string32 name, buffer* value);
     void set_image(dt::hash_string32 name, void* value);
 
-    const dt::array<void*>& get_buffer_views() const;
+    const dt::array<buffer*>& get_buffer_views() const;
     const dt::array<void*>& get_image_views() const;
 
     const descriptor_table_desc& get_desc() const;
@@ -42,7 +43,7 @@ public:
 private:
     descriptor_pool* m_owner;
 
-    dt::array<void*> m_bufferViews;
+    dt::array<buffer*> m_bufferViews;
     dt::array<void*> m_imageViews;
 
     void* m_pImpl;
@@ -54,7 +55,7 @@ public:
     descriptor_pool() = default;
     ~descriptor_pool() = default;
 
-    void initialise(descriptor_table_desc* desc, u32 size);
+    void initialise(descriptor_table_desc* desc, u32 size, bool reuse_tables = true);
 
     descriptor_table* allocate();
     void free(descriptor_table* table);
@@ -74,6 +75,7 @@ private:
     descriptor_table_desc* m_desc;
     dt::vector<dt::unique_ptr<descriptor_table>> m_used;
     dt::vector<dt::unique_ptr<descriptor_table>> m_available;
+    bool m_reuseTables;
     u32 m_capacity;
     void* m_pImpl;
 };

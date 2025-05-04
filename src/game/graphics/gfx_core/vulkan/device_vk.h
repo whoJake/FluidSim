@@ -135,7 +135,7 @@ public:
 
     void destroy_shader_program(program* program) override;
 
-    void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size) override;
+    void* create_descriptor_pool_impl(descriptor_table_desc* base, u32 size, bool reuse_tables) override;
     void destroy_descriptor_pool(descriptor_pool* pool) override;
     void reset_descriptor_pool(descriptor_pool* pool) override;
 

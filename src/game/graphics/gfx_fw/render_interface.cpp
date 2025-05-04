@@ -36,7 +36,7 @@ void render_interface::initialise()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            PRESENT_MODE_IMMEDIATE);
+            PRESENT_MODE_MAILBOX);
 
     sm_swapchainWidth = swapchain_width;
     sm_swapchainHeight = swapchain_height;
@@ -51,14 +51,14 @@ void render_interface::initialise()
         sm_frameInFlightFences[idx] = GFX_CALL(create_fence, true);
 
         std::string frame_dep_name = std::format("FRAME_{}_READY", idx);
-        char* frame_dep_cstr = new char[frame_dep_name.size()];
-        strcpy(frame_dep_cstr, frame_dep_name.c_str());
+        char* frame_dep_cstr = new char[frame_dep_name.size() + 1];
+        strncpy_s(frame_dep_cstr, frame_dep_name.size() + 1, frame_dep_name.c_str(), frame_dep_name.size() + 1);
         sm_frameInFlightDeps[idx] = GFX_CALL(create_dependency, frame_dep_cstr);
         
         // TODO this is leaked, I don't care. Just put the std::string on the dependency man
         std::string swapchain_dep_name = std::format("SWAPCHAIN_IMAGE_{}_READY", idx);
         char* swapchain_dep_cstr = new char[swapchain_dep_name.size() + 1];
-        strcpy(swapchain_dep_cstr, swapchain_dep_name.c_str());
+        strncpy_s(swapchain_dep_cstr, swapchain_dep_name.size() + 1, swapchain_dep_name.c_str(), swapchain_dep_name.size() + 1);
         sm_swapchainImageReady[idx] = GFX_CALL(create_dependency, swapchain_dep_cstr);
 
         sm_graphicsSubmissionLists[idx] = GFX_CALL(allocate_graphics_command_list, false);
@@ -170,7 +170,7 @@ void render_interface::recreate_swapchain()
             GFX_RI_FRAMES_IN_FLIGHT,
             TEXTURE_USAGE_SWAPCHAIN_OWNED | TEXTURE_USAGE_TRANSFER_DST | TEXTURE_USAGE_COLOR,
             format::R8G8B8A8_SRGB,
-            PRESENT_MODE_IMMEDIATE);
+            PRESENT_MODE_MAILBOX);
 
     // Destroy all our old texture views and create the new ones.
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
@@ -266,6 +266,7 @@ void render_interface::initialise_contexts()
         }
     }
 
+    sm_graphicsContext = { };
     RI_GraphicsContext.set_id(0);
 }
 
