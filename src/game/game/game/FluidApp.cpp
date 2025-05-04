@@ -21,6 +21,8 @@ void FluidApp::setup_startup_graph(fw::scaffold_startup_node& parent)
 {
     parent.add_child(fw::scaffold_startup_node([&]() -> void
         {
+            initialise_app();
+
             m_imGui = std::make_unique<mygui::Context>(&get_window());
             initialise_simulation();
         }));
@@ -33,11 +35,11 @@ void FluidApp::setup_update_graph(fw::scaffold_update_node& parent)
         {
             get_window().process_events();
 
-            update_simulation();
-
             m_imGui->begin_frame();
             update_simulation_debug();
             m_imGui->end_frame();
+
+            update_simulation();
 
             render_simulation();
         }));
@@ -49,7 +51,30 @@ void FluidApp::setup_shutdown_graph(fw::scaffold_shutdown_node& parent)
         {
             shutdown_simulation();
             m_imGui = nullptr;
+
+            shutdown_app();
         }));
+}
+
+void FluidApp::initialise_app()
+{
+    // Need to initialise our program stuff.
+    gfx::program_mgr::initialise("C:\\Users\\Jake\\Documents\\Projects\\UnnamedGame\\src\\game\\shaderdev\\compiled\\");
+    gfx::program_mgr::load("fluid_viz_basic_2d.fxcp");
+    m_visualiseProgram = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("fluid_viz_basic_2d")));
+
+    m_descriptorPool.initialise(m_visualiseProgram->get_pass(0).get_descriptor_table(gfx::DESCRIPTOR_TABLE_PER_FRAME), GFX_RI_FRAMES_IN_FLIGHT);
+    for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
+    {
+        m_programTable[idx] = m_descriptorPool.allocate();
+    }
+}
+
+void FluidApp::shutdown_app()
+{
+    gfx::driver::wait_idle();
+    GFX_CALL(destroy_descriptor_pool, &m_descriptorPool);
+    gfx::program_mgr::shutdown();
 }
 
 void FluidApp::initialise_simulation()
@@ -89,28 +114,15 @@ void FluidApp::initialise_simulation()
             *m_frameInfoBuffers[idx] = gfx::buffer::create(windowBuffersMemInfo);
             m_frameInfoBuffers[idx]->map();
         }
+
+        m_programTable[idx]->set_buffer(dt::hash_string32("in_nodeList"), m_nodeBuffers[idx]);
+        m_programTable[idx]->set_buffer(dt::hash_string32("in_frameInfo"), m_frameInfoBuffers[idx]);
+
+        m_programTable[idx]->write();
     }
 
     // This marks everything as dirty
     update_simulation_settings();
-
-    if( m_visualiseProgram == nullptr )
-    {
-        // Need to initialise our program stuff.
-        gfx::program_mgr::initialise("C:\\Users\\Jake\\Documents\\Projects\\UnnamedGame\\src\\game\\shaderdev\\compiled\\");
-        gfx::program_mgr::load("fluid_viz_basic_2d.fxcp");
-        m_visualiseProgram = const_cast<gfx::program*>(gfx::program_mgr::find_program(dt::hash_string32("fluid_viz_basic_2d")));
-
-        m_descriptorPool.initialise(m_visualiseProgram->get_pass(0).get_descriptor_table(gfx::DESCRIPTOR_TABLE_PER_FRAME), GFX_RI_FRAMES_IN_FLIGHT);
-        for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
-        {
-            m_programTable[idx] = m_descriptorPool.allocate();
-            m_programTable[idx]->set_buffer(dt::hash_string32("in_nodeList"), m_nodeBuffers[idx]);
-            m_programTable[idx]->set_buffer(dt::hash_string32("in_frameInfo"), m_frameInfoBuffers[idx]);
-
-            m_programTable[idx]->write();
-        }
-    }
 
     // Insert our initial nodes
     for( u32 idx = 0; idx < m_simulationNodes; idx++ )
@@ -166,7 +178,11 @@ void FluidApp::update_simulation_debug()
     ImGui::Checkbox("Paused?", &m_simulationPaused);
 
     if( ImGui::Button("Reset Simulation") )
+    {
+        m_simulationPaused = true;
+        shutdown_simulation();
         initialise_simulation();
+    }
 
     if( ImGui::Button("Update Simulation") )
         update_simulation_settings();
@@ -179,8 +195,6 @@ void FluidApp::shutdown_simulation()
     m_simulation.reset();
 
     gfx::driver::wait_idle();
-    GFX_CALL(destroy_descriptor_pool, &m_descriptorPool);
-    m_visualiseProgram = nullptr;
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
     {
         m_nodeBuffers[idx]->unmap();
@@ -192,11 +206,7 @@ void FluidApp::shutdown_simulation()
         gfx::buffer::destroy(m_frameInfoBuffers[idx]);
         delete m_frameInfoBuffers[idx];
         m_frameInfoBuffers[idx] = nullptr;
-
-        m_programTable[idx] = nullptr;
     }
-
-    gfx::program_mgr::shutdown();
 }
 
 void FluidApp::render_simulation()

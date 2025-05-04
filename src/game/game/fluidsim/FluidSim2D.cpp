@@ -109,22 +109,25 @@ void FluidSimData2D::IterateFrom(const FluidSimData2D& prev_iteration, f64 delta
         
         if( m_nodes[node_idx].position.y - m_nodes[node_idx].node_radius < 0.f )
         {
+            f32 dst_over = std::abs(m_nodes[node_idx].position.y - m_nodes[node_idx].node_radius);
             // Bounce
-            m_nodes[node_idx].position.y -= (m_nodes[node_idx].position.y - m_nodes[node_idx].node_radius);
+            m_nodes[node_idx].position.y += dst_over;
             m_nodes[node_idx].velocity.x *= 0.9f;
             m_nodes[node_idx].velocity.y *= -0.9f;
         }
 
         if( m_nodes[node_idx].position.x - m_nodes[node_idx].node_radius < 0.f )
         {
-            m_nodes[node_idx].position.x -= (m_nodes[node_idx].position.x - m_nodes[node_idx].node_radius);
+            f32 dst_over = std::abs(m_nodes[node_idx].position.x - m_nodes[node_idx].node_radius);
+            m_nodes[node_idx].position.x += dst_over;
             m_nodes[node_idx].velocity.x *= -0.9f;
             m_nodes[node_idx].velocity.y *= 0.9f;
         }
 
         if( m_nodes[node_idx].position.x + m_nodes[node_idx].node_radius > m_dimensions.x )
         {
-            m_nodes[node_idx].position.x -= (m_nodes[node_idx].position.x + m_nodes[node_idx].node_radius) - m_dimensions.x;
+            f32 dst_over = std::abs((m_nodes[node_idx].position.x + m_nodes[node_idx].node_radius) - m_dimensions.x);
+            m_nodes[node_idx].position.x -= dst_over;
             m_nodes[node_idx].velocity.x *= -0.9f;
             m_nodes[node_idx].velocity.y *= 0.9f;
         }

@@ -35,8 +35,8 @@ descriptor_table* descriptor_pool::take_available()
 
     // This is a weird way to go about it but I cba to implement pop_back right now
     descriptor_table* tmp = m_available.back().release();
-    m_available.erase(m_available.size() - 1);
-    dt::unique_ptr<descriptor_table> temp(tmp);
+    m_available.erase(--m_available.end());
+    std::unique_ptr<descriptor_table> temp(tmp);
     m_used.push_back(std::move(temp));
     return tmp;
 }
@@ -46,7 +46,7 @@ descriptor_table* descriptor_pool::allocate_from_pool()
     GFX_ASSERT(m_available.size() == 0, "Trying to allocate a new descriptor from pool, but there are some available to reuse. Are there multiple threads accessing this pool?");
     GFX_ASSERT(u32_cast(m_used.size()) < m_capacity, "Trying to allocate a new descriptor from pool but theres no space for it. Are there multiple threads accessing this pool?");
 
-    dt::unique_ptr<descriptor_table> created = dt::make_unique<descriptor_table>();
+    std::unique_ptr<descriptor_table> created = std::make_unique<descriptor_table>();
 
     void* pImpl = GFX_CALL(allocate_descriptor_table_impl, this);
     created->initialise(this, pImpl);
@@ -63,11 +63,11 @@ void descriptor_pool::free(descriptor_table* table)
         if( m_used[idx].get() == table )
         {
             m_used[idx].release();
-            m_used.erase(idx);
+            m_used.erase(m_used.begin() + idx);
 
             if( m_reuseTables )
             {
-                m_available.push_back(dt::make_unique<descriptor_table>(table));
+                m_available.push_back(std::unique_ptr<descriptor_table>(table));
             }
             else
             {
@@ -86,7 +86,7 @@ void descriptor_pool::soft_reset()
     for( u64 i = 0; i < m_used.size(); i++ )
     {
         descriptor_table* pTable = m_used[i].release();
-        m_available.push_back(dt::make_unique<descriptor_table>(pTable));
+        m_available.push_back(std::unique_ptr<descriptor_table>(pTable));
     }
 
     m_used.resize(0);
@@ -113,8 +113,8 @@ void descriptor_table::initialise(descriptor_pool* owner, void* pImpl)
     GFX_ASSERT(pImpl, "Descriptor table must have a pre-computed impl pointer.");
 
     m_owner = owner;
-    m_bufferViews = dt::array<buffer*>(get_desc().get_buffer_descriptions().size());
-    m_imageViews = dt::array<void*>(get_desc().get_image_descriptions().size());
+    m_bufferViews = std::vector<buffer*>(get_desc().get_buffer_descriptions().size());
+    m_imageViews = std::vector<void*>(get_desc().get_image_descriptions().size());
     m_pImpl = pImpl;
 }
 
@@ -128,12 +128,12 @@ void descriptor_table::set_image(dt::hash_string32 name, void* value)
     m_imageViews[get_desc().find_image_slot(name)] = value;
 }
 
-const dt::array<buffer*>& descriptor_table::get_buffer_views() const
+const std::vector<buffer*>& descriptor_table::get_buffer_views() const
 {
     return m_bufferViews;
 }
 
-const dt::array<void*>& descriptor_table::get_image_views() const
+const std::vector<void*>& descriptor_table::get_image_views() const
 {
     return m_imageViews;
 }

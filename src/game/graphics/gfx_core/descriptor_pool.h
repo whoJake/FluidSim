@@ -1,8 +1,6 @@
 #pragma once
 #include "shader.h"
 #include "dt/hash_string.h"
-#include "dt/array.h"
-#include "dt/unique_ptr.h"
 #include "resource_view.h"
 
 namespace gfx
@@ -25,13 +23,16 @@ public:
     descriptor_table() = default;
     ~descriptor_table() = default;
 
+    DEFAULT_MOVE(descriptor_table);
+    DELETE_COPY(descriptor_table);
+
     void initialise(descriptor_pool* owner, void* pImpl);
 
     void set_buffer(dt::hash_string32 name, buffer* value);
     void set_image(dt::hash_string32 name, void* value);
 
-    const dt::array<buffer*>& get_buffer_views() const;
-    const dt::array<void*>& get_image_views() const;
+    const std::vector<buffer*>& get_buffer_views() const;
+    const std::vector<void*>& get_image_views() const;
 
     const descriptor_table_desc& get_desc() const;
 
@@ -43,8 +44,8 @@ public:
 private:
     descriptor_pool* m_owner;
 
-    dt::array<buffer*> m_bufferViews;
-    dt::array<void*> m_imageViews;
+    std::vector<buffer*> m_bufferViews;
+    std::vector<void*> m_imageViews;
 
     void* m_pImpl;
 };
@@ -54,6 +55,9 @@ class descriptor_pool
 public:
     descriptor_pool() = default;
     ~descriptor_pool() = default;
+
+    DEFAULT_MOVE(descriptor_pool);
+    DELETE_COPY(descriptor_pool);
 
     void initialise(descriptor_table_desc* desc, u32 size, bool reuse_tables = true);
 
@@ -73,8 +77,8 @@ private:
     descriptor_table* allocate_from_pool();
 private:
     descriptor_table_desc* m_desc;
-    dt::vector<dt::unique_ptr<descriptor_table>> m_used;
-    dt::vector<dt::unique_ptr<descriptor_table>> m_available;
+    std::vector<std::unique_ptr<descriptor_table>> m_used;
+    std::vector<std::unique_ptr<descriptor_table>> m_available;
     bool m_reuseTables;
     u32 m_capacity;
     void* m_pImpl;

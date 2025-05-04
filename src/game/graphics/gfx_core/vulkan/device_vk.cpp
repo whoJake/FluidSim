@@ -1570,8 +1570,8 @@ void* VK_DEVICE::allocate_descriptor_table_impl(descriptor_pool* pool)
 
 void VK_DEVICE::write_descriptor_table(descriptor_table* table)
 {
-    const dt::array<buffer*>& bufferViews = table->get_buffer_views();
-    const dt::array<void*>& imageViews = table->get_image_views();
+    const std::vector<buffer*>& bufferViews = table->get_buffer_views();
+    const std::vector<void*>& imageViews = table->get_image_views();
 
     u32 bindingIdx = 0;
     if( bufferViews.size() != 0 )

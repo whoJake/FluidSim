@@ -22,6 +22,9 @@ public:
 
     fw::window::state get_window_startup_state() override;
 private:
+    void initialise_app();
+    void shutdown_app();
+
     void initialise_simulation();
     void update_simulation();
     void update_simulation_debug();
@@ -41,9 +44,9 @@ private:
 
     // Settings
     bool m_simulationPaused{ true };
-    u32 m_simulationNodes{ 150 };
-    f32 m_simulationWidth{ 10.f };
-    f32 m_simulationHeight{ 10.f };
+    u32 m_simulationNodes{ 250 };
+    f32 m_simulationWidth{ 25.f };
+    f32 m_simulationHeight{ 25.f };
     f32 m_simulationNodeRadius{ 0.15f };
 
     f32 m_gravityValue{ 9.81f };
