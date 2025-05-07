@@ -9,6 +9,8 @@
 
 void FluidApp::on_event(Event& e)
 {
+    Input::tick();
+
     Input::register_event(e);
     mygui::dispatch_event(e);
 
@@ -41,6 +43,7 @@ void FluidApp::setup_update_graph(fw::scaffold_update_node& parent)
 
             update_simulation();
 
+            update_movement();
             render_simulation();
         }));
 }
@@ -68,6 +71,7 @@ void FluidApp::initialise_app()
     {
         m_programTable[idx] = m_descriptorPool.allocate();
     }
+
 }
 
 void FluidApp::shutdown_app()
@@ -85,11 +89,13 @@ void FluidApp::initialise_simulation()
     settings.additional_previous_iterations = 0;
 
     m_simulation = std::make_unique<FluidSim2D>(settings);
+    m_viewport = Viewport2D({ 1200, 1200 }, { 0, 0 }, { 100, 100 });
+
 
     gfx::driver::wait_idle();
 
+    gfx::memory_info viewportBufMemInfo = gfx::memory_info::create_as_buffer(sizeof(Viewport2D), gfx::format::R32G32B32A32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
     gfx::memory_info nodeBuffersMemInfo = gfx::memory_info::create_as_buffer(sizeof(FluidNode2D) * m_simulationNodes, gfx::format::R32G32B32A32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
-    gfx::memory_info windowBuffersMemInfo = gfx::memory_info::create_as_buffer(sizeof(FrameInfo), gfx::format::R32G32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
     {
         // Create and resize our node buffers.
@@ -108,15 +114,15 @@ void FluidApp::initialise_simulation()
             m_nodeBuffers[idx]->map();
 
         // Create our window info buffers if we haven't already.
-        if( !m_frameInfoBuffers[idx] )
+        if( !m_viewportBuffers[idx] )
         {
-            m_frameInfoBuffers[idx] = new gfx::buffer;
-            *m_frameInfoBuffers[idx] = gfx::buffer::create(windowBuffersMemInfo);
-            m_frameInfoBuffers[idx]->map();
+            m_viewportBuffers[idx] = new gfx::buffer;
+            *m_viewportBuffers[idx] = gfx::buffer::create(viewportBufMemInfo);
+            m_viewportBuffers[idx]->map();
         }
 
+        m_programTable[idx]->set_buffer(dt::hash_string32("g_viewport"), m_viewportBuffers[idx]);
         m_programTable[idx]->set_buffer(dt::hash_string32("in_nodeList"), m_nodeBuffers[idx]);
-        m_programTable[idx]->set_buffer(dt::hash_string32("in_frameInfo"), m_frameInfoBuffers[idx]);
 
         m_programTable[idx]->write();
     }
@@ -170,6 +176,11 @@ void FluidApp::update_simulation_debug()
     ImGui::LabelText("FPS", "%.2f", 1.0 / delta_time);
     ImGui::End();
 
+    ImGui::Begin("Controls");
+    ImGui::InputFloat("Move Sensitivity", &m_moveSensitivity);
+    ImGui::InputFloat("Zoom Sensitivity", &m_zoomSensitivity);
+    ImGui::End();
+
     ImGui::Begin("Fluid Simulation Settings");
     ImGui::SliderInt("Node Count", (int*)&m_simulationNodes, 0, 500);
     ImGui::SliderFloat("Node Radius", &m_simulationNodeRadius, 0.f, 10.f);
@@ -202,10 +213,10 @@ void FluidApp::shutdown_simulation()
         delete m_nodeBuffers[idx];
         m_nodeBuffers[idx] = nullptr;
 
-        m_frameInfoBuffers[idx]->unmap();
-        gfx::buffer::destroy(m_frameInfoBuffers[idx]);
-        delete m_frameInfoBuffers[idx];
-        m_frameInfoBuffers[idx] = nullptr;
+        m_viewportBuffers[idx]->unmap();
+        gfx::buffer::destroy(m_viewportBuffers[idx]);
+        delete m_viewportBuffers[idx];
+        m_viewportBuffers[idx] = nullptr;
     }
 }
 
@@ -256,35 +267,81 @@ void FluidApp::update_simulation_settings()
 {
     m_simulation->UpdateSettings({ u32_cast(m_simulationWidth), u32_cast(m_simulationHeight) });
     m_simulation->UpdateNodeRadius(m_simulationNodeRadius);
-
-    for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
-        m_frameInfoDirty[idx] = true;
 }
 
 void FluidApp::update_simulation_buffers()
 {
     u32 frame_idx = gfx::fw::render_interface::get_current_frame_index();
 
-    // Write our window info.
-    if( m_frameInfoDirty[frame_idx] )
-    {
-        m_frameInfoDirty[frame_idx] = false;
-
-        gfx::buffer* infoBuffer = m_frameInfoBuffers[frame_idx];
-
-        FrameInfo builtWindowInfo{ };
-        builtWindowInfo.sim_to_local =
-        {
-            1.f / m_simulationWidth,
-            1.f / m_simulationHeight,
-        };
-
-        memcpy(infoBuffer->get_mapped(), &builtWindowInfo, sizeof(FrameInfo));
-    }
+    m_viewport.update_matrices();
+    gfx::buffer* viewport_buffer = m_viewportBuffers[frame_idx];
+    memcpy(viewport_buffer->get_mapped(), &m_viewport, sizeof(Viewport2D));
 
     // Write our node buffer
     gfx::buffer* node_buffer = m_nodeBuffers[frame_idx];
     memcpy(node_buffer->get_mapped(), m_simulation->GetCurrentIterationData().GetNodes(), m_simulation->GetCurrentIterationData().GetNodeCount() * sizeof(FluidNode2D));
+}
+
+void FluidApp::update_movement()
+{
+    if( Input::get_key_down(KeyCode::Up) )
+    {
+        glm::vec2 extent_before = m_viewport.get_view_extent();
+        m_viewport.set_view_extent(extent_before - (glm::vec2(m_zoomSensitivity) * f32_cast(fw::Time::delta_time())));
+        glm::vec2 extent_after = m_viewport.get_view_extent();
+
+        glm::vec2 difference = extent_before - extent_after;
+        m_viewport.set_view_position(m_viewport.get_view_position() - (difference / 2.f));
+    }
+
+    if( Input::get_key_down(KeyCode::Down) )
+    {
+        glm::vec2 extent_before = m_viewport.get_view_extent();
+        m_viewport.set_view_extent(extent_before + (glm::vec2(m_zoomSensitivity) * f32_cast(fw::Time::delta_time())));
+
+        glm::vec2 extent_after = m_viewport.get_view_extent();
+
+        glm::vec2 difference = extent_after - extent_before;
+        m_viewport.set_view_position(m_viewport.get_view_position() + (difference / 2.f));
+    }
+
+    f64 zoom = Input::get_mouse_scroll_vertical();
+    glm::vec2 scroll{ 250.f, 250.f };
+    scroll *= f32_cast(fw::Time::delta_time());
+    scroll *= zoom;
+    m_viewport.set_view_extent(m_viewport.get_view_extent() + scroll);
+
+    f32 x_scale = m_viewport.get_view_extent().x / m_viewport.get_screen_extent().x;
+    f32 y_scale = m_viewport.get_view_extent().y / m_viewport.get_screen_extent().y;
+
+    glm::vec2 movement = glm::vec2(x_scale, y_scale) * m_moveSensitivity * f32_cast(fw::Time::delta_time());
+    if( Input::get_key_down(KeyCode::A) && Input::get_key_down(KeyCode::D) )
+    { }
+    else if( Input::get_key_down(KeyCode::D) )
+    {
+        movement.x *= -1;
+    }
+    else if( Input::get_key_down(KeyCode::A) )
+    { }
+    else
+    {
+        movement.x *= 0;
+    }
+
+    if( Input::get_key_down(KeyCode::W) && Input::get_key_down(KeyCode::S) )
+    { }
+    else if( Input::get_key_down(KeyCode::W) )
+    {
+        movement.y *= -1;
+    }
+    else if( Input::get_key_down(KeyCode::S) )
+    { }
+    else
+    {
+        movement.y *= 0;
+    }
+
+    m_viewport.set_view_position(m_viewport.get_view_position() + movement);
 }
 
 bool FluidApp::on_window_resize(WindowResizeEvent& e)

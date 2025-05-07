@@ -5,6 +5,8 @@
 #include "implementations/ImGuiContext.h"
 #include "fluidsim/FluidSim2D.h"
 
+#include "Viewport2D.h"
+
 #include "gfx_fw/render_interface.h"
 #include "gfx_core/shader.h"
 
@@ -36,6 +38,8 @@ private:
     void update_simulation_buffers();
     void update_simulation_settings();
 
+    void update_movement();
+
     bool on_window_resize(WindowResizeEvent& e);
     bool on_window_closed(WindowClosedEvent& e);
 private:
@@ -45,24 +49,21 @@ private:
     // Settings
     bool m_simulationPaused{ true };
     u32 m_simulationNodes{ 250 };
-    f32 m_simulationWidth{ 25.f };
-    f32 m_simulationHeight{ 25.f };
-    f32 m_simulationNodeRadius{ 0.15f };
+    f32 m_simulationWidth{ 100.f };
+    f32 m_simulationHeight{ 100.f };
+    f32 m_simulationNodeRadius{ 0.25f };
 
     f32 m_gravityValue{ 9.81f };
+    Viewport2D m_viewport;
+
+    f32 m_moveSensitivity{ 1000.f };
+    f32 m_zoomSensitivity{ 50.f };
 
     // Rendering structures
     gfx::program* m_visualiseProgram;
     gfx::descriptor_pool m_descriptorPool;
     gfx::descriptor_table* m_programTable[GFX_RI_FRAMES_IN_FLIGHT];
 
-    struct FrameInfo
-    {
-        glm::f32vec2 sim_to_local;
-    };
-
+    gfx::buffer* m_viewportBuffers[GFX_RI_FRAMES_IN_FLIGHT];
     gfx::buffer* m_nodeBuffers[GFX_RI_FRAMES_IN_FLIGHT];
-
-    gfx::buffer* m_frameInfoBuffers[GFX_RI_FRAMES_IN_FLIGHT];
-    bool m_frameInfoDirty[GFX_RI_FRAMES_IN_FLIGHT];
 };
