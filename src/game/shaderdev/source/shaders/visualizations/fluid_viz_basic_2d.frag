@@ -13,5 +13,6 @@ void main()
   if(abs(distance(fin_clipNodePosition, fin_clipFragPosition)) > fin_clipRadius)
     discard;
   else
+    // out_fragColor = vec4(fin_velocity.xy, 1.0, 1.0);
     out_fragColor = vec4(fin_color, 1.0);
 }

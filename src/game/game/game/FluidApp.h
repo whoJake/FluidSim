@@ -36,9 +36,39 @@ private:
     void render_simulation_debug();
 
     void update_simulation_buffers();
-    void update_simulation_settings();
 
     void update_movement();
+
+    enum class DistributionTechnique
+    {
+        Grid = 0,
+        Circular,
+        Point,
+    };
+    DistributionTechnique m_distributeTechnique{ DistributionTechnique::Grid };
+    void distribute_nodes();
+    void distribute_nodes_debug();
+
+    void distribute_nodes_grid();
+    void distribute_nodes_circular();
+    void distribute_nodes_point();
+
+    u32 m_nodeCount{ 256 };
+    f32 m_nodeRadius{ 0.25f };
+
+    f32 m_smoothingRadius{ 5.f };
+    bool m_boundryBounce{ true };
+    f32 m_dampeningFactor{ 0.8f };
+
+    f32 m_dngSpacing{ 0.75f };
+    void distribute_nodes_grid_debug();
+
+    f32 m_dncVelocityScale{ 5.f };
+    f32 m_dncRadius{ 1.f };
+    void distribute_nodes_circular_debug();
+
+    f32 m_dnpVelocityScale{ 5.f };
+    void distribute_nodes_point_debug();
 
     bool on_window_resize(WindowResizeEvent& e);
     bool on_window_closed(WindowClosedEvent& e);
@@ -47,11 +77,9 @@ private:
     std::unique_ptr<FluidSim2D> m_simulation;
 
     // Settings
-    bool m_simulationPaused{ true };
-    u32 m_simulationNodes{ 250 };
-    f32 m_simulationWidth{ 100.f };
-    f32 m_simulationHeight{ 100.f };
-    f32 m_simulationNodeRadius{ 0.25f };
+    bool m_simPaused{ true };
+    f32 m_simWidth{ 20.f };
+    f32 m_simHeight{ 20.f };
 
     f32 m_gravityValue{ 9.81f };
     Viewport2D m_viewport;
@@ -65,5 +93,6 @@ private:
     gfx::descriptor_table* m_programTable[GFX_RI_FRAMES_IN_FLIGHT];
 
     gfx::buffer* m_viewportBuffers[GFX_RI_FRAMES_IN_FLIGHT];
+    gfx::buffer* m_positionsBuffers[GFX_RI_FRAMES_IN_FLIGHT];
     gfx::buffer* m_nodeBuffers[GFX_RI_FRAMES_IN_FLIGHT];
 };

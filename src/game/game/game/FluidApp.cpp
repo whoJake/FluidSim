@@ -83,19 +83,21 @@ void FluidApp::shutdown_app()
 
 void FluidApp::initialise_simulation()
 {
-    FluidSimSettings2D settings{ };
-    settings.dimensions = { u32_cast(m_simulationWidth), u32_cast(m_simulationHeight) };
-    settings.node_capacity = m_simulationNodes;
-    settings.additional_previous_iterations = 0;
+    FluidSimOptions2D options{ };
+    options.extent = glm::f32vec2(m_simWidth, m_simHeight);
+    options.grid_extent = glm::f32vec2(m_smoothingRadius, m_smoothingRadius);
+    options.should_bounce = m_boundryBounce;
+    options.dampening_factor = m_dampeningFactor;
 
-    m_simulation = std::make_unique<FluidSim2D>(settings);
-    m_viewport = Viewport2D({ 1200, 1200 }, { 0, 0 }, { 100, 100 });
+    m_simulation = std::make_unique<FluidSim2D>(options);
+    m_viewport = Viewport2D({ 1200, 1200 }, { 0, 0 }, { m_simWidth, m_simHeight });
 
 
     gfx::driver::wait_idle();
 
     gfx::memory_info viewportBufMemInfo = gfx::memory_info::create_as_buffer(sizeof(Viewport2D), gfx::format::R32G32B32A32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
-    gfx::memory_info nodeBuffersMemInfo = gfx::memory_info::create_as_buffer(sizeof(FluidNode2D) * m_simulationNodes, gfx::format::R32G32B32A32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
+    gfx::memory_info positionsBufMemInfo = gfx::memory_info::create_as_buffer(sizeof(glm::f32vec4) * m_nodeCount, gfx::format::R32G32B32A32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
+    gfx::memory_info nodeBuffersMemInfo = gfx::memory_info::create_as_buffer(sizeof(FluidNodeInfo2D) * m_nodeCount, gfx::format::R32G32B32A32_SFLOAT, gfx::MEMORY_TYPE_CPU_VISIBLE, gfx::BUFFER_USAGE_STORAGE);
     for( u32 idx = 0; idx < GFX_RI_FRAMES_IN_FLIGHT; idx++ )
     {
         // Create and resize our node buffers.
@@ -113,6 +115,20 @@ void FluidApp::initialise_simulation()
         if( !m_nodeBuffers[idx]->is_mapped() )
             m_nodeBuffers[idx]->map();
 
+        if( m_positionsBuffers[idx] )
+        {
+            m_positionsBuffers[idx]->unmap();
+            gfx::buffer::destroy(m_positionsBuffers[idx]);
+        }
+        else
+        {
+            m_positionsBuffers[idx] = new gfx::buffer;
+        }
+
+        *m_positionsBuffers[idx] = gfx::buffer::create(positionsBufMemInfo);
+        if( !m_positionsBuffers[idx]->is_mapped() )
+            m_positionsBuffers[idx]->map();
+
         // Create our window info buffers if we haven't already.
         if( !m_viewportBuffers[idx] )
         {
@@ -122,33 +138,18 @@ void FluidApp::initialise_simulation()
         }
 
         m_programTable[idx]->set_buffer(dt::hash_string32("g_viewport"), m_viewportBuffers[idx]);
+        m_programTable[idx]->set_buffer(dt::hash_string32("in_positions"), m_positionsBuffers[idx]);
         m_programTable[idx]->set_buffer(dt::hash_string32("in_nodeList"), m_nodeBuffers[idx]);
 
         m_programTable[idx]->write();
     }
 
-    // This marks everything as dirty
-    update_simulation_settings();
-
-    // Insert our initial nodes
-    for( u32 idx = 0; idx < m_simulationNodes; idx++ )
-    {
-        f32 height = (m_simulationHeight / 2.f);
-        f32 width = (idx + 1) * (m_simulationWidth / f32_cast(m_simulationNodes + 1));
-        FluidNode2D node
-        {
-            .position = { width, height },
-            .velocity = { (f32_cast(rand()) / RAND_MAX) * 10 - 5, (f32_cast(rand()) / RAND_MAX) * 5 - 2.5 },
-            .node_radius = m_simulationNodeRadius
-        };
-        
-        m_simulation->InsertNode(node);
-    }
+    distribute_nodes();
 }
 
 void FluidApp::update_simulation()
 {
-    if( m_simulationPaused )
+    if( m_simPaused )
         return;
 
     FluidSimExternalForce2D gravity{ FluidSimExternalForceType2D::GravityForce };
@@ -182,21 +183,25 @@ void FluidApp::update_simulation_debug()
     ImGui::End();
 
     ImGui::Begin("Fluid Simulation Settings");
-    ImGui::SliderInt("Node Count", (int*)&m_simulationNodes, 0, 500);
-    ImGui::SliderFloat("Node Radius", &m_simulationNodeRadius, 0.f, 10.f);
-    ImGui::SliderFloat2("Dimensions", &m_simulationWidth, 0.f, 100.f);
+    ImGui::SliderFloat("Node Radius", &m_nodeRadius, 0.f, 10.f);
+    ImGui::SliderFloat("Smoothing Radius", &m_smoothingRadius, m_nodeRadius, std::min(m_simWidth, m_simHeight));
+
+    ImGui::Checkbox("Should bounce?", &m_boundryBounce);
+    if( m_boundryBounce )
+        ImGui::SliderFloat("Damping Factor", &m_dampeningFactor, 0.f, 1.f);
+
+    ImGui::SliderFloat2("Dimensions", &m_simWidth, 0.f, 100.f);
     ImGui::SliderFloat("Gravity", &m_gravityValue, 0.f, 20.f);
-    ImGui::Checkbox("Paused?", &m_simulationPaused);
+    ImGui::Checkbox("Paused?", &m_simPaused);
 
     if( ImGui::Button("Reset Simulation") )
     {
-        m_simulationPaused = true;
+        m_simPaused = true;
         shutdown_simulation();
         initialise_simulation();
     }
 
-    if( ImGui::Button("Update Simulation") )
-        update_simulation_settings();
+    distribute_nodes_debug();
 
     ImGui::End();
 }
@@ -212,6 +217,11 @@ void FluidApp::shutdown_simulation()
         gfx::buffer::destroy(m_nodeBuffers[idx]);
         delete m_nodeBuffers[idx];
         m_nodeBuffers[idx] = nullptr;
+
+        m_positionsBuffers[idx]->unmap();
+        gfx::buffer::destroy(m_positionsBuffers[idx]);
+        delete m_positionsBuffers[idx];
+        m_positionsBuffers[idx] = nullptr;
 
         m_viewportBuffers[idx]->unmap();
         gfx::buffer::destroy(m_viewportBuffers[idx]);
@@ -249,7 +259,7 @@ void FluidApp::render_simulation()
     RI_GraphicsContext.set_scissor(0, 0, u32_cast(get_window().get_extent().x), u32_cast(get_window().get_extent().y));
 
     // We're drawing a square, 6 vertices per square.
-    RI_GraphicsContext.draw(6, m_simulation->GetCurrentIterationData().GetNodeCount(), 0, 0);
+    RI_GraphicsContext.draw(6, m_simulation->GetNodeCount(), 0, 0);
 
     // Render ImGui above what we've just done.
     render_simulation_debug();
@@ -263,12 +273,6 @@ void FluidApp::render_simulation_debug()
     m_imGui->render(RI_GraphicsContext);
 }
 
-void FluidApp::update_simulation_settings()
-{
-    m_simulation->UpdateSettings({ u32_cast(m_simulationWidth), u32_cast(m_simulationHeight) });
-    m_simulation->UpdateNodeRadius(m_simulationNodeRadius);
-}
-
 void FluidApp::update_simulation_buffers()
 {
     u32 frame_idx = gfx::fw::render_interface::get_current_frame_index();
@@ -277,9 +281,12 @@ void FluidApp::update_simulation_buffers()
     gfx::buffer* viewport_buffer = m_viewportBuffers[frame_idx];
     memcpy(viewport_buffer->get_mapped(), &m_viewport, sizeof(Viewport2D));
 
+    gfx::buffer* positions_buffer = m_positionsBuffers[frame_idx];
+    memcpy(positions_buffer->get_mapped(), m_simulation->GetNodePositions().data(), m_simulation->GetNodeCount() * sizeof(glm::f32vec4));
+
     // Write our node buffer
     gfx::buffer* node_buffer = m_nodeBuffers[frame_idx];
-    memcpy(node_buffer->get_mapped(), m_simulation->GetCurrentIterationData().GetNodes(), m_simulation->GetCurrentIterationData().GetNodeCount() * sizeof(FluidNode2D));
+    memcpy(node_buffer->get_mapped(), m_simulation->GetNodeInfos().data(), m_simulation->GetNodeCount() * sizeof(FluidNodeInfo2D));
 }
 
 void FluidApp::update_movement()
@@ -304,12 +311,6 @@ void FluidApp::update_movement()
         glm::vec2 difference = extent_after - extent_before;
         m_viewport.set_view_position(m_viewport.get_view_position() + (difference / 2.f));
     }
-
-    f64 zoom = Input::get_mouse_scroll_vertical();
-    glm::vec2 scroll{ 250.f, 250.f };
-    scroll *= f32_cast(fw::Time::delta_time());
-    scroll *= zoom;
-    m_viewport.set_view_extent(m_viewport.get_view_extent() + scroll);
 
     f32 x_scale = m_viewport.get_view_extent().x / m_viewport.get_screen_extent().x;
     f32 y_scale = m_viewport.get_view_extent().y / m_viewport.get_screen_extent().y;
@@ -342,6 +343,145 @@ void FluidApp::update_movement()
     }
 
     m_viewport.set_view_position(m_viewport.get_view_position() + movement);
+}
+
+void FluidApp::distribute_nodes()
+{
+    switch( m_distributeTechnique )
+    {
+    case DistributionTechnique::Grid:
+        distribute_nodes_grid();
+        break;
+    case DistributionTechnique::Circular:
+        distribute_nodes_circular();
+        break;
+    case DistributionTechnique::Point:
+        distribute_nodes_point();
+        break;
+    }
+}
+
+void FluidApp::distribute_nodes_debug()
+{
+    const char* labels[3] =
+    {
+        "Grid",
+        "Circular",
+        "Point",
+    };
+
+    ImGui::Combo("Technique", (int*)&m_distributeTechnique, labels, 3);
+    ImGui::DragInt("Node Count", (int*)&m_nodeCount);
+
+    switch( m_distributeTechnique )
+    {
+    case DistributionTechnique::Grid:
+        distribute_nodes_grid_debug();
+        break;
+    case DistributionTechnique::Circular:
+        distribute_nodes_circular_debug();
+        break;
+    case DistributionTechnique::Point:
+        distribute_nodes_point_debug();
+        break;
+    }
+}
+
+void FluidApp::distribute_nodes_grid()
+{
+    glm::vec2 centre{ m_simWidth / 2.f, m_simHeight / 2.f };
+    u32 side_length = u32_cast(std::ceil(std::sqrt(m_nodeCount)));
+
+    glm::vec2 offset
+    {
+        side_length * m_dngSpacing / 2.f,
+        side_length * m_dngSpacing / 2.f
+    };
+
+    for( u32 y = 0; y < side_length; y++ )
+    {
+        for( u32 x = 0; x < side_length; x++ )
+        {
+            if( (y * side_length) + x >= m_nodeCount )
+                break;
+
+            glm::vec2 local_position
+            {
+                x * m_dngSpacing,
+                y * m_dngSpacing
+            };
+
+            glm::f32vec2 position = centre - offset + local_position;
+            FluidNodeInfo2D node
+            {
+                .velocity = { 0.f, 0.f },
+                .node_radius = m_nodeRadius,
+                .density = 0.f,
+                .mass = 1.f
+            };
+            m_simulation->InsertNode(node, position);
+        }
+    }
+}
+
+void FluidApp::distribute_nodes_circular()
+{
+    glm::vec2 centre{ m_simWidth / 2.f, m_simHeight / 2.f };
+
+    for( u32 idx = 0; idx < m_nodeCount; idx++ )
+    {
+        f32 rand_ang = (f32_cast(rand()) / RAND_MAX) * 3.14159f * 2;
+        glm::vec2 rand_vec{ f32_cast(cos(rand_ang)), f32_cast(sin(rand_ang)) };
+
+        glm::f32vec2 position = centre + (rand_vec * m_dncRadius);
+        FluidNodeInfo2D node
+        {
+            .velocity = rand_vec * m_dncVelocityScale,
+            .node_radius = m_nodeRadius,
+            .density = 0.f,
+            .mass = 1.f
+        };
+
+        m_simulation->InsertNode(node, position);
+    }
+}
+
+void FluidApp::distribute_nodes_point()
+{
+    glm::vec2 centre{ m_simWidth / 2.f, m_simHeight / 2.f };
+
+    for( u32 idx = 0; idx < m_nodeCount; idx++ )
+    {
+        f32 rand_ang = (f32_cast(rand()) / RAND_MAX) * 3.14159f * 2;
+        glm::vec2 rand_vec{ f32_cast(cos(rand_ang)), f32_cast(sin(rand_ang)) };
+
+        glm::f32vec2 position = centre;
+        FluidNodeInfo2D node
+        {
+            .velocity = rand_vec * m_dnpVelocityScale,
+            .node_radius = m_nodeRadius,
+            .density = 0.f,
+            .mass = 1.f
+        };
+
+        m_simulation->InsertNode(node, position);
+    }
+}
+
+void FluidApp::distribute_nodes_grid_debug()
+{
+    ImGui::DragFloat("Spacing", &m_dngSpacing, 1.f, m_nodeRadius * 2.f);
+}
+
+void FluidApp::distribute_nodes_circular_debug()
+{
+    ImGui::DragFloat("Velocity Scale", &m_dncVelocityScale);
+    ImGui::DragFloat("Radius", &m_dncRadius);
+}
+
+void FluidApp::distribute_nodes_point_debug()
+{
+    ImGui::DragFloat("Velocity Scale", &m_dnpVelocityScale);
 }
 
 bool FluidApp::on_window_resize(WindowResizeEvent& e)

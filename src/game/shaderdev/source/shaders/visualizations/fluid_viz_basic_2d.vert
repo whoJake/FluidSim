@@ -2,13 +2,15 @@
 
 struct FluidNode
 {
-  vec2 position;
   vec2 velocity;
   float radius;
+  float density;
+  float mass;
+
+  float cell_idx;
   
-  float pad0;
-  float pad1;
-  float pad2;
+  vec2 padding;
+  // float padding[2]; BAD
 };
 
 layout (std140, set = 0, binding = 0) readonly buffer Viewport
@@ -19,7 +21,17 @@ layout (std140, set = 0, binding = 0) readonly buffer Viewport
 	vec2 padding;
 } g_viewport;
 
-layout (std140, set = 0, binding = 1) readonly buffer FluidNodeList
+layout (std140, set = 0, binding = 1) readonly buffer FluidPositionList
+{
+	vec4 data[];
+}in_positions;
+
+vec2 GetNodePosition(int index)
+{
+    return in_positions.data[index].xy;
+}
+
+layout (std140, set = 0, binding = 2) readonly buffer FluidNodeList
 {
   FluidNode nodes[];
 }in_nodeList;
@@ -62,7 +74,7 @@ vec2 transform_to_clip(vec2 position)
 
 void main()
 {
-  vec2 node_position = in_nodeList.nodes[gl_InstanceIndex].position;
+  vec2 node_position = GetNodePosition(gl_InstanceIndex);
   float node_radius = in_nodeList.nodes[gl_InstanceIndex].radius;
 
   fin_clipNodePosition = transform_to_clip(node_position);
@@ -72,6 +84,6 @@ void main()
   gl_Position = vec4(transform_to_clip(vertex_pos), 0.0, 1.0);
   fin_clipFragPosition = gl_Position.xy;
   
-  fin_color = vec3(1.0, 1.0, 1.0);
+  fin_color = vec3(in_nodeList.nodes[gl_InstanceIndex].cell_idx, 1.0, 1.0);
   fin_velocity = vec3(in_nodeList.nodes[gl_InstanceIndex].velocity, 0.0);
 }
