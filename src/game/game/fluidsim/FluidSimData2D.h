@@ -16,8 +16,7 @@ struct FluidNodeInfo2D
     f32 density;
     f32 mass;
 
-    f32 cell_idx;
-    f32 padding[2];
+    glm::f32vec3 color;
 };
 
 class FluidSimData2D
@@ -31,19 +30,28 @@ public:
 
     void ClearNodes();
 
+    using ForEachNodeFunc = std::function<void(FluidNodeInfo2D& node_info, const glm::f32vec2 position, u32 node_index)>;
+    using ForEachConstNodeFunc = std::function<void(const FluidNodeInfo2D& node_info, const glm::f32vec2 position, u32 node_index)>;
+
+    void ForEachNodeInCell(glm::ivec2 cell_coords, ForEachNodeFunc function);
+    void ForEachNodeInCell(glm::ivec2 cell_coords, ForEachConstNodeFunc function) const;
+
+    void ForEachNodeInCell(glm::f32vec2 sample_point, ForEachNodeFunc function);
+    void ForEachNodeInCell(glm::f32vec2 sample_point, ForEachConstNodeFunc function) const;
+
+    glm::ivec2 GetCellCoordinates(glm::f32vec2 position) const;
+
     std::vector<FluidNodeInfo2D>& GetNodeInfos();
     const std::vector<FluidNodeInfo2D>& GetNodeInfos() const;
 
     const std::vector<glm::f32vec4>& GetNodePositions() const;
 
     u32 GetNodeCount() const;
-private:
-    struct GridCell
-    {
-        std::vector<u64> indices;
-    };
+    const FluidSimOptions2D& GetOptions() const;
 
-    u64 GetCellIndex(glm::f32vec2 position) const;
+    void BuildSpatialLookup();
+private:
+    u32 GetCellId(glm::ivec2 cell_coords) const;
     void HandleEdge(u64 node_idx);
 private:
     FluidSimOptions2D m_options;
@@ -51,7 +59,16 @@ private:
     std::vector<glm::f32vec4> m_positions;
     std::vector<FluidNodeInfo2D> m_nodeInfos;
 
-    std::vector<GridCell> m_spatialLookup;
-    u32 m_rows;
-    u32 m_columns;
+    struct CellLookup
+    {
+        u32 node_index;
+        u32 cell_id;
+    };
+
+    std::vector<CellLookup> m_cellLookup;
+    static constexpr u32 invalid_index = u32_max;
+    std::vector<u32> m_startIndices;
+
+    i32 m_rows;
+    i32 m_columns;
 };

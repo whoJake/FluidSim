@@ -7,10 +7,9 @@ struct FluidNode
   float density;
   float mass;
 
-  float cell_idx;
-  
-  vec2 padding;
-  // float padding[2]; BAD
+  float colorR;
+  float colorG;
+  float colorB;
 };
 
 layout (std140, set = 0, binding = 0) readonly buffer Viewport
@@ -84,6 +83,9 @@ void main()
   gl_Position = vec4(transform_to_clip(vertex_pos), 0.0, 1.0);
   fin_clipFragPosition = gl_Position.xy;
   
-  fin_color = vec3(in_nodeList.nodes[gl_InstanceIndex].cell_idx, 1.0, 1.0);
+  fin_color = vec3(
+	  in_nodeList.nodes[gl_InstanceIndex].colorR,
+	  in_nodeList.nodes[gl_InstanceIndex].colorG,
+	  in_nodeList.nodes[gl_InstanceIndex].colorB);
   fin_velocity = vec3(in_nodeList.nodes[gl_InstanceIndex].velocity, 0.0);
 }

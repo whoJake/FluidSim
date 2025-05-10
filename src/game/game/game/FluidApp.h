@@ -53,14 +53,14 @@ private:
     void distribute_nodes_circular();
     void distribute_nodes_point();
 
-    u32 m_nodeCount{ 256 };
+    u32 m_nodeCount{ 1024 };
     f32 m_nodeRadius{ 0.25f };
 
     f32 m_smoothingRadius{ 5.f };
     bool m_boundryBounce{ true };
     f32 m_dampeningFactor{ 0.8f };
 
-    f32 m_dngSpacing{ 0.75f };
+    f32 m_dngSpacing{ 0.55f };
     void distribute_nodes_grid_debug();
 
     f32 m_dncVelocityScale{ 5.f };
@@ -86,6 +86,10 @@ private:
 
     f32 m_moveSensitivity{ 1000.f };
     f32 m_zoomSensitivity{ 50.f };
+
+    f32 m_paintRadius{ 1.5f };
+
+    glm::f32vec2 m_mouseWorldPosition{ };
 
     // Rendering structures
     gfx::program* m_visualiseProgram;

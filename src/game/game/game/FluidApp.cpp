@@ -149,16 +149,30 @@ void FluidApp::initialise_simulation()
 
 void FluidApp::update_simulation()
 {
-    if( m_simPaused )
-        return;
+    if( !m_simPaused )
+    {
+        FluidSimExternalForce2D gravity{ FluidSimExternalForceType2D::GravityForce };
+        gravity.asGravityForce.acceleration = m_gravityValue;
 
-    FluidSimExternalForce2D gravity{ FluidSimExternalForceType2D::GravityForce };
-    gravity.asGravityForce.acceleration = m_gravityValue;
+        std::vector<FluidSimExternalForce2D> forces;
+        forces.push_back(gravity);
 
-    std::vector<FluidSimExternalForce2D> forces;
-    forces.push_back(gravity);
+        m_simulation->Simulate(fw::Time::delta_time(), forces);
+    }
 
-    m_simulation->Simulate(fw::Time::delta_time(), forces);
+    // Debug affects
+    FluidSimExternalDebug2D set_white{ FluidSimExternalDebugType2D::SetColor };
+    set_white.asSetColor.color = { 1.f, 1.f, 1.f };
+
+    FluidSimExternalDebug2D paint_cursor{ FluidSimExternalDebugType2D::PointPaint };
+    paint_cursor.asPointPaint.color = { 1.f, 0.f, 0.f };
+    paint_cursor.asPointPaint.position = m_mouseWorldPosition;
+    paint_cursor.asPointPaint.radius = m_paintRadius;
+
+    std::vector<FluidSimExternalDebug2D> debugs;
+    debugs.push_back(set_white);
+    debugs.push_back(paint_cursor);
+    m_simulation->ApplyDebug(debugs);
 }
 
 void FluidApp::update_simulation_debug()
@@ -185,6 +199,7 @@ void FluidApp::update_simulation_debug()
     ImGui::Begin("Fluid Simulation Settings");
     ImGui::SliderFloat("Node Radius", &m_nodeRadius, 0.f, 10.f);
     ImGui::SliderFloat("Smoothing Radius", &m_smoothingRadius, m_nodeRadius, std::min(m_simWidth, m_simHeight));
+    ImGui::SliderFloat("Selection Radius", &m_paintRadius, 0.f, std::max(m_simWidth, m_simHeight));
 
     ImGui::Checkbox("Should bounce?", &m_boundryBounce);
     if( m_boundryBounce )
@@ -343,6 +358,15 @@ void FluidApp::update_movement()
     }
 
     m_viewport.set_view_position(m_viewport.get_view_position() + movement);
+
+    // Debugging, pass mouse position into the simulation
+    f32 mouseX = f32_cast(Input::get_mouse_x());
+    f32 mouseY = get_window().get_extent().y - f32_cast(Input::get_mouse_y());
+
+    glm::f32vec2 mouse{ mouseX, mouseY };
+    glm::f32vec2 local_mouse = mouse / m_viewport.get_screen_extent();
+
+    m_mouseWorldPosition = -m_viewport.get_view_position() + (local_mouse * m_viewport.get_view_extent());
 }
 
 void FluidApp::distribute_nodes()
@@ -359,6 +383,8 @@ void FluidApp::distribute_nodes()
         distribute_nodes_point();
         break;
     }
+
+    m_simulation->FinishInserting();
 }
 
 void FluidApp::distribute_nodes_debug()
@@ -417,7 +443,8 @@ void FluidApp::distribute_nodes_grid()
                 .velocity = { 0.f, 0.f },
                 .node_radius = m_nodeRadius,
                 .density = 0.f,
-                .mass = 1.f
+                .mass = 1.f,
+                .color = { 1.f, 1.f, 1.f }
             };
             m_simulation->InsertNode(node, position);
         }
@@ -439,7 +466,8 @@ void FluidApp::distribute_nodes_circular()
             .velocity = rand_vec * m_dncVelocityScale,
             .node_radius = m_nodeRadius,
             .density = 0.f,
-            .mass = 1.f
+            .mass = 1.f,
+            .color = { 1.f, 1.f, 1.f }
         };
 
         m_simulation->InsertNode(node, position);
@@ -461,7 +489,8 @@ void FluidApp::distribute_nodes_point()
             .velocity = rand_vec * m_dnpVelocityScale,
             .node_radius = m_nodeRadius,
             .density = 0.f,
-            .mass = 1.f
+            .mass = 1.f,
+            .color = { 1.f, 1.f, 1.f }
         };
 
         m_simulation->InsertNode(node, position);
@@ -470,7 +499,7 @@ void FluidApp::distribute_nodes_point()
 
 void FluidApp::distribute_nodes_grid_debug()
 {
-    ImGui::DragFloat("Spacing", &m_dngSpacing, 1.f, m_nodeRadius * 2.f);
+    ImGui::DragFloat("Spacing", &m_dngSpacing, 0.1f, m_nodeRadius * 2.f);
 }
 
 void FluidApp::distribute_nodes_circular_debug()
