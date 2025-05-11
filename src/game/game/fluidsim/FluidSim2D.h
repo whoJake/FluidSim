@@ -32,10 +32,19 @@ struct FluidSimSetColor
     glm::f32vec3 color;
 };
 
+struct FluidSimSetDensityColor
+{
+    f32 min_density;
+    f32 max_density;
+    glm::f32vec3 min_color;
+    glm::f32vec3 max_color;
+};
+
 enum class FluidSimExternalDebugType2D
 {
     PointPaint = 0,
     SetColor,
+    SetDensityColor,
 };
 
 struct FluidSimExternalForce2D
@@ -55,6 +64,7 @@ struct FluidSimExternalDebug2D
     {
         FluidSimPointPaint2D asPointPaint;
         FluidSimSetColor asSetColor;
+        FluidSimSetDensityColor asDensityColor;
     };
 };
 
@@ -80,7 +90,15 @@ public:
 
     void Clear();
 private:
+    f32 SmoothingFunction(f32 radius, f32 dst) const;
+    f32 SmoothingFunctionDerivitive(f32 radius, f32 dst) const;
+
     void CalculateDensity(u64 node_idx);
+    void ApplyPressureForce(u64 node_idx, f64 delta_time);
+
+    f32 DensityAsPressure(f32 density) const;
+
+    void ForEachNodeInRadius(glm::f32vec2 sample_point, f32 radius, FluidSimData2D::ForEachNodeFunc function);
     void ApplyExternalForces(u64 node_idx, f64 delta_time, const std::vector<FluidSimExternalForce2D>& external_forces);
     void ApplyExternalDebug(const std::vector<FluidSimExternalDebug2D>& external_debug);
 private:

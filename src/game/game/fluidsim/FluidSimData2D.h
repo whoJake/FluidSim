@@ -7,6 +7,10 @@ struct FluidSimOptions2D
 
     bool should_bounce;
     f32 dampening_factor;
+
+    f32 smoothing_radius;
+    f32 target_density;
+    f32 pressure_multiplier;
 };
 
 struct FluidNodeInfo2D

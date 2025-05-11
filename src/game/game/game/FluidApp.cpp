@@ -9,8 +9,6 @@
 
 void FluidApp::on_event(Event& e)
 {
-    Input::tick();
-
     Input::register_event(e);
     mygui::dispatch_event(e);
 
@@ -45,6 +43,8 @@ void FluidApp::setup_update_graph(fw::scaffold_update_node& parent)
 
             update_movement();
             render_simulation();
+
+            Input::tick();
         }));
 }
 
@@ -88,6 +88,9 @@ void FluidApp::initialise_simulation()
     options.grid_extent = glm::f32vec2(m_smoothingRadius, m_smoothingRadius);
     options.should_bounce = m_boundryBounce;
     options.dampening_factor = m_dampeningFactor;
+    options.smoothing_radius = m_smoothingRadius;
+    options.target_density = m_targetDensity;
+    options.pressure_multiplier = m_pressureMultiplier;
 
     m_simulation = std::make_unique<FluidSim2D>(options);
     m_viewport = Viewport2D({ 1200, 1200 }, { 0, 0 }, { m_simWidth, m_simHeight });
@@ -161,22 +164,50 @@ void FluidApp::update_simulation()
     }
 
     // Debug affects
-    FluidSimExternalDebug2D set_white{ FluidSimExternalDebugType2D::SetColor };
-    set_white.asSetColor.color = { 1.f, 1.f, 1.f };
-
-    FluidSimExternalDebug2D paint_cursor{ FluidSimExternalDebugType2D::PointPaint };
-    paint_cursor.asPointPaint.color = { 1.f, 0.f, 0.f };
-    paint_cursor.asPointPaint.position = m_mouseWorldPosition;
-    paint_cursor.asPointPaint.radius = m_paintRadius;
-
     std::vector<FluidSimExternalDebug2D> debugs;
-    debugs.push_back(set_white);
-    debugs.push_back(paint_cursor);
+    if( m_visualiseType == VisualiseType::FlatColor )
+    {
+        FluidSimExternalDebug2D set_color{ FluidSimExternalDebugType2D::SetColor };
+        set_color.asSetColor.color = m_nodeColor;
+        debugs.push_back(set_color);
+    }
+    else if( m_visualiseType == VisualiseType::MouseSelection )
+    {
+        FluidSimExternalDebug2D set_color{ FluidSimExternalDebugType2D::SetColor };
+        set_color.asSetColor.color = m_nodeColor;
+        debugs.push_back(set_color);
+
+        FluidSimExternalDebug2D paint_cursor{ FluidSimExternalDebugType2D::PointPaint };
+        paint_cursor.asPointPaint.color = m_paintColor;
+        paint_cursor.asPointPaint.position = m_mouseWorldPosition;
+        paint_cursor.asPointPaint.radius = m_paintRadius;
+        debugs.push_back(paint_cursor);
+    }
+    else if( m_visualiseType == VisualiseType::DensityView )
+    {
+        FluidSimExternalDebug2D density_view{ FluidSimExternalDebugType2D::SetDensityColor };
+        density_view.asDensityColor.min_density = m_minDensityDisplay;
+        density_view.asDensityColor.max_density = m_maxDensityDisplay;
+        density_view.asDensityColor.min_color = m_densityMinColor;
+        density_view.asDensityColor.max_color = m_densityMaxColor;
+        debugs.push_back(density_view);
+    }
+    else
+    {
+        FluidSimExternalDebug2D set_color{ FluidSimExternalDebugType2D::SetColor };
+        set_color.asSetColor.color = { 1.f, 1.f, 1.f };
+        debugs.push_back(set_color);
+    }
+
     m_simulation->ApplyDebug(debugs);
 }
 
 void FluidApp::update_simulation_debug()
 {
+    static bool show_controls = false;
+    static bool show_dist_debug = false;
+    static bool show_visual = false;
+
     ImGui::Begin("Stats");
     static f64 delta_time = fw::Time::delta_time();
     static f64 update_display_rolling = 1.0;
@@ -191,21 +222,8 @@ void FluidApp::update_simulation_debug()
     ImGui::LabelText("FPS", "%.2f", 1.0 / delta_time);
     ImGui::End();
 
-    ImGui::Begin("Controls");
-    ImGui::InputFloat("Move Sensitivity", &m_moveSensitivity);
-    ImGui::InputFloat("Zoom Sensitivity", &m_zoomSensitivity);
-    ImGui::End();
+    ImGui::Begin("Options");
 
-    ImGui::Begin("Fluid Simulation Settings");
-    ImGui::SliderFloat("Node Radius", &m_nodeRadius, 0.f, 10.f);
-    ImGui::SliderFloat("Smoothing Radius", &m_smoothingRadius, m_nodeRadius, std::min(m_simWidth, m_simHeight));
-    ImGui::SliderFloat("Selection Radius", &m_paintRadius, 0.f, std::max(m_simWidth, m_simHeight));
-
-    ImGui::Checkbox("Should bounce?", &m_boundryBounce);
-    if( m_boundryBounce )
-        ImGui::SliderFloat("Damping Factor", &m_dampeningFactor, 0.f, 1.f);
-
-    ImGui::SliderFloat2("Dimensions", &m_simWidth, 0.f, 100.f);
     ImGui::SliderFloat("Gravity", &m_gravityValue, 0.f, 20.f);
     ImGui::Checkbox("Paused?", &m_simPaused);
 
@@ -216,9 +234,67 @@ void FluidApp::update_simulation_debug()
         initialise_simulation();
     }
 
-    distribute_nodes_debug();
+    ImGui::Checkbox("Show Node Setup", &show_dist_debug);
+    ImGui::Checkbox("Display Controls", &show_controls);
+    ImGui::Checkbox("Display Visualisers", &show_visual);
 
     ImGui::End();
+
+    if( show_visual )
+    {
+        ImGui::Begin("Visualisers");
+        const char* labels[3] =
+        {
+            "Flat Color",
+            "Mouse Selection",
+            "Density View",
+        };
+
+        ImGui::Combo("Types", (int*)&m_visualiseType, labels, 3);
+
+        if( m_visualiseType == VisualiseType::FlatColor )
+        {
+            ImGui::ColorEdit3("Color", &m_nodeColor.x);
+        }
+        else if( m_visualiseType == VisualiseType::MouseSelection )
+        {
+            ImGui::SliderFloat("Selection Radius", &m_paintRadius, 0.f, std::max(m_simWidth, m_simHeight));
+            ImGui::ColorEdit3("Color", &m_nodeColor.x);
+            ImGui::ColorEdit3("Selected Color", &m_paintColor.x);
+        }
+        else if( m_visualiseType == VisualiseType::DensityView )
+        {
+            ImGui::SliderFloat2("Min/Max Density", &m_minDensityDisplay, 0.f, 10.f);
+            ImGui::ColorEdit3("Min Color", &m_densityMinColor.x);
+            ImGui::ColorEdit3("Max Color", &m_densityMaxColor.x);
+        }
+        ImGui::End();
+    }
+
+    if( show_dist_debug )
+    {
+        ImGui::Begin("Node Startup Config");
+        ImGui::SliderFloat("Node Radius", &m_nodeRadius, 0.f, 10.f);
+        ImGui::SliderFloat("Smoothing Radius", &m_smoothingRadius, m_nodeRadius, std::min(m_simWidth, m_simHeight));
+        ImGui::SliderFloat2("Dimensions", &m_simWidth, 0.f, 100.f);
+        ImGui::SliderFloat("Target Density", &m_targetDensity, 0.f, 10.f);
+        ImGui::SliderFloat("Pressure Multiplier", &m_pressureMultiplier, 0.f, 50.f);
+
+        ImGui::Checkbox("Should bounce?", &m_boundryBounce);
+        if( m_boundryBounce )
+            ImGui::SliderFloat("Damping Factor", &m_dampeningFactor, 0.f, 1.f);
+
+        distribute_nodes_debug();
+        ImGui::End();
+    }
+
+    if( show_controls )
+    {
+        ImGui::Begin("Controls");
+        ImGui::InputFloat("Move Sensitivity", &m_moveSensitivity);
+        ImGui::InputFloat("Zoom Sensitivity", &m_zoomSensitivity);
+        ImGui::End();
+    }
 }
 
 void FluidApp::shutdown_simulation()
@@ -367,6 +443,9 @@ void FluidApp::update_movement()
     glm::f32vec2 local_mouse = mouse / m_viewport.get_screen_extent();
 
     m_mouseWorldPosition = -m_viewport.get_view_position() + (local_mouse * m_viewport.get_view_extent());
+
+    if( Input::get_key_pressed(KeyCode::Space) )
+        m_simPaused = !m_simPaused;
 }
 
 void FluidApp::distribute_nodes()
@@ -382,6 +461,9 @@ void FluidApp::distribute_nodes()
     case DistributionTechnique::Point:
         distribute_nodes_point();
         break;
+    case DistributionTechnique::Random:
+        distribute_nodes_random();
+        break;
     }
 
     m_simulation->FinishInserting();
@@ -389,14 +471,15 @@ void FluidApp::distribute_nodes()
 
 void FluidApp::distribute_nodes_debug()
 {
-    const char* labels[3] =
+    const char* labels[4] =
     {
         "Grid",
         "Circular",
         "Point",
+        "Random"
     };
 
-    ImGui::Combo("Technique", (int*)&m_distributeTechnique, labels, 3);
+    ImGui::Combo("Technique", (int*)&m_distributeTechnique, labels, 4);
     ImGui::DragInt("Node Count", (int*)&m_nodeCount);
 
     switch( m_distributeTechnique )
@@ -444,7 +527,7 @@ void FluidApp::distribute_nodes_grid()
                 .node_radius = m_nodeRadius,
                 .density = 0.f,
                 .mass = 1.f,
-                .color = { 1.f, 1.f, 1.f }
+                .color = m_nodeColor
             };
             m_simulation->InsertNode(node, position);
         }
@@ -467,7 +550,7 @@ void FluidApp::distribute_nodes_circular()
             .node_radius = m_nodeRadius,
             .density = 0.f,
             .mass = 1.f,
-            .color = { 1.f, 1.f, 1.f }
+            .color = m_nodeColor
         };
 
         m_simulation->InsertNode(node, position);
@@ -490,7 +573,32 @@ void FluidApp::distribute_nodes_point()
             .node_radius = m_nodeRadius,
             .density = 0.f,
             .mass = 1.f,
-            .color = { 1.f, 1.f, 1.f }
+            .color = m_nodeColor
+        };
+
+        m_simulation->InsertNode(node, position);
+    }
+}
+
+void FluidApp::distribute_nodes_random()
+{
+    for( u32 idx = 0; idx < m_nodeCount; idx++ )
+    {
+        f32 rand0 = f32_cast(rand()) / RAND_MAX;
+        f32 rand1 = f32_cast(rand()) / RAND_MAX;
+
+        glm::f32vec2 position
+        {
+            m_simWidth * rand0,
+            m_simHeight * rand1
+        };
+        FluidNodeInfo2D node
+        {
+            .velocity = { 0.f, 0.f },
+            .node_radius = m_nodeRadius,
+            .density = 0.f,
+            .mass = 1.f,
+            .color = m_nodeColor
         };
 
         m_simulation->InsertNode(node, position);
@@ -499,7 +607,7 @@ void FluidApp::distribute_nodes_point()
 
 void FluidApp::distribute_nodes_grid_debug()
 {
-    ImGui::DragFloat("Spacing", &m_dngSpacing, 0.1f, m_nodeRadius * 2.f);
+    ImGui::DragFloat("Spacing", &m_dngSpacing, 0.05f, m_nodeRadius * 2.f);
 }
 
 void FluidApp::distribute_nodes_circular_debug()
