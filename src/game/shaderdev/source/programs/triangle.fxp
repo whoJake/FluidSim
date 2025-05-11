@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<Program>
+  <Name>triangle</Name>
+  <Passes>
+    <Item>
+      <VertexShader>0</VertexShader>
+      <FragmentShader>1</FragmentShader>
+      
+      <ColorOutputs>
+        <Item>
+          <Format>R8G8B8A8_SRGB</Format>
+        </Item>
+      </ColorOutputs>
+      
+      <Settings>
+        <PolygonMode>Fill</PolygonMode>
+        <!-- <LineWidth>10</LineWidth> -->
+      </Settings>
+    </Item>
+  </Passes>
+  <Shaders>
+    <Item>
+      <Stage>VERTEX</Stage>
+      <EntryPoint>main</EntryPoint>
+      <File>source/shaders/triangle.vert</File>
+    </Item>
+    <Item>
+      <Stage>FRAGMENT</Stage>
+      <EntryPoint>main</EntryPoint>
+      <File>source/shaders/triangle.frag</File>
+    </Item>
+  </Shaders>
+</Program>

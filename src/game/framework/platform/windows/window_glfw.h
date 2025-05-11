@@ -26,7 +26,10 @@ public:
 
     glm::f64vec2 poll_mouse_pos() const override;
 
-    VkSurfaceKHR create_surface(vk::Instance& instance) override;
+#ifdef GFX_SUPPORTS_VULKAN
+    bool create_vulkan_surface(VkInstance instance, VkSurfaceKHR* surface) override;
+#endif // GFX_SUPPORTS_VULKAN
+
     std::vector<const char*> get_required_surface_extensions() const override;
 private:
     void setup_events() const;

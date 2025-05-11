@@ -1,5 +1,5 @@
 ﻿workspace "game"
-    architecture "x64"
+  architecture "x64"
 
   configurations
   {
@@ -14,9 +14,8 @@
   prj_Framework = "framework"
   prj_Graphics = "graphics"
   
-  prj_DataDrivenGen = "DataDrivenGen"
-  prj_Sandbox = "Sandbox"
   prj_Crawler = "game"
+  prj_Shaderdev = "shaderdev"
 
   prj_ImGui = "DearImGui"
 
@@ -35,10 +34,9 @@
   {
     "%{prj.name}/**.inl",
     "%{prj.name}/**.h",
+    "%{prj.name}/**.c",
     "%{prj.name}/**.cpp",
     "%{prj.name}/**.hpp",
-
-    "game.pm5.lua",
   }
 
   exceptionhandling ("Off")
@@ -104,272 +102,198 @@
 
   filter {}
 
-  ----------------------------------------------------------------------
-  ---------------------------------CORE---------------------------------
-  ----------------------------------------------------------------------
+  group "engine" 
+      ----------------------------------------------------------------------
+      ---------------------------------CORE---------------------------------
+      ----------------------------------------------------------------------
 
-  project (prj_Core)
-    location "%{prj.name}"
-    kind "StaticLib"
+      project (prj_Core)
+        location "%{prj.name}"
+        kind "StaticLib"
     
-    includedirs
-    {
-      "%{prj.name}",
+        includedirs
+        {
+          "%{prj.name}",
     
-      "%{g_Vendordir}/pugixml-1.14/src", --used by core
-      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
-    }
+          "%{g_Vendordir}/pugixml-1.14/src", --used by core
+          "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+
+          -- stb
+          "%{g_Vendordir}/stb",
+        }
     
-    buildoptions
-    {
-      "/FIforceinclude.h",
-    }
-    --pchheader "forceinclude.h"
-    --pchsource "forceinclude.cpp"
+        buildoptions
+        {
+          "/FIforceinclude.h",
+        }
+        --pchheader "forceinclude.h"
+        --pchsource "forceinclude.cpp"
 
-  ----------------------------------------------------------------------
-  -------------------------------GRAPHICS-------------------------------
-  ----------------------------------------------------------------------
+      ----------------------------------------------------------------------
+      -------------------------------GRAPHICS-------------------------------
+      ----------------------------------------------------------------------
 
-  project (prj_Graphics)
-    location "%{prj.name}"
-    kind "StaticLib"
+      project (prj_Graphics)
+        location "%{prj.name}"
+        kind "StaticLib"
 
-    includedirs
-    {
-      "%{g_Vendordir}/pugixml-1.14/src", --used by core
-      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+        includedirs
+        {
+          "%{g_Vendordir}/pugixml-1.14/src", --used by core
+          "%{g_Vendordir}/glm-1.0.0/glm", --used by core
       
-      "%{prj.name}",
-      "%{prj_Core}",
+          "%{prj.name}",
+          "%{prj_Core}",
 
-      -- glfw
-      "%{g_Vendordir}/glfw",
+          -- glfw
+          "%{g_Vendordir}/glfw",
 
-      -- vulkan
-      "%VULKAN_SDK%/Include",
-      "%{g_Vendordir}/vma3.0.1",
+          -- vulkan
+          "%VULKAN_SDK%/Include",
+          "%{g_Vendordir}/vma3.0.1",
 
-      -- spirv/glsl
-      "%{g_Vendordir}/glslang",
-    }
+          -- spirv/glsl
+          "%{g_Vendordir}/glslang",
+        }
     
-    buildoptions
-    {
-      "/FIforceinclude.h",
-    }
+        buildoptions
+        {
+          "/FIforceinclude.h",
+        }
 
-    dependson
-    {
-      "%{prj_Core}"
-    }
+        dependson
+        {
+          "%{prj_Core}"
+        }
 
-    libdirs
-    {
-      "%{g_Vendordir}/glfw/lib-vc2022",
-      "%VULKAN_SDK%/Lib",
-    }
+        libdirs
+        {
+          "%{g_Vendordir}/glfw/lib-vc2022",
+          "%VULKAN_SDK%/Lib",
+        }
 
-    links
-    {
-      "%{prj_Core}",
+        links
+        {
+          "%{prj_Core}",
 
-      -- glfw
-      "glfw3_mt",
+          -- glfw
+          "glfw3_mt",
 
-      -- vulkan
-      "vulkan-1",
-      "spirv-cross-core",
-      "spirv-cross-glsl",
-      "glslang",
-      "glslang-default-resource-limits",
-      "OSDependent",
-      "GenericCodeGen",
-      "MachineIndependent",
-      "SPIRV",
-      "SPIRV-Tools",
-      "SPIRV-Tools-opt",
-    }
+          -- vulkan
+          "vulkan-1",
+          "spirv-cross-core",
+          "spirv-cross-glsl",
+          "glslang",
+          "glslang-default-resource-limits",
+          "OSDependent",
+          "GenericCodeGen",
+          "MachineIndependent",
+          "SPIRV",
+          "SPIRV-Tools",
+          "SPIRV-Tools-opt",
+        }
 
-    filter "system:windows"
-      defines
-      {
-      }
+        filter "system:windows"
+          defines
+          {
+          }
 
-    filter "configurations:Debug"
-      defines
-      {
-      }
+        filter "configurations:Debug"
+          defines
+          {
+          }
 
-    filter "configurations:ReleasePdb"
-      defines
-      {
-      }
+        filter "configurations:ReleasePdb"
+          defines
+          {
+          }
 
-    filter "configurations:Release"
-      defines
-      {
-      }
+        filter "configurations:Release"
+          defines
+          {
+          }
 
-     filter "configurations:Final"
-      defines
-      {
-      }
+         filter "configurations:Final"
+          defines
+          {
+          }
 
-  ----------------------------------------------------------------------
-  -------------------------------FRAMEWORK------------------------------
-  ----------------------------------------------------------------------
+      ----------------------------------------------------------------------
+      -------------------------------FRAMEWORK------------------------------
+      ----------------------------------------------------------------------
 
-  project (prj_Framework)
-    location "%{prj.name}"
-    kind "StaticLib"
+      project (prj_Framework)
+        location "%{prj.name}"
+        kind "StaticLib"
 
-    includedirs
-    {
-      "%{g_Vendordir}/pugixml-1.14/src", --used by core
-      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
+        includedirs
+        {
+          "%{g_Vendordir}/pugixml-1.14/src", --used by core
+          "%{g_Vendordir}/glm-1.0.0/glm", --used by core
       
-      "%{prj.name}",
-      "%{prj_Core}",
-      "%{prj_Graphics}",
+          "%{prj.name}",
+          "%{prj_Core}",
+          "%{prj_Graphics}",
 
-      -- from prj_Graphics
-      -- glfw
-      "%{g_Vendordir}/glfw",
+          -- from prj_Graphics
+          -- glfw
+          "%{g_Vendordir}/glfw",
 
-      -- vulkan
-      "%VULKAN_SDK%/Include",
-      "%{g_Vendordir}/vma3.0.1",
+          -- vulkan
+          "%VULKAN_SDK%/Include",
+          "%{g_Vendordir}/vma3.0.1",
 
-      -- from prj_ImGui
-      "%{prj_ImGui}",
-    }
+          -- from prj_ImGui
+          "%{prj_ImGui}",
+        }
 
-    buildoptions
-    {
-      "/FIforceinclude.h",
-    }
+        buildoptions
+        {
+          "/FIforceinclude.h",
+        }
 
-    dependson
-    {
-      "%{prj_Core}",
-      "%{prj_Graphics}",
-      "%{prj_ImGui}",
-    }
+        dependson
+        {
+          "%{prj_Core}",
+          "%{prj_Graphics}",
+          "%{prj_ImGui}",
+        }
 
-    libdirs
-    {
-    }
+        libdirs
+        {
+        }
 
-    links
-    {
-      "%{prj_Core}",
-      "%{prj_Graphics}",
-      "%{prj_ImGui}",
-    }
+        links
+        {
+          "%{prj_Core}",
+          "%{prj_Graphics}",
+          "%{prj_ImGui}",
+        }
 
-    filter "configurations:Debug"
-      defines
-      {
-      }
+        filter "configurations:Debug"
+          defines
+          {
+          }
 
-    filter "configurations:ReleasePdb"
-      defines
-      {
-      }
+        filter "configurations:ReleasePdb"
+          defines
+          {
+          }
 
-    filter "configurations:Release"
-      defines
-      {
-      }
+        filter "configurations:Release"
+          defines
+          {
+          }
 
-     filter "configurations:Final"
-      defines
-      {
-      }
+         filter "configurations:Final"
+          defines
+          {
+          }
 
+  group ""
   ----------------------------------------------------------------------
-  ----------------------------------GAME--------------------------------
+  --------------------------------Crawler-------------------------------
   ----------------------------------------------------------------------
-
-  project (prj_Sandbox)
-    location "%{prj.name}"
-    kind "ConsoleApp"
-    
-    includedirs
-    {
-      "%{g_Vendordir}/pugixml-1.14/src", --used by core
-      "%{g_Vendordir}/glm-1.0.0/glm", --used by core
-      
-      "%{prj.name}",
-      "%{prj_Core}",
-      "%{prj_Graphics}",
-      "%{prj_Framework}",
-
-      -- from prj_Graphics
-      -- glfw
-      "%{g_Vendordir}/glfw",
-
-      -- vulkan
-      "%VULKAN_SDK%/Include",
-      "%{g_Vendordir}/vma3.0.1",
-
-      -- from prj_Framework
-      -- imgui
-      "%{g_Vendordir}/imgui-1.90.9",
-
-      -- from prj_ImGui
-      "%{prj_ImGui}",
-    }
-
-    dependson
-    {
-      "%{prj_Core}",
-      "%{prj_Graphics}",
-      "%{prj_ImGui}",
-      "%{prj_Framework}",
-    }
-
-    buildoptions
-    {
-      "/FIforceinclude.h",
-    }
-
-    libdirs
-    {
-    }
-
-    links
-    {
-      "%{prj_Core}",
-      "%{prj_Graphics}",
-      "%{prj_ImGui}",
-      "%{prj_Framework}",
-    }
-
-    filter "configurations:Debug"
-      defines
-      {
-      }
-
-    filter "configurations:ReleasePdb"
-      defines
-      {
-      }
-
-    filter "configurations:Release"
-      defines
-      {
-      }
-
-     filter "configurations:Final"
-      defines
-      {
-      }
-    
-----------------------------------------------------------------------
---------------------------------Crawler-------------------------------
-----------------------------------------------------------------------
   project (prj_Crawler)
     location "%{prj.name}"
     kind "ConsoleApp"
@@ -425,6 +349,11 @@
       "%{prj_Framework}",
     }
 
+    files
+    {
+        "game.pm5.lua",
+    }
+
     filter "configurations:Debug"
       defines
       {
@@ -445,29 +374,37 @@
       {
       }
 
-group "Libraries"
-  ----------------------------------------------------------------------
-  -----------------------------DataDrivenGen----------------------------
-  ----------------------------------------------------------------------
-
-  project (prj_DataDrivenGen)
+----------------------------------------------------------------------
+--------------------------------Shaderdev-----------------------------
+----------------------------------------------------------------------
+  project (prj_Shaderdev)
     location "%{prj.name}"
     kind "ConsoleApp"
     
-     exceptionhandling ("On")
-
     includedirs
     {
-      "%{prj.name}",
       "%{g_Vendordir}/pugixml-1.14/src", --used by core
       "%{g_Vendordir}/glm-1.0.0/glm", --used by core
-
+      
+      "%{prj.name}",
       "%{prj_Core}",
+	  "%{prj_Graphics}",
+
+      -- I want to get rid of this dependency. We shouldn't
+      -- have to load any vulkan dll's (glslang only) in shaderdev..
+      -- I'm pretty sure this is coming from the inclusion of pipeline_state in shader.h (which goes through to gfxdefines.h)
+      -- vulkan
+      "%VULKAN_SDK%/Include",
+      "%{g_Vendordir}/vma3.0.1",
+
+      -- spirv/glsl
+      "%{g_Vendordir}/glslang",
     }
 
     dependson
     {
       "%{prj_Core}",
+	  "%{prj_Graphics}",
     }
 
     buildoptions
@@ -475,13 +412,33 @@ group "Libraries"
       "/FIforceinclude.h",
     }
 
+    files
+    {
+        "%{prj.name}/*.fx",
+        "%{prj.name}/*.glsl",
+    }
+
     libdirs
     {
+      "%VULKAN_SDK%/Lib",
     }
 
     links
     {
       "%{prj_Core}",
+	  "%{prj_Graphics}",
+
+      -- shader parsing
+      "spirv-cross-core",
+      "spirv-cross-glsl",
+      "glslang",
+      "glslang-default-resource-limits",
+      "OSDependent",
+      "GenericCodeGen",
+      "MachineIndependent",
+      "SPIRV",
+      "SPIRV-Tools",
+      "SPIRV-Tools-opt",
     }
 
     filter "configurations:Debug"

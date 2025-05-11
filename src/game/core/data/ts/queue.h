@@ -38,8 +38,9 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         if( m_tail != m_head )
         {
+            u64 n = (m_tail + 1) % m_data.size();
             *item = m_data[m_tail];
-            m_tail = (m_tail + 1) % m_data.size();
+            m_tail = n;
             return true;
         }
         return false;

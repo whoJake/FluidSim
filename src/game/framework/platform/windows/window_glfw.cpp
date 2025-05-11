@@ -11,8 +11,6 @@
 #include "../events/MouseEvent.h"
 #include "../events/KeyEvent.h"
 
-#include "core/Instance.h"
-
 static KeyCode translate_key_code(int key) {
     static const std::unordered_map<int, KeyCode> lookup = {
         {GLFW_KEY_SPACE, KeyCode::Space},
@@ -166,14 +164,13 @@ void* window_glfw::get_native_handle() const
     return m_handle;
 }
 
-VkSurfaceKHR window_glfw::create_surface(vk::Instance& instance)
+#ifdef GFX_SUPPORTS_VULKAN
+bool window_glfw::create_vulkan_surface(VkInstance instance, VkSurfaceKHR* surface)
 {
-    VkSurfaceKHR surface{ VK_NULL_HANDLE };
-    VkResult result = glfwCreateWindowSurface(instance.get_handle(), m_handle, nullptr, &surface);
-    VK_CHECK(result, "Failed to create VkSurface on GLFW window.");
-
-    return surface;
+    VkResult result = glfwCreateWindowSurface(instance, m_handle, nullptr, surface);
+    return result == VK_SUCCESS;
 }
+#endif // GFX_SUPPORTS_VULKAN
 
 std::vector<const char*> window_glfw::get_required_surface_extensions() const
 {

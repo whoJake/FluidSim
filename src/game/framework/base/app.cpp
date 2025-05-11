@@ -1,9 +1,9 @@
 #include "app.h"
 
 #include "system/param.h"
-#include "system/details/basic_log.h"
-#include "system/details/log_console.h"
-#include "system/details/log_mt.h"
+#include "system/assert.h"
+#include "system/memory.h"
+#include "memory_zone.h" // gfx
 
 MAKEPARAM(no_log);
 
@@ -21,25 +21,20 @@ i32 app::run(i32 argc, const char* argv[])
     }
     sys::param::init(args);
 
-    bool success = true;
-    if( !p_no_log.get() )
+    if( p_no_log.get() )
     {
-        success |= sys::log::initialise(make_log()) == 1;
-    }
-    else
-    {
-        success |= sys::log::initialise(new sys::log::details::basic_log(sys::log::level::disable)) == 1;
+        sys::channel::get_global_channel()->set_severity(sys::SEVERITY_DISABLE);
     }
 
-    if( !success )
-    {
-        EXITCODE(app_exitcodes::init_failure);
-    }
+    // Should this be here or in game code/mmain? Seems fine here for now..
+    sys::zone_allocator::max_zones = MEMZONE_SYSTEM_COUNT + MEMZONE_GFX_COUNT;
+    sys::memory::setup_heap();
+    sys::memory::initialise_system_zones();
+    initialise_gfx_zones();
 
-    success |= on_startup();
-    if( !success )
+    if( !on_startup() )
     {
-        EXITCODE(app_exitcodes::init_failure);
+        return EXIT_INIT_FAILURE;
     }
 
     i32 exitcode = app_main();
@@ -48,14 +43,6 @@ i32 app::run(i32 argc, const char* argv[])
 
     sys::log::shutdown();
     return exitcode;
-}
-
-sys::log::details::log_manager* app::make_log() const
-{
-    sys::log::details::logger logger;
-    logger.register_target(new sys::log::details::console_target());
-
-    return new sys::log::details::log_mt(std::move(logger), sys::log::level::none, 8192, 1);
 }
 
 bool app::on_startup()

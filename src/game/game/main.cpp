@@ -1,7 +1,7 @@
-#include "AppStartup.h"
+#include "AppSelector.h"
 
 int main(int argc, const char* argv[])
 {
-	AppStartup app;
+	AppSelector app;
 	return app.run(argc, argv);
 }

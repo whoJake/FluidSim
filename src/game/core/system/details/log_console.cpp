@@ -14,6 +14,7 @@ console_target::console_target() :
     m_levelToColor(u8_cast(level::count))
 {
     m_levelToColor[u8_cast(level::none)] = color::none;
+    m_levelToColor[u8_cast(level::verbose)] = color::dark_green;
     m_levelToColor[u8_cast(level::profile)] = color::green;
     m_levelToColor[u8_cast(level::debug)] = color::cyan;
     m_levelToColor[u8_cast(level::info)] = color::blue;

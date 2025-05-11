@@ -43,6 +43,8 @@ public:
 
     static bool register_event(Event& event);
 
+    static double get_mouse_x();
+    static double get_mouse_y();
 private:
     static KeyState& get_key_state(KeyCode code);
 

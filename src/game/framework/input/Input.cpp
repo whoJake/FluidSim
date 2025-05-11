@@ -135,6 +135,16 @@ bool Input::register_event(Event& event)
     return false;
 }
 
+double Input::get_mouse_x()
+{
+    return get_instance()->m_currentMouseX;
+}
+
+double Input::get_mouse_y()
+{
+    return get_instance()->m_currentMouseY;
+}
+
 KeyState& Input::get_key_state(KeyCode code)
 {
     return get_instance()->m_keyStates[static_cast<size_t>(code)];

@@ -31,6 +31,7 @@ enum class level
     warn,
     error,
     fatal,
+    verbose,
 
     count,
     disable,
@@ -55,6 +56,7 @@ void messagef(channel chnl, level lvl, std::string format, A&&... args)
 }
 
 #define CHANNEL_LOG_MSG(chnl, fmt, ...) ::sys::log::messagef(chnl, ::sys::log::level::none, fmt, __VA_ARGS__)
+#define CHANNEL_LOG_VERBOSE(chnl, fmt, ...) ::sys::log::messagef(chnl, ::sys::log::level::verbose, fmt, __VA_ARGS__)
 #define CHANNEL_LOG_PROFILE(chnl, fmt, ...) ::sys::log::messagef(chnl, ::sys::log::level::profile, fmt, __VA_ARGS__)
 #define CHANNEL_LOG_DEBUG(chnl, fmt, ...) ::sys::log::messagef(chnl, ::sys::log::level::debug, fmt, __VA_ARGS__)
 #define CHANNEL_LOG_INFO(chnl, fmt, ...) ::sys::log::messagef(chnl, ::sys::log::level::info, fmt, __VA_ARGS__)
@@ -63,6 +65,7 @@ void messagef(channel chnl, level lvl, std::string format, A&&... args)
 #define CHANNEL_LOG_FATAL(chnl, fmt, ...) ::sys::log::messagef(chnl, ::sys::log::level::fatal, fmt, __VA_ARGS__)
 
 #define SYSLOG_MSG(fmt, ...) CHANNEL_LOG_MSG(::sys::log::channel::none, fmt, __VA_ARGS__)
+#define SYSLOG_VERBOSE(fmt, ...) CHANNEL_LOG_VERBOSE(::sys::log::channel::none, fmt, __VA_ARGS__)
 #define SYSLOG_PROFILE(fmt, ...) CHANNEL_LOG_PROFILE(::sys::log::channel::none, fmt, __VA_ARGS__)
 #define SYSLOG_DEBUG(fmt, ...) CHANNEL_LOG_DEBUG(::sys::log::channel::none, fmt, __VA_ARGS__)
 #define SYSLOG_INFO(fmt, ...) CHANNEL_LOG_INFO(::sys::log::channel::none, fmt, __VA_ARGS__)
@@ -161,6 +164,8 @@ inline level parse_level(const char* string)
         return level::none;
     if( !strcmp(string, "") )
         return level::none;
+    if( !strcmp(string, "verbose") )
+        return level::verbose;
     if( !strcmp(string, "profile") )
         return level::profile;
     if( !strcmp(string, "debug") )
@@ -183,6 +188,8 @@ inline constexpr const char* level_to_string(level lvl)
     {
     case level::none:
         return "";
+    case level::verbose:
+        return "verb";
     case level::profile:
         return "prof";
     case level::debug:

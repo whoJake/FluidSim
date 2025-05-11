@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<Program>
+  <Name>basic_shaded</Name>
+  <Passes>
+    <Item>
+      <VertexShader>0</VertexShader>
+      <FragmentShader>1</FragmentShader>
+    </Item>
+  </Passes>
+  <Shaders>
+    <Item>
+      <Stage>VERTEX</Stage>
+      <EntryPoint>main</EntryPoint>
+      <File>source/shaders/basic_vertex.vert</File>
+    </Item>
+    <Item>
+      <Stage>FRAGMENT</Stage>
+      <EntryPoint>main</EntryPoint>
+      <File>source/shaders/basic_vertex.frag</File>
+    </Item>
+  </Shaders>
+</Program>

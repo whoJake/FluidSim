@@ -1,7 +1,5 @@
 #pragma once
 
-#include "system/log.h"
-
 namespace fw
 {
 
@@ -12,6 +10,8 @@ enum class app_exitcodes
 };
 
 #define EXITCODE(val) i32_cast(val)
+#define EXIT_SUCCESS EXITCODE(::fw::app_exitcodes::success)
+#define EXIT_INIT_FAILURE EXITCODE(::fw::app_exitcodes::init_failure)
 
 class app
 {
@@ -28,8 +28,6 @@ public:
 
     virtual bool on_startup();
     virtual void on_shutdown();
-
-    virtual sys::log::details::log_manager* make_log() const;
 };
 
 } // fw

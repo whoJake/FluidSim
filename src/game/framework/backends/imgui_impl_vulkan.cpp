@@ -85,6 +85,8 @@
 #include "imgui.h"
 #ifndef IMGUI_DISABLE
 #include "imgui_impl_vulkan.h"
+#include "gfx_core/driver.h"
+#include "gfx_core/vulkan/vkconverts.h"
 #include <stdio.h>
 #ifndef IM_MAX
 #define IM_MAX(A, B)    (((A) >= (B)) ? (A) : (B))
@@ -217,23 +219,23 @@ struct ImGui_ImplVulkan_WindowRenderBuffers
 // Vulkan data
 struct ImGui_ImplVulkan_Data
 {
-    ImGui_ImplVulkan_InitInfo   VulkanInitInfo;
-    VkDeviceSize                BufferMemoryAlignment;
-    VkPipelineCreateFlags       PipelineCreateFlags;
-    VkDescriptorSetLayout       DescriptorSetLayout;
-    VkPipelineLayout            PipelineLayout;
-    VkPipeline                  Pipeline;
-    VkShaderModule              ShaderModuleVert;
-    VkShaderModule              ShaderModuleFrag;
+    ImGui_ImplVulkan_InitInfo        VulkanInitInfo;
+    VkDeviceSize                     BufferMemoryAlignment;
+    VkPipelineCreateFlags            PipelineCreateFlags;
+    VkDescriptorSetLayout            DescriptorSetLayout;
+    VkPipelineLayout                 PipelineLayout;
+    VkPipeline                       Pipeline;
+    VkShaderModule                   ShaderModuleVert;
+    VkShaderModule                   ShaderModuleFrag;
 
     // Font data
-    VkSampler                   FontSampler;
-    VkDeviceMemory              FontMemory;
-    VkImage                     FontImage;
-    VkImageView                 FontView;
-    VkDescriptorSet             FontDescriptorSet;
-    VkCommandPool               FontCommandPool;
-    VkCommandBuffer             FontCommandBuffer;
+    VkSampler                        FontSampler;
+    VkDeviceMemory                   FontMemory;
+    VkImage                          FontImage;
+    VkImageView                      FontView;
+    VkDescriptorSet                  FontDescriptorSet;
+    VkCommandPool                    FontCommandPool;
+    VkCommandBuffer                  FontCommandBuffer;
 
     // Render buffers for main window
     ImGui_ImplVulkan_WindowRenderBuffers MainWindowRenderBuffers;
@@ -426,6 +428,56 @@ static void CreateOrResizeBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory
     err = vkBindBufferMemory(v->Device, buffer, buffer_memory, 0);
     check_vk_result(err);
     buffer_size = buffer_size_aligned;
+}
+
+bool ImGui_GfxDevice_ImplVulkan_Init(ImGui_GfxDevice_ImplVulkan_InitInfo* info)
+{
+    IM_ASSERT(info);
+    IM_ASSERT(info->Device);
+    IM_ASSERT(info->Pool);
+    IM_ASSERT(info->MinImageCount >= 0);
+    IM_ASSERT(info->ImageCount >= info->MinImageCount);
+
+    ImGui_ImplVulkan_InitInfo init_info{ };
+    init_info.Instance = info->Device->get_impl<gfx::device_state_vk>().instance;
+    init_info.PhysicalDevice = info->Device->get_gpu().get_impl<VkPhysicalDevice>();
+    init_info.Device = info->Device->get_impl<gfx::device_state_vk>().device;
+
+    init_info.QueueFamily = info->Device->get_impl<gfx::device_state_vk>().get_family_index_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    init_info.Queue = info->Device->get_impl<gfx::device_state_vk>().get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT);
+    init_info.DescriptorPool = info->Pool->get_impl<VkDescriptorPool>();
+
+    init_info.UseDynamicRendering = true;
+
+    init_info.MinImageCount = info->MinImageCount;
+    init_info.ImageCount = info->ImageCount;
+    init_info.MSAASamples = (VkSampleCountFlagBits)gfx::converters::get_sample_count_flags_vk(static_cast<gfx::sample_count_flags>(info->MSAASamples));
+
+    VkPipelineRenderingCreateInfo create_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+    create_info.viewMask = 0;
+    create_info.colorAttachmentCount = info->OutputDescription.color_output_count;
+    create_info.depthAttachmentFormat = gfx::converters::get_format_vk(info->OutputDescription.depth_output);
+    create_info.stencilAttachmentFormat = gfx::converters::get_format_vk(info->OutputDescription.stencil_output);
+
+    dt::vector<VkFormat> outputColorFormats;
+    outputColorFormats.reserve(create_info.colorAttachmentCount);
+    for( u32 idx = 0; idx < create_info.colorAttachmentCount; idx++ )
+    {
+        outputColorFormats.push_back(gfx::converters::get_format_vk(info->OutputDescription.color_outputs[idx]));
+    }
+
+    create_info.pColorAttachmentFormats = outputColorFormats.data();
+    init_info.PipelineRenderingCreateInfo = create_info;
+
+    bool result = ImGui_ImplVulkan_Init(&init_info);
+    ImGui_ImplVulkan_CreateFontsTexture();
+    return result;
+}
+
+void ImGui_GfxDevice_ImplVulkan_RenderDrawData(ImDrawData* data, gfx::graphics_context& context)
+{
+    VkCommandBuffer buffer = context.get_command_list()->get_impl<VkCommandBuffer>();
+    ImGui_ImplVulkan_RenderDrawData(data, buffer);
 }
 
 static void ImGui_ImplVulkan_SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, VkCommandBuffer command_buffer, ImGui_ImplVulkan_FrameRenderBuffers* rb, int fb_width, int fb_height)
