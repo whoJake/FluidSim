@@ -192,6 +192,15 @@ void FluidApp::update_simulation()
         density_view.asDensityColor.max_color = m_densityMaxColor;
         debugs.push_back(density_view);
     }
+    else if( m_visualiseType == VisualiseType::VelocityView )
+    {
+        FluidSimExternalDebug2D velocity_view{ FluidSimExternalDebugType2D::SetVelocityColor };
+        velocity_view.asVelocityColor.min_velocity = m_minVelocityDisplay;
+        velocity_view.asVelocityColor.max_velocity = m_maxVelocityDisplay;
+        velocity_view.asVelocityColor.min_color = m_velocityMinColor;
+        velocity_view.asVelocityColor.max_color = m_velocityMaxColor;
+        debugs.push_back(velocity_view);
+    }
     else
     {
         FluidSimExternalDebug2D set_color{ FluidSimExternalDebugType2D::SetColor };
@@ -243,14 +252,15 @@ void FluidApp::update_simulation_debug()
     if( show_visual )
     {
         ImGui::Begin("Visualisers");
-        const char* labels[3] =
+        const char* labels[4] =
         {
             "Flat Color",
             "Mouse Selection",
             "Density View",
+            "Velocity View"
         };
 
-        ImGui::Combo("Types", (int*)&m_visualiseType, labels, 3);
+        ImGui::Combo("Types", (int*)&m_visualiseType, labels, 4);
 
         if( m_visualiseType == VisualiseType::FlatColor )
         {
@@ -268,6 +278,12 @@ void FluidApp::update_simulation_debug()
             ImGui::ColorEdit3("Min Color", &m_densityMinColor.x);
             ImGui::ColorEdit3("Max Color", &m_densityMaxColor.x);
         }
+        else if( m_visualiseType == VisualiseType::VelocityView )
+        {
+            ImGui::SliderFloat2("Min/Max Velocity", &m_minVelocityDisplay, 0.f, 20.f);
+            ImGui::ColorEdit3("Min Color", &m_velocityMinColor.x);
+            ImGui::ColorEdit3("Max Color", &m_velocityMaxColor.x);
+        }
         ImGui::End();
     }
 
@@ -277,7 +293,7 @@ void FluidApp::update_simulation_debug()
         ImGui::SliderFloat("Node Radius", &m_nodeRadius, 0.f, 10.f);
         ImGui::SliderFloat("Smoothing Radius", &m_smoothingRadius, m_nodeRadius, std::min(m_simWidth, m_simHeight));
         ImGui::SliderFloat2("Dimensions", &m_simWidth, 0.f, 100.f);
-        ImGui::SliderFloat("Target Density", &m_targetDensity, 0.f, 10.f);
+        ImGui::SliderFloat("Target Density", &m_targetDensity, 0.f, 20.f);
         ImGui::SliderFloat("Pressure Multiplier", &m_pressureMultiplier, 0.f, 50.f);
 
         ImGui::Checkbox("Should bounce?", &m_boundryBounce);

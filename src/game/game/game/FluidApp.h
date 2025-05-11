@@ -46,7 +46,7 @@ private:
         Point,
         Random,
     };
-    DistributionTechnique m_distributeTechnique{ DistributionTechnique::Random };
+    DistributionTechnique m_distributeTechnique{ DistributionTechnique::Grid };
     void distribute_nodes();
     void distribute_nodes_debug();
 
@@ -55,14 +55,14 @@ private:
     void distribute_nodes_point();
     void distribute_nodes_random();
 
-    u32 m_nodeCount{ 576 };
+    u32 m_nodeCount{ 1024 };
     f32 m_nodeRadius{ 0.25f };
 
     f32 m_smoothingRadius{ 2.5f };
     bool m_boundryBounce{ true };
     f32 m_dampeningFactor{ 0.8f };
-    f32 m_targetDensity{ 3.f };
-    f32 m_pressureMultiplier{ 0.9f };
+    f32 m_targetDensity{ 8.f };
+    f32 m_pressureMultiplier{ 5.f };
 
     f32 m_dngSpacing{ 0.30f };
     void distribute_nodes_grid_debug();
@@ -96,15 +96,20 @@ private:
         FlatColor = 0,
         MouseSelection,
         DensityView,
+        VelocityView,
     };
-    VisualiseType m_visualiseType{ VisualiseType::DensityView };
+    VisualiseType m_visualiseType{ VisualiseType::VelocityView };
     glm::f32vec3 m_nodeColor{ 1.f, 1.f, 1.f };
     glm::f32vec3 m_paintColor{ 1.f, 0.f, 0.f };
     f32 m_paintRadius{ 1.5f };
-    f32 m_minDensityDisplay{ 0.f };
-    f32 m_maxDensityDisplay{ 6.f };
+    f32 m_minDensityDisplay{ 7.f };
+    f32 m_maxDensityDisplay{ 9.f };
     glm::f32vec3 m_densityMinColor{ 0.f, 0.f, 1.f };
     glm::f32vec3 m_densityMaxColor{ 1.f, 0.f, 0.f };
+    f32 m_minVelocityDisplay{ 0.f };
+    f32 m_maxVelocityDisplay{ 10.f };
+    glm::f32vec3 m_velocityMinColor{ 0.f, 0.f, 1.f };
+    glm::f32vec3 m_velocityMaxColor{ 1.f, 0.f, 0.f };
 
     glm::f32vec2 m_mouseWorldPosition{ };
 

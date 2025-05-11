@@ -40,11 +40,20 @@ struct FluidSimSetDensityColor
     glm::f32vec3 max_color;
 };
 
+struct FluidSimSetVelocityColor
+{
+    f32 min_velocity;
+    f32 max_velocity;
+    glm::f32vec3 min_color;
+    glm::f32vec3 max_color;
+};
+
 enum class FluidSimExternalDebugType2D
 {
     PointPaint = 0,
     SetColor,
     SetDensityColor,
+    SetVelocityColor,
 };
 
 struct FluidSimExternalForce2D
@@ -65,6 +74,7 @@ struct FluidSimExternalDebug2D
         FluidSimPointPaint2D asPointPaint;
         FluidSimSetColor asSetColor;
         FluidSimSetDensityColor asDensityColor;
+        FluidSimSetVelocityColor asVelocityColor;
     };
 };
 

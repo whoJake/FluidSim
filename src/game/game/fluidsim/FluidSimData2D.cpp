@@ -11,6 +11,7 @@ FluidSimData2D::FluidSimData2D(FluidSimOptions2D options) :
 void FluidSimData2D::InsertNode(FluidNodeInfo2D node, glm::f32vec2 position)
 {
     m_positions.push_back({ position.x, position.y, 0.f, 1.f });
+    m_predictedPositions.push_back(position);
     m_nodeInfos.push_back(node);
 }
 
@@ -22,12 +23,15 @@ void FluidSimData2D::MoveNodes(f64 delta_time)
         HandleEdge(node_idx);
     }
 
-    BuildSpatialLookup();
+    // This is soely for our debug features. We shouldn't ever need to build our spatial lookup
+    // from anything except the predicted positions.
+    BuildSpatialLookup(false);
 }
 
 void FluidSimData2D::ClearNodes()
 {
     m_positions.clear();
+    m_predictedPositions.clear();
     m_nodeInfos.clear();
 }
 
@@ -105,6 +109,11 @@ const std::vector<glm::f32vec4>& FluidSimData2D::GetNodePositions() const
     return m_positions;
 }
 
+const std::vector<glm::f32vec2>& FluidSimData2D::GetNodePredictedPositions() const
+{
+    return m_predictedPositions;
+}
+
 u32 FluidSimData2D::GetNodeCount() const
 {
     return u32_cast(m_positions.size());
@@ -115,7 +124,17 @@ const FluidSimOptions2D& FluidSimData2D::GetOptions() const
     return m_options;
 }
 
-void FluidSimData2D::BuildSpatialLookup()
+void FluidSimData2D::FillPredictedPositions()
+{
+    constexpr f32 const_lookahead_dt = 1.f / 120.f;
+    for( u32 node_idx = 0; node_idx < GetNodeCount(); node_idx++ )
+    {
+        m_predictedPositions[node_idx] = m_positions[node_idx];
+        m_predictedPositions[node_idx] += m_nodeInfos[node_idx].velocity * const_lookahead_dt;
+    }
+}
+
+void FluidSimData2D::BuildSpatialLookup(bool use_predicted_positions)
 {
     m_cellLookup.clear();
     m_startIndices.clear();
@@ -125,14 +144,16 @@ void FluidSimData2D::BuildSpatialLookup()
     // Build m_cellLookup
     for( u32 node_index = 0; node_index < GetNodeCount(); node_index++ )
     {
-        glm::uvec2 cell_coords = GetCellCoordinates(m_positions[node_index]);
-        m_cellLookup.push_back({ node_index, GetCellId(cell_coords) });
-
-        // TEMP
-        // m_nodeInfos[node_index].color = glm::f32vec3(
-        //     cell_coords.x / f32_cast(m_columns),
-        //     cell_coords.y / f32_cast(m_rows),
-        //     0.f);
+        if( use_predicted_positions )
+        {
+            glm::uvec2 cell_coords = GetCellCoordinates(m_predictedPositions[node_index]);
+            m_cellLookup.push_back({ node_index, GetCellId(cell_coords) });
+        }
+        else
+        {
+            glm::uvec2 cell_coords = GetCellCoordinates(m_positions[node_index]);
+            m_cellLookup.push_back({ node_index, GetCellId(cell_coords) });
+        }
     }
 
     // Sort the cell lookup

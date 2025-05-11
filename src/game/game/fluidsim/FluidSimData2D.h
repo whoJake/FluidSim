@@ -49,11 +49,13 @@ public:
     const std::vector<FluidNodeInfo2D>& GetNodeInfos() const;
 
     const std::vector<glm::f32vec4>& GetNodePositions() const;
+    const std::vector<glm::f32vec2>& GetNodePredictedPositions() const;
 
     u32 GetNodeCount() const;
     const FluidSimOptions2D& GetOptions() const;
 
-    void BuildSpatialLookup();
+    void FillPredictedPositions();
+    void BuildSpatialLookup(bool use_predicted_positions = false);
 private:
     u32 GetCellId(glm::ivec2 cell_coords) const;
     void HandleEdge(u64 node_idx);
@@ -61,6 +63,7 @@ private:
     FluidSimOptions2D m_options;
 
     std::vector<glm::f32vec4> m_positions;
+    std::vector<glm::f32vec2> m_predictedPositions;
     std::vector<FluidNodeInfo2D> m_nodeInfos;
 
     struct CellLookup
